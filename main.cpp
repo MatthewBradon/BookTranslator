@@ -353,6 +353,32 @@ void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::s
 }
 
 
+void copyImages(const std::filesystem::path& sourceDir, const std::filesystem::path& destinationDir) {
+    try {
+        // Create the destination directory if it doesn't exist
+        if (!std::filesystem::exists(destinationDir)) {
+            std::filesystem::create_directories(destinationDir);
+        }
+
+        // Traverse the source directory
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(sourceDir)) {
+            if (entry.is_regular_file()) {
+                std::string extension = entry.path().extension().string();
+                if (extension == ".jpg" || extension == ".jpeg" || extension == ".png") {
+                    std::filesystem::path destinationPath = destinationDir / entry.path().filename();
+                    std::filesystem::copy(entry.path(), destinationPath, std::filesystem::copy_options::overwrite_existing);
+                }
+            }
+        }
+        std::cout << "Image files copied successfully." << std::endl;
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+}
+
+
 int main() {
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
@@ -463,7 +489,8 @@ int main() {
     // std::filesystem::remove_all(templatePath);
 
 
-
+    // Copy images from the unzipped directory to the template directory
+    copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
 
 
     return 0;
