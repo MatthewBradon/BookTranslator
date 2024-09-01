@@ -118,6 +118,103 @@ std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<
     return sortedXHTMLFiles;
 }
 
+void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath) {
+    std::ifstream inputFile(contentOpfPath);
+    if (!inputFile.is_open()) {
+        std::cerr << "Failed to open content.opf file!" << std::endl;
+        return;
+    }
+
+    std::vector<std::string> fileContent;  // Store the entire file content
+    std::vector<std::string> manifest;
+    std::vector<std::string> spine;
+    std::string line;
+    bool insideManifest = false;
+    bool insideSpine = false;
+    bool packageClosed = false;
+
+    while (std::getline(inputFile, line)) {
+        if (line.find("</package>") != std::string::npos) {
+            packageClosed = true;
+        }
+
+        if (line.find("<manifest>") != std::string::npos) {
+            manifest.push_back(line);
+            insideManifest = true;
+        } else if (line.find("</manifest>") != std::string::npos) {
+            insideManifest = false;
+            for (size_t i = 0; i < epubChapterList.size(); ++i) {
+                std::string chapterId = "chapter" + std::to_string(i + 1);
+                manifest.push_back("    <item id=\"" + chapterId + "\" href=\"Text/" + epubChapterList[i] + "\" media-type=\"application/xhtml+xml\"/>\n");
+            }
+            manifest.push_back(line);
+        } else if (line.find("<spine>") != std::string::npos) {
+            spine.push_back(line);
+            insideSpine = true;
+        } else if (line.find("</spine>") != std::string::npos) {
+            insideSpine = false;
+            for (size_t i = 0; i < epubChapterList.size(); ++i) {
+                std::string chapterId = "chapter" + std::to_string(i + 1);
+                spine.push_back("    <itemref idref=\"" + chapterId + "\" />\n");
+            }
+            spine.push_back(line);
+        } else if (insideManifest) {
+            if (line.find("Section0001.xhtml") == std::string::npos) { // Skip Section0001.xhtml
+                manifest.push_back(line);
+            }
+        } else if (insideSpine) {
+            if (line.find("Section0001.xhtml") == std::string::npos) { // Skip Section0001.xhtml
+                spine.push_back(line);
+            }
+        } else {
+            fileContent.push_back(line);  // Add everything else to fileContent
+        }
+    }
+
+    inputFile.close();
+
+    // Write the updated content back to the file
+    std::ofstream outputFile(contentOpfPath);
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open content.opf file for writing!" << std::endl;
+        return;
+    }
+
+    // Output everything before </package>
+    for (const auto& fileLine : fileContent) {
+        if (fileLine.find("</metadata>") != std::string::npos) {
+            outputFile << fileLine << std::endl;
+            // Write manifest after metadata
+            for (const auto& manifestLine : manifest) {
+                outputFile << manifestLine;
+            }
+            // Write spine after manifest
+            for (const auto& spineLine : spine) {
+                outputFile << spineLine;
+            }
+        } else if (fileLine.find("</package>") != std::string::npos) {
+            // Skip writing </package> for now; it will be written later
+            continue;
+        } else {
+            outputFile << fileLine << std::endl;
+        }
+    }
+
+    // Finally, close the package
+    outputFile << "</package>" << std::endl;
+
+    outputFile.close();
+}
+
+
+
+
+
+
+
+
+
+
 bool make_directory(const std::filesystem::path& path) {
     try {
 
@@ -257,40 +354,25 @@ int main() {
         return 1;
     }
 
-    // Print the spine order
-    for (const auto& idref : spineOrder) {
-        std::cout << "Spine order: " << idref << std::endl;
-    }
 
     std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
-
     if (xhtmlFiles.empty()) {
         std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
         return 1;
     }
 
-    // Print the XHTML files
-    for (const auto& xhtmlFile : xhtmlFiles) {
-        std::cout << "XHTML file: " << xhtmlFile << std::endl;
-    }
 
     // Sort the XHTML files based on the spine order
     std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
-
     if (spineOrderXHTMLFiles.empty()) {
         std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
         return 1;
     }
 
-    // Print the sorted XHTML files
-    for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
-        std::cout << "Sorted XHTML file: " << xhtmlFile << std::endl;
-    }
 
     // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
     std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
     std::ifstream Section001File(Section001Path);
-
     if (!Section001File.is_open()) {
         std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
         return 1;
@@ -298,30 +380,30 @@ int main() {
 
     std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
     Section001File.close();
-
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
         std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
         std::ofstream newSectionFile(newSectionPath);
-
         if (!newSectionFile.is_open()) {
             std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
             return 1;
         }
-
         newSectionFile << Section001Content;
         newSectionFile.close();
-        //Print the new file path
-        std::cout << "New file path: " << newSectionPath << std::endl;
     }
-
     //Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
 
+    // Update the spine and manifest in the templates OPF file
+    std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+    updateContentOpf(spineOrder, templateContentOpfPath);
 
     // // Remove the unzipped directory
     // std::filesystem::remove_all(unzippedPath);
     // // Remove the template directory
     // std::filesystem::remove_all(templatePath);
+
+    // Zip the template directory to create the final EPUB file
+
 
     return 0;
 }
