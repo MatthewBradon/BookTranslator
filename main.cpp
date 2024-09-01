@@ -299,6 +299,60 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
     return true;
 }
 
+void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList) {
+    std::ifstream navXHTMLFile(navXHTMLPath);
+    if (!navXHTMLFile.is_open()) {
+        std::cerr << "Failed to open nav.xhtml file!" << std::endl;
+        return;
+    }
+
+    std::vector<std::string> fileContent;  // Store the entire file content
+    std::string line;
+    bool insideTocNav = false;
+    bool insideOlTag = false;
+
+    while (std::getline(navXHTMLFile, line)) {
+        fileContent.push_back(line);
+
+        if (line.find("<nav epub:type=\"toc\"") != std::string::npos) {
+            insideTocNav = true;
+        }
+
+        if (line.find("<ol>") != std::string::npos && insideTocNav) {
+            insideOlTag = true;
+            // Append new chapter entries
+            for (size_t i = 0; i < epubChapterList.size(); ++i) {
+                std::string chapterFilename = std::filesystem::path(epubChapterList[i]).filename().string();
+                fileContent.push_back("    <li><a href=\"" + chapterFilename + "\">Chapter " + std::to_string(i + 1) + "</a></li>");
+            }
+        }
+
+        if (line.find("</ol>") != std::string::npos && insideTocNav) {
+            insideOlTag = false;
+        }
+
+        if (line.find("</nav>") != std::string::npos && insideTocNav) {
+            insideTocNav = false;
+        }
+    }
+
+    navXHTMLFile.close();
+
+    // Write the updated content back to the file
+    std::ofstream outputFile(navXHTMLPath);
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open nav.xhtml file for writing!" << std::endl;
+        return;
+    }
+
+    for (const auto& fileLine : fileContent) {
+        outputFile << fileLine << std::endl;
+    }
+
+    outputFile.close();
+}
+
+
 int main() {
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
@@ -397,12 +451,19 @@ int main() {
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
     updateContentOpf(spineOrder, templateContentOpfPath);
 
+    // Update the nav.xhtml file
+    std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
+    updateNavXHTML(navXHTMLPath, spineOrder);
+
+
+    
     // // Remove the unzipped directory
     // std::filesystem::remove_all(unzippedPath);
     // // Remove the template directory
     // std::filesystem::remove_all(templatePath);
 
-    // Zip the template directory to create the final EPUB file
+
+
 
 
     return 0;
