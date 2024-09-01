@@ -63,8 +63,15 @@ std::vector<std::string> getSpineOrder(const std::filesystem::path& directory) {
 
         for (auto it = idrefStartIt; it != std::sregex_iterator(); ++it) {
             idrefMatch = *it;
-            std::string idref = idrefMatch[1].str() + ".xhtml";  // Append .xhtml extension
-            spineOrder.push_back(idref);
+            // Check if it if it doesnt have .xhtml extension
+            if (idrefMatch[1].str().find(".xhtml") == std::string::npos) {
+                std::string idref = idrefMatch[1].str() + ".xhtml";  // Append .xhtml extension
+                spineOrder.push_back(idref);
+            } else {
+                std::string idref = idrefMatch[1].str();
+                spineOrder.push_back(idref);
+            }
+            
         }
 
     } catch (const std::filesystem::filesystem_error& e) {
@@ -197,8 +204,8 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
 
 int main() {
 
-    // std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
-    std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
+    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
+    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
     std::string unzippedPath = "unzipped";
 
     std::string templatePath = "export";
@@ -306,6 +313,9 @@ int main() {
         //Print the new file path
         std::cout << "New file path: " << newSectionPath << std::endl;
     }
+
+    //Remove Section001.xhtml
+    std::filesystem::remove(Section001Path);
 
 
     // // Remove the unzipped directory
