@@ -8,8 +8,9 @@ project(main)
 add_executable(${PROJECT_NAME} main.cpp)
 
 find_package(libzip CONFIG REQUIRED)
+find_package(LibXml2 REQUIRED)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip)
+target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip LibXml2::LibXml2)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"

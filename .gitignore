@@ -3,3 +3,5 @@ rawEpub/*
 unzipped/*
 export/*
 build/*
+
+*.dll

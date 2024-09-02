@@ -1,14 +1,13 @@
 #include <iostream>
 #include <zip.h>
-#include <sys/stat.h>    // For Unix-like systems
-#ifdef _WIN32
-#include <direct.h>      // For Windows
-#endif
 #include <fstream>
 #include <cstring>
 #include <filesystem>
 #include <string>
 #include <regex>
+#include <vector>
+#include <libxml/HTMLparser.h>
+#include <libxml/xpath.h>
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -295,7 +294,6 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
 
     // Close the ZIP archive
     zip_close(archive);
-
     return true;
 }
 
@@ -377,6 +375,113 @@ void copyImages(const std::filesystem::path& sourceDir, const std::filesystem::p
         std::cerr << "Error: " << e.what() << std::endl;
     }
 }
+
+
+void processChapter(const std::filesystem::path& chapterPath) {
+    std::ifstream file(chapterPath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << chapterPath << std::endl;
+        return;
+    }
+
+    // Read the entire content of the chapter file
+    std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // Parse the content using libxml2
+    htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+    if (!doc) {
+        std::cerr << "Failed to parse HTML content." << std::endl;
+        return;
+    }
+
+    // Create an XPath context
+    xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
+    if (!xpathCtx) {
+        std::cerr << "Failed to create XPath context." << std::endl;
+        xmlFreeDoc(doc);
+        return;
+    }
+
+    // Extract all <p> and <img> tags
+    xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
+    if (!xpathObj) {
+        std::cerr << "Failed to evaluate XPath expression." << std::endl;
+        xmlXPathFreeContext(xpathCtx);
+        xmlFreeDoc(doc);
+        return;
+    }
+
+    xmlNodeSetPtr nodes = xpathObj->nodesetval;
+    int nodeCount = (nodes) ? nodes->nodeNr : 0;
+
+    std::string chapterContent;
+    for (int i = 0; i < nodeCount; ++i) {
+        xmlNodePtr node = nodes->nodeTab[i];
+        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
+            // Extract text content of <p> tag
+            xmlChar* textContent = xmlNodeGetContent(node);
+            if (textContent) {
+                std::string pText(reinterpret_cast<char*>(textContent));
+                if (!pText.empty()) {
+                    chapterContent += "<p>" + pText + "</p>\n";
+                }
+                xmlFree(textContent);
+            }
+        } else if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
+            // Extract src attribute of <img> tag
+            xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
+            if (src) {
+                std::string imgSrc(reinterpret_cast<char*>(src));
+                std::string imgFilename = std::filesystem::path(imgSrc).filename().string();
+                chapterContent += "<img src=\"../Images/" + imgFilename + "\"/>\n";
+                xmlFree(src);
+            }
+        }
+    }
+
+    // If chapterContent is empty, preserve the original body content
+    if (chapterContent.empty()) {
+        xmlChar* bodyContent = xmlNodeGetContent(xmlDocGetRootElement(doc));
+        if (bodyContent) {
+            chapterContent = reinterpret_cast<char*>(bodyContent);
+            xmlFree(bodyContent);
+        }
+    }
+
+    // Construct the XHTML content
+    std::string xhtmlContent =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<!DOCTYPE html>\n"
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">\n"
+        "<head>\n"
+        "  <title>" + chapterPath.filename().string() + "</title>\n"
+        "</head>\n"
+        "<body>\n" + chapterContent +
+        "</body>\n"
+        "</html>";
+
+    // Write the processed content to a new file
+    std::filesystem::path outputPath = "export/OEBPS/Text/" + chapterPath.filename().string();
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open()) {
+        std::cerr << "Failed to open output file: " << outputPath << std::endl;
+        xmlXPathFreeObject(xpathObj);
+        xmlXPathFreeContext(xpathCtx);
+        xmlFreeDoc(doc);
+        return;
+    }
+
+    outFile << xhtmlContent;
+    outFile.close();
+
+    std::cout << "Chapter done: " << chapterPath.filename().string() << std::endl;
+
+    xmlXPathFreeObject(xpathObj);
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
+}
+
 
 
 int main() {
@@ -491,6 +596,13 @@ int main() {
 
     // Copy images from the unzipped directory to the template directory
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+
+
+    // Process each chapter file
+    for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
+        processChapter(xhtmlFile);
+    }
+
 
 
     return 0;
