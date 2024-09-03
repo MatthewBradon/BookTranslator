@@ -8,3 +8,5 @@ build/*
 rawEpub/*
 !rawEpub/template.epub
 /external/
+
+output.epub
