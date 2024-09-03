@@ -1,7 +1,9 @@
 .vscode
-rawEpub/*
 unzipped/*
 export/*
 build/*
 
 *.dll
+
+rawEpub/*
+!rawEpub/template.epub
