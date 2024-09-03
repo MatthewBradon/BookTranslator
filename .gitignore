@@ -2,8 +2,9 @@
 unzipped/*
 export/*
 build/*
-
+.venv/
 *.dll
-
+*.onnx
 rawEpub/*
 !rawEpub/template.epub
+/external/

@@ -8,6 +8,7 @@
 #include <vector>
 #include <libxml/HTMLparser.h>
 #include <libxml/xpath.h>
+#include <onnxruntime_cxx_api.h>
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
