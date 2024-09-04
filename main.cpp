@@ -9,6 +9,8 @@
 #include <libxml/HTMLparser.h>
 #include <libxml/xpath.h>
 #include <onnxruntime_cxx_api.h>
+#include <iostream>
+
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -377,6 +379,18 @@ void copyImages(const std::filesystem::path& sourceDir, const std::filesystem::p
     }
 }
 
+std::string replaceFullWidthSpaces(const std::string& str) {
+    std::string result = str;
+    std::string fullWidthSpace = "\xE3\x80\x80"; // UTF-8 encoding of \u3000
+    std::string normalSpace = " ";
+
+    size_t pos = 0;
+    while ((pos = result.find(fullWidthSpace, pos)) != std::string::npos) {
+        result.replace(pos, fullWidthSpace.length(), normalSpace);
+        pos += normalSpace.length();
+    }
+    return result;
+}
 
 void processChapter(const std::filesystem::path& chapterPath) {
     std::ifstream file(chapterPath);
@@ -424,6 +438,10 @@ void processChapter(const std::filesystem::path& chapterPath) {
             xmlChar* textContent = xmlNodeGetContent(node);
             if (textContent) {
                 std::string pText(reinterpret_cast<char*>(textContent));
+
+                // Find and replace \u3000 with spaces
+                pText = replaceFullWidthSpaces(pText);
+
                 if (!pText.empty()) {
                     chapterContent += "<p>" + pText + "</p>\n";
                 }
