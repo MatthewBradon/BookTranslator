@@ -1,6 +1,7 @@
 {
   "dependencies": [
+    "libxml2",
     "libzip",
-    "libxml2"
+    "python3"
   ]
 }

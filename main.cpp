@@ -10,7 +10,7 @@
 #include <libxml/xpath.h>
 #include <onnxruntime_cxx_api.h>
 #include <iostream>
-
+#include <Python.h>
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -504,6 +504,20 @@ void processChapter(const std::filesystem::path& chapterPath) {
 
 
 int main() {
+
+
+    Py_Initialize();
+
+    // Try to import transformers
+    PyObject* pModule = PyImport_ImportModule("transformers");
+
+    if (pModule == NULL) {
+        PyErr_Print();
+        std::cerr << "Failed to import transformers module." << std::endl;
+        return 1;
+    }
+
+    Py_Finalize();
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
     // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
