@@ -510,13 +510,7 @@ int main() {
     // Pybind11 initialization
     pybind11::scoped_interpreter guard{};
 
-    try{
-        // Load the EncodeAndDecode module
-        pybind11::module encodeAndDecode = pybind11::module::import("EncodeAndDecode");
-    } catch (const pybind11::error_already_set& e) {
-        std::cerr << "Error loading the EncodeAndDecode module: " << e.what() << std::endl;
-        return 1;
-    }
+    
 
 
 
@@ -631,11 +625,22 @@ int main() {
     // Copy images from the unzipped directory to the template directory
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
 
+    // Load the EncodeAndDecode module
+    try{
+        
+        pybind11::module encodeAndDecode = pybind11::module::import("EncodeAndDecode");
 
-    // Process each chapter file
-    for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
-        processChapter(xhtmlFile);
+        // Process each chapter file
+        for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
+            processChapter(xhtmlFile);
     }
+
+    } catch (const pybind11::error_already_set& e) {
+        std::cerr << "Error loading the EncodeAndDecode module: " << e.what() << std::endl;
+        return 1;
+    }
+
+
 
 
 

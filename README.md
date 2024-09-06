@@ -13,4 +13,7 @@ In the CMAKE you can see that I am my local python installation rather than the 
 
 If you want to build this project set an environment variable called `PYTHON312_HOME` and set it to your local Python 3.12 installation make sure that you have the development packages (The headers used to link C and Python its inside the include directory). You can install the development packages by clicking the box in the python installer
 
-
+At least in my local installation of python which I got from the official python installer did not have a `python312_d.lib` which is wanted when you run `cmake --build build` since I believe its in debug mode. To get around this build with this:
+```
+cmake --build build --config Release
+```
