@@ -11,6 +11,7 @@
 #include <onnxruntime_cxx_api.h>
 #include <iostream>
 #include <Python.h>
+#include <pybind11/embed.h>
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -506,18 +507,18 @@ void processChapter(const std::filesystem::path& chapterPath) {
 int main() {
 
 
-    Py_Initialize();
+    // Pybind11 initialization
+    pybind11::scoped_interpreter guard{};
 
-    // Try to import transformers
-    PyObject* pModule = PyImport_ImportModule("transformers");
-
-    if (pModule == NULL) {
-        PyErr_Print();
-        std::cerr << "Failed to import transformers module." << std::endl;
+    try{
+        // Load the EncodeAndDecode module
+        pybind11::module encodeAndDecode = pybind11::module::import("EncodeAndDecode");
+    } catch (const pybind11::error_already_set& e) {
+        std::cerr << "Error loading the EncodeAndDecode module: " << e.what() << std::endl;
         return 1;
     }
 
-    Py_Finalize();
+
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
     // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";

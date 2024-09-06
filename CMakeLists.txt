@@ -30,6 +30,7 @@ set(Python3_ROOT_DIR "$ENV{PYTHON312_HOME}")
 set(Python3_FIND_STRATEGY LOCATION)
 
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
 # Print everything about the Python3 component
 message(STATUS "Python3_FOUND: ${Python3_FOUND}")
@@ -38,7 +39,7 @@ message(STATUS "Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
 message(STATUS "Python3_INCLUDE_DIR: ${Python3_INCLUDE_DIR}")
 message(STATUS "Python3_LIBRARY: ${Python3_LIBRARY}")
 
-target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python)
+target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
