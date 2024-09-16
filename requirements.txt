@@ -1,2 +1,7 @@
 transformers
 sentencepiece
+torch
+numpy
+sacremoses
+optimum
+optimum[exporters]
