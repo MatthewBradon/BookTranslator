@@ -7,16 +7,23 @@ set(PYTHONHOME "$ENV{PYTHON312_HOME}")
 project(main)
 
 # Path to ONNX Runtime
-set(ONNXRUNTIME_DIR "${CMAKE_SOURCE_DIR}/external/Microsoft.ML.OnnxRuntime")
-
+set(ONNXRUNTIME_DIR ${CMAKE_SOURCE_DIR}/external/Microsoft.ML.OnnxRuntime.1.19.2)
 # Include directories for headers
 include_directories(${ONNXRUNTIME_DIR}/build/native/include)
 
-# Link directories for libraries
-link_directories(${ONNXRUNTIME_DIR}/runtimes/win-x64/native)
 
-set(${ONNXRUTIME_LIB} ${ONNXRUNTIME_DIR}/runtimes/win-x64/native)
-set(ONNX_RUNTIME_PATH "C:/Users/matth/Desktop/EpubTranslator-Prototype-C-/external/Microsoft.ML.OnnxRuntime/runtimes/win-x64/native")
+# Check the architecture and set the appropriate runtime path
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_VCPKG_TARGET_ARCHITECTURE STREQUAL "arm64")
+    message(STATUS "Targeting ARM64 architecture")
+    set(ONNX_RUNTIME_PATH ${ONNXRUNTIME_DIR}/runtimes/win-arm64/native)
+else()
+    message(STATUS "Targeting x64 architecture")
+    set(ONNX_RUNTIME_PATH ${ONNXRUNTIME_DIR}/runtimes/win-x64/native)
+endif()
+
+# Link directories for libraries
+link_directories(${ONNX_RUNTIME_PATH})
+set(ONNXRUNTIME_LIB ${ONNX_RUNTIME_PATH})
 
 add_executable(${PROJECT_NAME} main.cpp)
 
