@@ -34,7 +34,7 @@ std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) 
         std::cerr << "General error: " << e.what() << std::endl;
     }
 
-    return nullptr;
+    return std::filesystem::path();
 }
 
 std::vector<std::string> getSpineOrder(const std::filesystem::path& directory) {
