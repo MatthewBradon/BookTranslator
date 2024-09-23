@@ -724,7 +724,7 @@ void run_onnx_translation() {
     // ENCODER
 
     // Path to your ONNX encoder model
-    const wchar_t* encoder_path = L"C:/Users/matth/Desktop/EpubTranslator-Prototype-C-/opus-mt-ja-en-ONNX/encoder_model.onnx";
+    const char* encoder_path = "opus-mt-ja-en-ONNX/encoder_model.onnx";
 
     // Step 2: Load ONNX encoder model (C++)
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test");
@@ -793,7 +793,7 @@ void run_onnx_translation() {
     size_t max_decode_steps = 100;  // Limit the number of decoding steps to avoid infinite loops
 
     // Path to your ONNX decoder model
-    const wchar_t* decoder_path = L"C:/Users/matth/Desktop/EpubTranslator-Prototype-C-/opus-mt-ja-en-ONNX/decoder_model.onnx";
+    const char* decoder_path = "opus-mt-ja-en-ONNX/decoder_model.onnx";
 
     // Load ONNX decoder model
     Ort::Session decoder_session(env, decoder_path, session_options);

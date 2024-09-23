@@ -5,7 +5,6 @@ from transformers import MarianMTModel, MarianTokenizer
 model_name = 'Helsinki-NLP/opus-mt-ja-en'
 tokenizer = MarianTokenizer.from_pretrained(model_name)
 model = MarianMTModel.from_pretrained(model_name)
-
 # Move the model to CPU (ONNX export usually happens on CPU)
 device = torch.device("cpu")
 model.to(device)

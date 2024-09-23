@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_TOOLCHAIN_FILE "~/vcpkg/scripts/buildsystems/vcpkg.cmake")
+set(CMAKE_TOOLCHAIN_FILE "/Users/xsmoked/vcpkg/scripts/buildsystems/vcpkg.cmake")
 set(CMAKE_CXX_STANDARD 17)
-set(PYTHONHOME "$ENV{PYTHON312_HOME}")
-
-message(STATUS "PYTHONHOME: ${PYTHONHOME}")
-
 project(main)
 
 # Path to ONNX Runtime
@@ -38,28 +34,12 @@ add_executable(${PROJECT_NAME} main.cpp)
 find_package(libzip CONFIG REQUIRED)
 find_package(LibXml2 REQUIRED)
 
-# Manually set Python3 paths to ensure they are found
-
-# If windows, set the paths to the Python3 executable, include directory, and library
-if(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    set(Python3_EXECUTABLE "$ENV{PYTHON312_HOME}/python.exe")
-    set(Python3_INCLUDE_DIR "$ENV{PYTHON312_HOME}/include")
-    set(Python3_LIBRARY "$ENV{PYTHON312_HOME}/libs/python312.lib")
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    # Explicitly set the Python3 paths to the Homebrew Python
-    set(Python3_EXECUTABLE "/opt/homebrew/bin/python3")
-    set(Python3_INCLUDE_DIR "/opt/homebrew/Cellar/python@3.12/3.12.6/Frameworks/Python.framework/Versions/3.12/include/python3.12")
-    set(Python3_LIBRARY "/opt/homebrew/Cellar/python@3.12/3.12.6/Frameworks/Python.framework/Versions/3.12/lib/libpython3.12.dylib")
-endif()
-
-# Manually set Python3 paths for CMake's find_package function
-set(Python3_ROOT_DIR "$ENV{PYTHON312_HOME}")
-set(Python3_FIND_STRATEGY LOCATION)
-
-message(STATUS "Python3_ROOT_DIR: ${Python3_ROOT_DIR}")
-
+# Set the RPATH to tell the executable where to find dynamic libraries
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+
+
+
 
 # Print everything about the Python3 component
 message(STATUS "Python3_FOUND: ${Python3_FOUND}")
@@ -69,11 +49,13 @@ message(STATUS "Python3_INCLUDE_DIR: ${Python3_INCLUDE_DIR}")
 message(STATUS "Python3_LIBRARY: ${Python3_LIBRARY}")
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.dylib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
+    set(CMAKE_INSTALL_RPATH "${ONNX_RUNTIME_PATH}")
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNXRUTIME_LIB}/onnxruntime.lib ${ONNXRUTIME_LIB}/onnxruntime_providers_shared.lib)
 endif()
-
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
@@ -108,7 +90,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 )
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
-message(STATUS "MacOS onnxruntime.dylib path: ${ONNX_RUNTIME_PATH}/libonnxruntime.dylib")
+message(STATUS "MacOS onnxruntime.dylib path: ${ONNX_RUNTIME_PATH}/")
 
 # Install Python packages and create virtual environment
 add_custom_command(TARGET main POST_BUILD
@@ -118,12 +100,16 @@ add_custom_command(TARGET main POST_BUILD
     COMMAND python -m pip show transformers >> pip_show.log
 )
 
-# Copy dylibs to the output directory (important for runtime)
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    ${ONNX_RUNTIME_PATH}/libonnxruntime.dylib
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>
-)
+# # Copy dylibs to the output directory (important for runtime)
+# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy
+#     ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib
+#     $<TARGET_FILE_DIR:${PROJECT_NAME}>
+#     # Remame the dylib to onnxruntime.dylib
+#     # COMMAND mv $<TARGET_FILE_DIR:${PROJECT_NAME}>/libonnxruntime.dylib $<TARGET_FILE_DIR:${PROJECT_NAME}>/libonnxruntime.1.19.dylib
+# )
+
+
 else()
 
 endif()
