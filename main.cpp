@@ -16,6 +16,7 @@
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>  
 
+
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 
 
@@ -674,11 +675,8 @@ void processChapter(const std::filesystem::path& chapterPath, pybind11::module& 
     xmlFreeDoc(doc);
 }
 
-
-
 std::vector<int64_t> processNumpyArray(pybind11::array_t<int64_t> inputArray) {
     try{
-         std::cout << "T111ESTDSSS" << std::endl;
 
         // Get the buffer information
         pybind11::buffer_info buf = inputArray.request();
@@ -692,9 +690,6 @@ std::vector<int64_t> processNumpyArray(pybind11::array_t<int64_t> inputArray) {
         int64_t* ptr = static_cast<int64_t*>(buf.ptr);
 
         std::vector<int64_t> vec(ptr, ptr + buf.size);
-
-        std::cout << "TESTDSSS" << std::endl;
-
         // for(const auto& value : vec) {
         //     std::cout << value << std::endl;
         // }
@@ -705,6 +700,7 @@ std::vector<int64_t> processNumpyArray(pybind11::array_t<int64_t> inputArray) {
     }
 
 }
+
 void run_onnx_translation() {
     // Start the Python interpreter
     pybind11::scoped_interpreter guard{};
@@ -714,8 +710,8 @@ void run_onnx_translation() {
     pybind11::object tokenize_text = tokenizer_module.attr("tokenize_text");
     pybind11::object detokenize_text = tokenizer_module.attr("detokenize_text");
 
-    std::string input_text = "「ねえカズマ、お金受け取って来なさいよ！ もう、ギルド内の冒険者達のほとん殆どは、魔王の幹部討伐のしよう奨ほう報金貰ったわよ。もちろん私も！ でも見ての通り、もう結構飲んじゃったんだけどね！」"; // Example Japanese input
-
+    // std::string input_text = "「ねえカズマ、お金受け取/って来なさいよ！ もう、ギルド内の冒険者達のほとん殆どは、魔王の幹部討伐のしよう奨ほう報金貰ったわよ。もちろん私も！ でも見ての通り、もう結構飲んじゃったんだけどね！」"; // Example Japanese input
+    std::string input_text = "ギルドにせつ設へい併された酒場の一角。";
     // Call Python tokenize_text function
     pybind11::tuple tokenized = tokenize_text(input_text);
     std::vector<int64_t> input_ids = processNumpyArray(tokenized[0].cast<pybind11::array_t<int64_t>>());
@@ -723,10 +719,32 @@ void run_onnx_translation() {
 
     // ENCODER
 
-    // Path to your ONNX encoder model
+
+    // Print out input_ids and attention_mask
+    std::cout << "Input IDs: ";
+    for (const auto& id : input_ids) {
+        std::cout << id << " ";
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+
+    std::cout << "Attention Mask: ";
+    for (const auto& mask : attention_mask) {
+        std::cout << mask << " ";
+    }
+
+    std::cout << std::endl;
+
+    //Print shape of input_ids and attention_mask
+    std::cout << "Input IDs Shape: " << input_ids.size() << std::endl;
+    std::cout << "Attention Mask Shape: " << attention_mask.size() << std::endl;
+
+    // Path to ONNX encoder model on mac you must use const char*
     const char* encoder_path = "opus-mt-ja-en-ONNX/encoder_model.onnx";
 
-    // Step 2: Load ONNX encoder model (C++)
+    // Load ONNX encoder model
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test");
     Ort::SessionOptions session_options;
     Ort::Session encoder_session(env, encoder_path, session_options);  // Load your encoder model
@@ -734,26 +752,24 @@ void run_onnx_translation() {
     // Prepare input for the encoder
     std::vector<int64_t> input_shape = {1, static_cast<int64_t>(input_ids.size())};
     std::vector<int64_t> attention_shape = {1, static_cast<int64_t>(attention_mask.size())};
-    size_t input_tensor_size = input_ids.size();
-    size_t attention_tensor_size = attention_mask.size();
-
-    std::vector<int64_t> input_tensor_values = input_ids;
-    std::vector<int64_t> attention_mask_values = attention_mask;
 
     std::vector<const char*> input_node_names = {"input_ids", "attention_mask"};
     std::vector<const char*> output_node_names = {"last_hidden_state"};
 
     Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
-    Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, input_tensor_values.data(), input_tensor_size, input_shape.data(), input_shape.size());
-    Ort::Value attention_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, attention_mask_values.data(), attention_tensor_size, attention_shape.data(), attention_shape.size());
+    Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());
+    Ort::Value attention_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, attention_mask.data(), attention_mask.size(), attention_shape.data(), attention_shape.size());
 
     // Run encoder model
     std::vector<Ort::Value> encoder_inputs;
     encoder_inputs.push_back(std::move(input_tensor));    // Move the tensor instead of copying
     encoder_inputs.push_back(std::move(attention_tensor)); // Move the attention tensor
-    auto encoder_output_tensors = encoder_session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), encoder_inputs.data(), input_node_names.size(), output_node_names.data(), 1);
 
-    std::cout << "Test" << std::endl;
+
+    auto encoder_output_tensors = encoder_session.Run(
+        Ort::RunOptions{nullptr}, input_node_names.data(), 
+        encoder_inputs.data(), input_node_names.size(), 
+        output_node_names.data(), 1);
 
     // Get encoder output tensor
     float* encoder_output_data = encoder_output_tensors[0].GetTensorMutableData<float>();
@@ -763,88 +779,155 @@ void run_onnx_translation() {
     size_t encoder_output_size = encoder_output_info.GetElementCount();
     std::vector<int64_t> encoder_output_shape = encoder_output_info.GetShape();
 
+    // Print out shape
+    std::cout << "Encoder Output Shape: ";
+    for (const auto& shape : encoder_output_shape) {
+        std::cout << shape << " ";
+    }
+
+    std::cout << std::endl;
+
     std::vector<float> encoder_output(encoder_output_data, encoder_output_data + encoder_output_size);
 
     // DECODER
+    int64_t eos_token_id = 0;  // 0 is EOS token ID
+    int64_t pad_token_id = 60715;  // 60715 is PAD token ID
+    int64_t vocab_size = 60715;
 
-    // Manually defined BOS and EOS token IDs (not part of the Marian tokenizer)
-    int64_t bos_token_id = -1;
-    int64_t eos_token_id = -2;
-
-    // Initialize decoder input with the BOS token
-    std::vector<int64_t> decoder_input_ids = {bos_token_id};  
-    std::vector<int64_t> decoder_input_shape = {1, 1};  // Start with [BOS]
     std::vector<const char*> decoder_input_node_names = {"encoder_attention_mask", "input_ids", "encoder_hidden_states"};
     std::vector<const char*> decoder_output_node_names = {"logits"};
 
-    // Encoder hidden states (output from the encoder model)
-    Ort::Value encoder_hidden_states_tensor = Ort::Value::CreateTensor<float>(memory_info, encoder_output.data(), encoder_output.size(), encoder_output_shape.data(), encoder_output_shape.size());
-
-    std::vector<int64_t> decoder_attention_mask = {1};  // 1 indicates the BOS token is attended to
-    std::vector<int64_t> decoder_attention_shape = {1, static_cast<int64_t>(decoder_attention_mask.size())};  // Shape for a batch size of 1
-
-    // Encoder attention mask (remains the same during decoding)
-    Ort::Value decoder_attention_mask_tensor = Ort::Value::CreateTensor<int64_t>(
-    memory_info, decoder_attention_mask.data(), decoder_attention_mask.size(),
-    decoder_attention_shape.data(), decoder_attention_shape.size());
-
-
-    std::vector<int64_t> token_ids = {bos_token_id};  // Start with BOS token
-    size_t max_decode_steps = 100;  // Limit the number of decoding steps to avoid infinite loops
-
     // Path to your ONNX decoder model
     const char* decoder_path = "opus-mt-ja-en-ONNX/decoder_model.onnx";
-
-    // Load ONNX decoder model
     Ort::Session decoder_session(env, decoder_path, session_options);
 
-    // Initialize the decoder input tensor
-    Ort::Value decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, token_ids.data(), token_ids.size(), decoder_input_shape.data(), decoder_input_shape.size());
 
-    // Run the decoder model
+    // Set up the decoder input tensor
+    std::vector<int64_t> token_ids = {pad_token_id};
+    std::vector<int64_t> decoder_input_shape = {1, static_cast<int64_t>(token_ids.size())};
 
+    Ort::Value decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(
+        memory_info, token_ids.data(), token_ids.size(),
+        decoder_input_shape.data(), decoder_input_shape.size());
+
+
+    Ort::Value decoder_attention_tensor = Ort::Value::CreateTensor<int64_t>(
+        memory_info, attention_mask.data(), attention_mask.size(),
+        attention_shape.data(), attention_shape.size());
+
+    // Encoder hidden states (output from the encoder model)
+    Ort::Value encoder_hidden_states_tensor = Ort::Value::CreateTensor<float>(
+        memory_info, encoder_output.data(), encoder_output.size(),
+        encoder_output_shape.data(), encoder_output_shape.size());
+
+
+    // Prepare decoder inputs
     std::vector<Ort::Value> decoder_inputs;
-    decoder_inputs.push_back(std::move(decoder_attention_mask_tensor));  // Move the attention mask tensor
-    decoder_inputs.push_back(std::move(decoder_input_tensor));  // Move the decoder input tensor
-    decoder_inputs.push_back(std::move(encoder_hidden_states_tensor));  // Move the encoder hidden states tensor
-
-    auto decoder_output_tensors = decoder_session.Run(Ort::RunOptions{nullptr}, decoder_input_node_names.data(), decoder_inputs.data(), decoder_input_node_names.size(), decoder_output_node_names.data(), 1);
-
-    // Get the decoder output tensor
-    float* decoder_output_data = decoder_output_tensors[0].GetTensorMutableData<float>();
-
-    // Get the decoder output shape
-    Ort::TensorTypeAndShapeInfo decoder_output_info = decoder_output_tensors[0].GetTensorTypeAndShapeInfo();
-
-    size_t decoder_output_size = decoder_output_info.GetElementCount();
-
-    std::vector<int64_t> decoder_output_shape = decoder_output_info.GetShape();
-
-    std::vector<float> decoder_output(decoder_output_data, decoder_output_data + decoder_output_size);
-
-    // Get the predicted token ID
-
-    // Find the token ID with the highest probability
-
-    auto max_element = std::max_element(decoder_output.begin(), decoder_output.end());
-
-    int64_t predicted_token_id = std::distance(decoder_output.begin(), max_element);
-
-    // Append the predicted token ID to the token_ids vector
-
-    token_ids.push_back(predicted_token_id);
-
-    // Update the decoder input tensor with the new token ID
 
 
+    // Print out shape of each tensor
+    std::cout << "Decoder Input Shape: ";
+    for (const auto& shape : decoder_input_shape) {
+        std::cout << shape << " ";
+    }
 
-        // Step 5: Detokenize the output tokens to text
-        pybind11::array_t<int64_t> token_ids_array(token_ids.size(), token_ids.data());
-        pybind11::object detokenized_text = detokenize_text(token_ids_array);
-        std::string output_text = detokenized_text.cast<std::string>();
+    std::cout << std::endl;
 
-        std::cout << "Output text: " << output_text << std::endl;
+    std::cout << "Decoder Attention Shape: ";
+    for (const auto& shape : attention_shape) {
+        std::cout << shape << " ";
+    }
 
+    std::cout << std::endl;
+
+    std::cout << "Encoder Hidden States Shape: ";
+    for (const auto& shape : encoder_output_shape) {
+        std::cout << shape << " ";
+    }
+
+    decoder_inputs.push_back(std::move(decoder_attention_tensor));  // attention mask
+    decoder_inputs.push_back(std::move(decoder_input_tensor));  // token ids
+    decoder_inputs.push_back(std::move(encoder_hidden_states_tensor));  // encoder hidden states
+
+
+    size_t max_decode_steps = 50;  // Avoid infinite 
+    
+    // Autoregressive decoding loop
+    for (size_t step = 0; step < max_decode_steps; ++step) {
+
+        int64_t* token_tensor_data = decoder_inputs[1].GetTensorMutableData<int64_t>();
+
+        std::cout << "Token input tensor at step " << step << ": ";
+
+        for (size_t i = 0; i < decoder_input_shape[1]; ++i) {
+            std::cout << token_tensor_data[i] << " ";
+        }
+
+        std::cout << std::endl;
+
+
+
+        // Run the decoder model
+        auto decoder_output_tensors = decoder_session.Run(
+            Ort::RunOptions{nullptr}, decoder_input_node_names.data(),
+            decoder_inputs.data(), decoder_input_node_names.size(),
+            decoder_output_node_names.data(), 1);
+
+        // Get decoder output (logits)
+        float* decoder_output_data = decoder_output_tensors[0].GetTensorMutableData<float>();
+        Ort::TensorTypeAndShapeInfo decoder_output_info = decoder_output_tensors[0].GetTensorTypeAndShapeInfo();
+        size_t decoder_output_size = decoder_output_info.GetElementCount();
+        std::vector<float> decoder_output(decoder_output_data, decoder_output_data + decoder_output_size);
+
+
+        // Loop over the logits and mask out those that are out-of-vocabulary
+        for (size_t i = 0; i < decoder_output_size; ++i) {
+            if (i > vocab_size) {
+                decoder_output[i] = -std::numeric_limits<float>::infinity();  // Mask OOV tokens
+            }
+        }
+
+        // Now apply the argmax strategy or any other method (e.g., top-k sampling)
+        auto max_element = std::max_element(decoder_output.begin(), decoder_output.end());
+        int64_t predicted_token_id = std::distance(decoder_output.begin(), max_element);
+
+        // Ensure the predicted token is within the valid range
+        if (predicted_token_id >= vocab_size) {
+            std::cerr << "Error: Predicted token is out of vocabulary range!" << std::endl;
+        } else {
+            token_ids.push_back(predicted_token_id);  // Add valid token to token_ids
+        }
+        // Stop if the EOS token (0) is predicted
+        if (predicted_token_id == eos_token_id) {
+            break;
+        }
+
+
+        // Update the decoder input tensor with the new token_ids
+        decoder_input_shape = {1, static_cast<int64_t>(token_ids.size())};  // Update shape to reflect new sequence length
+        decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(
+            memory_info, token_ids.data(), token_ids.size(),
+            decoder_input_shape.data(), decoder_input_shape.size());
+
+        // Print out decoder input tensor
+        std::cout << "After running model Decoder Input Tensor at step " << step << ": ";
+        for (size_t i = 0; i < decoder_input_shape[1]; ++i) {
+            std::cout << token_ids[i] << " ";
+        }
+
+        // Replace the old decoder input tensor in decoder_inputs with the new tensor
+        decoder_inputs[1] = std::move(decoder_input_tensor);  // Update token_ids tensor in decoder_inputs
+
+        std::cout << "Updated input tensor for next step." << std::endl;
+
+    }
+
+    // Detokenize the output tokens to text
+    pybind11::array_t<int64_t> token_ids_array(token_ids.size(), token_ids.data());
+    pybind11::object detokenized_text = detokenize_text(token_ids_array);
+    std::string output_text = detokenized_text.cast<std::string>();
+
+    std::cout << "Output text: " << output_text << std::endl;
 
 }
 
@@ -853,116 +936,116 @@ int main() {
 
 
 
-    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
-    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
-    std::string unzippedPath = "unzipped";
+    // std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
+    // // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
+    // std::string unzippedPath = "unzipped";
 
-    std::string templatePath = "export";
-    std::string templateEpub = "rawEpub/template.epub";
+    // std::string templatePath = "export";
+    // std::string templateEpub = "rawEpub/template.epub";
 
-    // Create the output directory if it doesn't exist
-    if (!make_directory(unzippedPath)) {
-        std::cerr << "Failed to create output directory: " << unzippedPath << std::endl;
-        return 1;
-    }
+    // // Create the output directory if it doesn't exist
+    // if (!make_directory(unzippedPath)) {
+    //     std::cerr << "Failed to create output directory: " << unzippedPath << std::endl;
+    //     return 1;
+    // }
 
-    // Unzip the EPUB file
-    if (!unzip_file(epubToConvert, unzippedPath)) {
-        std::cerr << "Failed to unzip EPUB file: " << epubToConvert << std::endl;
-        return 1;
-    }
+    // // Unzip the EPUB file
+    // if (!unzip_file(epubToConvert, unzippedPath)) {
+    //     std::cerr << "Failed to unzip EPUB file: " << epubToConvert << std::endl;
+    //     return 1;
+    // }
 
-    std::cout << "EPUB file unzipped successfully to: " << unzippedPath << std::endl;
+    // std::cout << "EPUB file unzipped successfully to: " << unzippedPath << std::endl;
 
-    // Create the template directory if it doesn't exist
-    if (!make_directory(templatePath)) {
-        std::cerr << "Failed to create template directory: " << templatePath << std::endl;
-        return 1;
-    }
+    // // Create the template directory if it doesn't exist
+    // if (!make_directory(templatePath)) {
+    //     std::cerr << "Failed to create template directory: " << templatePath << std::endl;
+    //     return 1;
+    // }
 
-    // Unzip the template EPUB file
-    if (!unzip_file(templateEpub, templatePath)) {
-        std::cerr << "Failed to unzip EPUB file: " << templateEpub << std::endl;
-        return 1;
-    }
+    // // Unzip the template EPUB file
+    // if (!unzip_file(templateEpub, templatePath)) {
+    //     std::cerr << "Failed to unzip EPUB file: " << templateEpub << std::endl;
+    //     return 1;
+    // }
 
-    std::cout << "EPUB file unzipped successfully to: " << templatePath << std::endl;
+    // std::cout << "EPUB file unzipped successfully to: " << templatePath << std::endl;
 
     
 
-    std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
+    // std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
 
-    if (contentOpfPath.empty()) {
-        std::cerr << "No OPF file found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
+    // if (contentOpfPath.empty()) {
+    //     std::cerr << "No OPF file found in the unzipped EPUB directory." << std::endl;
+    //     return 1;
+    // }
 
-    std::cout << "Found OPF file: " << contentOpfPath << std::endl;
+    // std::cout << "Found OPF file: " << contentOpfPath << std::endl;
 
-    std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
+    // std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
 
-    if (spineOrder.empty()) {
-        std::cerr << "No spine order found in the OPF file." << std::endl;
-        return 1;
-    }
-
-
-    std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
-    if (xhtmlFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
+    // if (spineOrder.empty()) {
+    //     std::cerr << "No spine order found in the OPF file." << std::endl;
+    //     return 1;
+    // }
 
 
-    // Sort the XHTML files based on the spine order
-    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
-    if (spineOrderXHTMLFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
-        return 1;
-    }
+    // std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
+    // if (xhtmlFiles.empty()) {
+    //     std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
+    //     return 1;
+    // }
 
 
-    // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
-    std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
-    std::ifstream Section001File(Section001Path);
-    if (!Section001File.is_open()) {
-        std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
-        return 1;
-    }
-
-    std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
-    Section001File.close();
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
-        std::ofstream newSectionFile(newSectionPath);
-        if (!newSectionFile.is_open()) {
-            std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
-            return 1;
-        }
-        newSectionFile << Section001Content;
-        newSectionFile.close();
-    }
-    //Remove Section001.xhtml
-    std::filesystem::remove(Section001Path);
-
-    // Update the spine and manifest in the templates OPF file
-    std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
-    updateContentOpf(spineOrder, templateContentOpfPath);
-
-    // Update the nav.xhtml file
-    std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
-    updateNavXHTML(navXHTMLPath, spineOrder);
+    // // Sort the XHTML files based on the spine order
+    // std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+    // if (spineOrderXHTMLFiles.empty()) {
+    //     std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
+    //     return 1;
+    // }
 
 
-    // Copy images from the unzipped directory to the template directory
-    copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+    // // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
+    // std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
+    // std::ifstream Section001File(Section001Path);
+    // if (!Section001File.is_open()) {
+    //     std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
+    //     return 1;
+    // }
+
+    // std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
+    // Section001File.close();
+    // for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+    //     std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
+    //     std::ofstream newSectionFile(newSectionPath);
+    //     if (!newSectionFile.is_open()) {
+    //         std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
+    //         return 1;
+    //     }
+    //     newSectionFile << Section001Content;
+    //     newSectionFile.close();
+    // }
+    // //Remove Section001.xhtml
+    // std::filesystem::remove(Section001Path);
+
+    // // Update the spine and manifest in the templates OPF file
+    // std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+    // updateContentOpf(spineOrder, templateContentOpfPath);
+
+    // // Update the nav.xhtml file
+    // std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
+    // updateNavXHTML(navXHTMLPath, spineOrder);
 
 
-    // Clean each chapter
-    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-            cleanChapter(xhtmlFile);
-            std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
-    }
+    // // Copy images from the unzipped directory to the template directory
+    // copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+
+
+    // // Clean each chapter
+    // for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+    //         cleanChapter(xhtmlFile);
+    //         std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
+    // }
 
     try{
         std::cout << "Running ONNX translation" << std::endl;

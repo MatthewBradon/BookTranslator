@@ -1,7 +1,7 @@
 import onnx
 
 # Load the ONNX model
-model = onnx.load('opus-mt-ja-en-ONNX\decoder_model.onnx')
+model = onnx.load('opus-mt-ja-en-ONNX/decoder_model.onnx')
 
 
 for input in model.graph.input:
