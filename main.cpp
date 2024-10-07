@@ -13,6 +13,7 @@
 #include <onnxruntime_cxx_api.h>
 #include <iostream>
 #include <Python.h>
+#include <random>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>  
 
@@ -710,8 +711,8 @@ void run_onnx_translation() {
     pybind11::object tokenize_text = tokenizer_module.attr("tokenize_text");
     pybind11::object detokenize_text = tokenizer_module.attr("detokenize_text");
 
-    // std::string input_text = "「ねえカズマ、お金受け取/って来なさいよ！ もう、ギルド内の冒険者達のほとん殆どは、魔王の幹部討伐のしよう奨ほう報金貰ったわよ。もちろん私も！ でも見ての通り、もう結構飲んじゃったんだけどね！」"; // Example Japanese input
-    std::string input_text = "ギルドにせつ設へい併された酒場の一角。";
+    std::string input_text = "「ねえカズマ、お金受け取/って来なさいよ！ もう、ギルド内の冒険者達のほとん殆どは、魔王の幹部討伐のしよう奨ほう報金貰ったわよ。もちろん私も！ でも見ての通り、もう結構飲んじゃったんだけどね！」"; // Example Japanese input
+    // std::string input_text = "ギルドにせつ設へい併された酒場の一角。";
     // Call Python tokenize_text function
     pybind11::tuple tokenized = tokenize_text(input_text);
     std::vector<int64_t> input_ids = processNumpyArray(tokenized[0].cast<pybind11::array_t<int64_t>>());
@@ -742,7 +743,7 @@ void run_onnx_translation() {
     std::cout << "Attention Mask Shape: " << attention_mask.size() << std::endl;
 
     // Path to ONNX encoder model on mac you must use const char*
-    const char* encoder_path = "opus-mt-ja-en-ONNX/encoder_model.onnx";
+    const char* encoder_path = "onnx-model-dir/encoder_model.onnx";
 
     // Load ONNX encoder model
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test");
@@ -798,7 +799,7 @@ void run_onnx_translation() {
     std::vector<const char*> decoder_output_node_names = {"logits"};
 
     // Path to your ONNX decoder model
-    const char* decoder_path = "opus-mt-ja-en-ONNX/decoder_model.onnx";
+    const char* decoder_path = "onnx-model-dir/decoder_model.onnx";
     Ort::Session decoder_session(env, decoder_path, session_options);
 
 
@@ -850,77 +851,48 @@ void run_onnx_translation() {
     decoder_inputs.push_back(std::move(encoder_hidden_states_tensor));  // encoder hidden states
 
 
-    size_t max_decode_steps = 50;  // Avoid infinite 
+    size_t max_decode_steps = 60;  // Avoid infinite 
     
+
     // Autoregressive decoding loop
-    for (size_t step = 0; step < max_decode_steps; ++step) {
+    // Autoregressive decoding loop
+for (size_t step = 0; step < max_decode_steps; ++step) {
+    // Run the decoder model
+    auto decoder_output_tensors = decoder_session.Run(
+        Ort::RunOptions{nullptr}, decoder_input_node_names.data(),
+        decoder_inputs.data(), decoder_input_node_names.size(),
+        decoder_output_node_names.data(), 1);
 
-        int64_t* token_tensor_data = decoder_inputs[1].GetTensorMutableData<int64_t>();
+    // Extract logits from the output tensor
+    auto logits_tensor = std::move(decoder_output_tensors[0]);
+    auto logits_shape = logits_tensor.GetTensorTypeAndShapeInfo().GetShape();
 
-        std::cout << "Token input tensor at step " << step << ": ";
+    // Assuming the last dimension of the logits is the vocabulary size
+    int64_t seq_length = logits_shape[1]; // sequence length (step count so far)
+    int64_t vocab_size = logits_shape[2]; // vocabulary size
 
-        for (size_t i = 0; i < decoder_input_shape[1]; ++i) {
-            std::cout << token_tensor_data[i] << " ";
-        }
+    // Extract logits corresponding to the last token in the sequence (logits[:, -1, :])
+    std::vector<float> logits(logits_tensor.GetTensorMutableData<float>(), 
+                               logits_tensor.GetTensorMutableData<float>() + std::accumulate(logits_shape.begin(), logits_shape.end(), 1, std::multiplies<int64_t>()));
+    
+    // Get the logits of the last token
+    std::vector<float> last_token_logits(logits.end() - vocab_size, logits.end());
 
-        std::cout << std::endl;
+    // Get the predicted token ID (argmax over the last dimension)
+    int next_token_id = std::distance(last_token_logits.begin(), std::max_element(last_token_logits.begin(), last_token_logits.end()));
 
+    // Update the decoder input tensor with the new token_ids
+    token_ids.push_back(next_token_id);
+    decoder_input_shape = {1, static_cast<int64_t>(token_ids.size())};  // Update shape to reflect new sequence length
 
+    decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(
+        memory_info, token_ids.data(), token_ids.size(),
+        decoder_input_shape.data(), decoder_input_shape.size());
 
-        // Run the decoder model
-        auto decoder_output_tensors = decoder_session.Run(
-            Ort::RunOptions{nullptr}, decoder_input_node_names.data(),
-            decoder_inputs.data(), decoder_input_node_names.size(),
-            decoder_output_node_names.data(), 1);
+    // Replace the old decoder input tensor in decoder_inputs with the new tensor
+    decoder_inputs[1] = std::move(decoder_input_tensor);  // Move the new token_ids tensor
+}
 
-        // Get decoder output (logits)
-        float* decoder_output_data = decoder_output_tensors[0].GetTensorMutableData<float>();
-        Ort::TensorTypeAndShapeInfo decoder_output_info = decoder_output_tensors[0].GetTensorTypeAndShapeInfo();
-        size_t decoder_output_size = decoder_output_info.GetElementCount();
-        std::vector<float> decoder_output(decoder_output_data, decoder_output_data + decoder_output_size);
-
-
-        // Loop over the logits and mask out those that are out-of-vocabulary
-        for (size_t i = 0; i < decoder_output_size; ++i) {
-            if (i > vocab_size) {
-                decoder_output[i] = -std::numeric_limits<float>::infinity();  // Mask OOV tokens
-            }
-        }
-
-        // Now apply the argmax strategy or any other method (e.g., top-k sampling)
-        auto max_element = std::max_element(decoder_output.begin(), decoder_output.end());
-        int64_t predicted_token_id = std::distance(decoder_output.begin(), max_element);
-
-        // Ensure the predicted token is within the valid range
-        if (predicted_token_id >= vocab_size) {
-            std::cerr << "Error: Predicted token is out of vocabulary range!" << std::endl;
-        } else {
-            token_ids.push_back(predicted_token_id);  // Add valid token to token_ids
-        }
-        // Stop if the EOS token (0) is predicted
-        if (predicted_token_id == eos_token_id) {
-            break;
-        }
-
-
-        // Update the decoder input tensor with the new token_ids
-        decoder_input_shape = {1, static_cast<int64_t>(token_ids.size())};  // Update shape to reflect new sequence length
-        decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(
-            memory_info, token_ids.data(), token_ids.size(),
-            decoder_input_shape.data(), decoder_input_shape.size());
-
-        // Print out decoder input tensor
-        std::cout << "After running model Decoder Input Tensor at step " << step << ": ";
-        for (size_t i = 0; i < decoder_input_shape[1]; ++i) {
-            std::cout << token_ids[i] << " ";
-        }
-
-        // Replace the old decoder input tensor in decoder_inputs with the new tensor
-        decoder_inputs[1] = std::move(decoder_input_tensor);  // Update token_ids tensor in decoder_inputs
-
-        std::cout << "Updated input tensor for next step." << std::endl;
-
-    }
 
     // Detokenize the output tokens to text
     pybind11::array_t<int64_t> token_ids_array(token_ids.size(), token_ids.data());
