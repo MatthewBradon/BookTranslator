@@ -303,6 +303,56 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
     return true;
 }
 
+void exportEpub(const std::string& exportPath) {
+    // Create an Epub file by zipping the exportPath directory
+
+    // Check if the exportPath directory exists
+    if (!std::filesystem::exists(exportPath)) {
+        std::cerr << "Export directory does not exist: " << exportPath << std::endl;
+        return;
+    }
+
+    // Create the output Epub file
+    std::string epubPath = "output.epub";
+
+    // Create a ZIP archive
+    zip_t* archive = zip_open(epubPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, nullptr);
+
+    // Add all files in the exportPath directory to the ZIP archive
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
+        if (entry.is_regular_file()) {
+            std::filesystem::path filePath = entry.path();
+            std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
+
+            // Create a zip_source_t from the file
+            zip_source_t* source = zip_source_file(archive, filePath.c_str(), 0, 0);
+            if (source == nullptr) {
+                std::cerr << "Error creating zip_source_t for file: " << filePath << std::endl;
+                zip_discard(archive);
+                return;
+            }
+
+            // Add the file to the ZIP archive
+            zip_int64_t index = zip_file_add(archive, relativePath.c_str(), source, ZIP_FL_ENC_UTF_8);
+            if (index < 0) {
+                std::cerr << "Error adding file to ZIP archive: " << filePath << std::endl;
+                zip_source_free(source);
+                zip_discard(archive);
+                return;
+            }
+        }
+    }
+
+    // Close the ZIP archive
+    if (zip_close(archive) < 0) {
+        std::cerr << "Error closing ZIP archive: " << epubPath << std::endl;
+        return;
+    }
+
+    std::cout << "Epub file created: " << epubPath << std::endl;
+}
+
+
 void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList) {
     std::ifstream navXHTMLFile(navXHTMLPath);
     if (!navXHTMLFile.is_open()) {
@@ -993,6 +1043,9 @@ int main() {
     for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
         processChapter(xhtmlFile, EncodeDecode);
     }
+
+    // Zip export directory to create the final EPUB file
+    exportEpub("export");
 
     // // Remove the unzipped directory
     // std::filesystem::remove_all(unzippedPath);
