@@ -1,30 +1,31 @@
 from transformers import AutoTokenizer
 import torch
 import numpy as np
+from optimum.onnxruntime import ORTModelForSeq2SeqLM
 
-# Initialize the tokenizer
-model_name = 'Helsinki-NLP/opus-mt-ja-en'
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-print(tokenizer.vocab_size)
-        
+tokenizer = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-ja-en')
+onnxModelPath = 'onnx-model-dir'
+model = ORTModelForSeq2SeqLM.from_pretrained(onnxModelPath)
+
 # Tokenize text and return numpy arrays
 def tokenize_text(text):
-    inputs = tokenizer(text, return_tensors="pt", padding=True)
-    print("Tokenized text test: ", inputs)
-    input_ids = inputs['input_ids'].cpu().numpy()  # Convert torch.Tensor to numpy
-    attention_mask = inputs['attention_mask'].cpu().numpy()  # Convert torch.Tensor to numpy
-        
-    return input_ids, attention_mask
+    inputs = tokenizer(text, return_tensors="pt")
+    print("\n\n\n\nOriginal Sentence: ", text)
+    print("Tokenized Input: ", inputs)
+    return inputs
+
 
 # Detokenize text (accepts numpy arrays)
 def detokenize_text(text):
-    print("\n\n\nOriginal text: ", text)
-    if isinstance(text, np.ndarray):
-        text = torch.tensor(text)  # Convert numpy array back to torch.Tensor if needed
+    print("Decoder output tokens, ", text)
     decodetext = tokenizer.decode(text, skip_special_tokens=True)
-    print("Detokenized text: ", decodetext)
     return decodetext
 
+def run_model(inputs):
+    generated = model.generate(**inputs)
+    return generated
 
-
-
+def translate(text):
+    inputs = tokenizer(text, return_tensors='pt')
+    generated = model.generate(**inputs)
+    return tokenizer.decode(generated[0], skip_special_tokens=True)
