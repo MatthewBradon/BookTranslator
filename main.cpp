@@ -22,6 +22,16 @@
 #define EOS_TOKEN_ID 0
 #define PAD_TOKEN_ID 60715
 
+#define P_TAG 0
+#define IMG_TAG 1
+
+struct tagData {
+    int tagId;
+    std::string text;
+    int position;
+    int chapterNum;
+};
+
 const char* encoder_path = "onnx-model-dir/encoder_model.onnx";
 const char* decoder_path = "onnx-model-dir/decoder_model.onnx";
 
@@ -351,7 +361,6 @@ void exportEpub(const std::string& exportPath) {
 
     std::cout << "Epub file created: " << epubPath << std::endl;
 }
-
 
 void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList) {
     std::ifstream navXHTMLFile(navXHTMLPath);
@@ -921,6 +930,119 @@ void processChapter(const std::filesystem::path& chapterPath, pybind11::module& 
     xmlFreeDoc(doc);
 }
 
+
+std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
+    // Initialize the 2D vector to store the tag data for each chapter
+    // Initialize the 2D vector to store the tag data for each chapter
+    std::vector<tagData> bookTags;  // This will hold tag data for the entire book
+    
+    int chapterNum = 0;
+
+    for (const std::filesystem::path& chapterPath : chapterPaths) {
+        
+        std::ifstream file(chapterPath);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file: " << chapterPath << std::endl;
+            continue;  // Continue with the next chapter instead of returning
+        }
+
+        // Read the entire content of the chapter file
+        std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+
+        // Parse the content using libxml2
+        htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        if (!doc) {
+            std::cerr << "Failed to parse HTML content." << std::endl;
+            continue;  // Continue with the next chapter
+        }
+
+        // Create an XPath context
+        xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
+        if (!xpathCtx) {
+            std::cerr << "Failed to create XPath context." << std::endl;
+            xmlFreeDoc(doc);
+            continue;  // Continue with the next chapter
+        }
+
+        // Extract all <p> and <img> tags
+        xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
+        if (!xpathObj) {
+            std::cerr << "Failed to evaluate XPath expression." << std::endl;
+            xmlXPathFreeContext(xpathCtx);
+            xmlFreeDoc(doc);
+            continue;  // Continue with the next chapter
+        }
+
+        xmlNodeSetPtr nodes = xpathObj->nodesetval;
+        int nodeCount = (nodes) ? nodes->nodeNr : 0;
+
+        std::vector<tagData> chapterTags;  // Vector to hold tag data for the current chapter
+        for (int i = 0; i < nodeCount; ++i) {
+            xmlNodePtr node = nodes->nodeTab[i];
+            if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
+                // Extract text content of <p> tag
+                xmlChar* textContent = xmlNodeGetContent(node);
+                if (textContent) {
+                    try {
+                        std::string pText(reinterpret_cast<char*>(textContent));
+
+                        if (!pText.empty()) {
+                            // Strip HTML tags and prepare the text
+                            std::string strippedText = stripHtmlTags(pText);
+
+                            // Create tagData struct
+                            tagData tag;
+                            tag.tagId = P_TAG;
+                            tag.text = strippedText;
+                            tag.position = i;
+                            tag.chapterNum = chapterNum;
+
+                            // Append the tag to chapterTags
+                            bookTags.push_back(tag);
+                        }
+                    } catch (const std::exception& e) {
+                        std::cerr << "Error: " << e.what() << std::endl;
+                    }
+                    xmlFree(textContent);
+                }
+            } else if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
+                // Extract src attribute of <img> tag
+                xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
+                if (src) {
+                    std::string imgSrc(reinterpret_cast<char*>(src));
+                    std::string imgFilename = std::filesystem::path(imgSrc).filename().string();
+
+                    // Create tagData struct for the image
+                    tagData tag;
+                    tag.tagId = IMG_TAG;
+                    tag.text = imgFilename;  // Store the image filename
+                    tag.position = i;
+                    tag.chapterNum = chapterNum;
+
+                    // Append the tag to chapterTags
+                    bookTags.push_back(tag);
+
+                    xmlFree(src);
+                }
+            }
+        }
+
+
+
+        // Free resources for the current chapter
+        xmlXPathFreeObject(xpathObj);
+        xmlXPathFreeContext(xpathCtx);
+        xmlFreeDoc(doc);
+        
+        std::cout << "Chapter done: " << chapterPath.filename().string() << std::endl;
+        chapterNum++;
+    }
+
+    return bookTags;
+}
+
+
 int main() {
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
@@ -1039,13 +1161,29 @@ int main() {
     pybind11::scoped_interpreter guard{};
     pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
 
-    // Process each chapter
-    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-        processChapter(xhtmlFile, EncodeDecode);
+    // // Process each chapter
+    // for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+    //     processChapter(xhtmlFile, EncodeDecode);
+    // }
+
+    std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+    // Write out bookTags to txt file
+    std::ofstream tagFile("./bookTags.txt");
+    if (!tagFile.is_open()) {
+        std::cerr << "Failed to open file for writing: " << "./bookTags.txt" << std::endl;
+        return 1;
+    }
+    for (const auto& tag : bookTags) {
+        tagFile << "Tag ID: " << tag.tagId << " Text: " << tag.text << " Position: " << tag.position << " Chapter: " << tag.chapterNum << std::endl;
     }
 
+    tagFile.close();
+
+
+
     // Zip export directory to create the final EPUB file
-    exportEpub("export");
+    // exportEpub("export");
 
     // // Remove the unzipped directory
     // std::filesystem::remove_all(unzippedPath);
