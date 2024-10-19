@@ -16,7 +16,9 @@
 #include <random>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>  
-
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define EOS_TOKEN_ID 0
@@ -32,6 +34,11 @@ struct tagData {
     int chapterNum;
 };
 
+struct encodedData {
+    pybind11::object encoded;
+    int chapterNum;
+    int position;
+};
 const char* encoder_path = "onnx-model-dir/encoder_model.onnx";
 const char* decoder_path = "onnx-model-dir/decoder_model.onnx";
 
@@ -796,12 +803,32 @@ std::string run_onnx_translation(std::string input_text, pybind11::module& token
     return output_text;
 }
 
-std::string runPyBindTranslate(std::string input_text, pybind11::module& tokenizer_module) {
-    pybind11::object translate = tokenizer_module.attr("translate");
+std::string runPyBindTranslate(std::string input_text, pybind11::module& EncodeDecode) {
+    try {
+        std::queue<pybind11::object> tokenizedQueue;
+        pybind11::object encodeText = EncodeDecode.attr("tokenize_text");
+        pybind11::object encoded = encodeText(input_text);
+        tokenizedQueue.push(encoded);
 
-    pybind11::object translated = translate(input_text);
 
-    return translated.cast<std::string>();
+        std::queue<pybind11::object> modelOutputQueue;
+        pybind11::object runModel = EncodeDecode.attr("run_model");
+        pybind11::object modelInput = tokenizedQueue.front();
+        pybind11::object generated = runModel(modelInput);
+        modelOutputQueue.push(generated);
+
+
+        std::queue<pybind11::object> detokenizedQueue;
+        pybind11::object decodeText = EncodeDecode.attr("detokenize_text");
+        pybind11::object decoded = decodeText(generated);
+        detokenizedQueue.push(decoded);
+
+
+        return decoded.cast<std::string>();
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return "";
+    }
 }
 
 void processChapter(const std::filesystem::path& chapterPath, pybind11::module& EncodeDecode) {
@@ -864,10 +891,10 @@ void processChapter(const std::filesystem::path& chapterPath, pybind11::module& 
                             strippedText = strippedText.substr(1);
                         }
 
-                        std::string translatedText = runPyBindTranslate(strippedText, EncodeDecode);
+                        // std::string translatedText = runPyBindTranslate(strippedText, EncodeDecode);
 
-                        std::cout << "Translation text: " << translatedText << std::endl;
-                        chapterContent += "<p>" + translatedText + "</p>\n";
+                        // std::cout << "Translation text: " << translatedText << std::endl;
+                        // chapterContent += "<p>" + translatedText + "</p>\n";
                     }
                 } catch (const std::exception& e) {
                     std::cerr << "Error: " << e.what() << std::endl;
@@ -1043,7 +1070,27 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
 }
 
 
+void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode) {
+    pybind11::list py_list;  // Create a Python list
+
+    for (const auto& data : data_vector) {
+        // Create a Python dictionary for each encodedData
+        pybind11::dict py_dict;
+        py_dict["encoded"] = data.encoded;
+        py_dict["chapterNum"] = data.chapterNum;
+        py_dict["position"] = data.position;
+
+        // Append the dictionary to the Python list
+        py_list.append(py_dict);
+    }
+    pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
+    encodedDataSingleton.attr("set_encodedDataDict")(py_list);    
+}
+
 int main() {
+
+    pybind11::scoped_interpreter guard{};
+    pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
 
     std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
     // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
@@ -1157,9 +1204,16 @@ int main() {
     }
 
 
-    // Load the Python module
-    pybind11::scoped_interpreter guard{};
-    pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
+    std::cout << "TEEEEEEEESSSSTTTTT1231231" << std::endl;
+
+
+    // try {
+    //     std::cout << runPyBindTranslateThreaded("この素晴らしい世界に祝福を！ 01 あぁ、駄女神さま", EncodeDecode) << std::endl;
+    // } catch (const std::exception& e) {
+    //     std::cerr << "Error: " << e.what() << std::endl;
+    // }
+
+
 
     // // Process each chapter
     // for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
@@ -1168,17 +1222,38 @@ int main() {
 
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
-    // Write out bookTags to txt file
-    std::ofstream tagFile("./bookTags.txt");
-    if (!tagFile.is_open()) {
-        std::cerr << "Failed to open file for writing: " << "./bookTags.txt" << std::endl;
-        return 1;
-    }
-    for (const auto& tag : bookTags) {
-        tagFile << "Tag ID: " << tag.tagId << " Text: " << tag.text << " Position: " << tag.position << " Chapter: " << tag.chapterNum << std::endl;
+    pybind11::object encodeText = EncodeDecode.attr("tokenize_text");
+
+
+    std::vector<encodedData> encodedTags;
+    // Tokenize every text in the bookTags
+    for (auto& tag : bookTags) {
+        if (tag.tagId == P_TAG) {
+            encodedData encodedTag;
+            encodedTag.encoded = encodeText(tag.text);
+            encodedTag.position = tag.position;
+            encodedTag.chapterNum = tag.chapterNum;
+
+            encodedTags.push_back(encodedTag);
+        }
     }
 
-    tagFile.close();
+    convertEncodedDataToPython(encodedTags, EncodeDecode);
+
+
+
+
+    // // Write out bookTags to txt file
+    // std::ofstream tagFile("./bookTags.txt");
+    // if (!tagFile.is_open()) {
+    //     std::cerr << "Failed to open file for writing: " << "./bookTags.txt" << std::endl;
+    //     return 1;
+    // }
+    // for (const auto& tag : bookTags) {
+    //     tagFile << "Tag ID: " << tag.tagId << " Text: " << tag.text << " Position: " << tag.position << " Chapter: " << tag.chapterNum << std::endl;
+    // }
+
+    // tagFile.close();
 
 
 
