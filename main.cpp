@@ -19,6 +19,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <time.h>
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define EOS_TOKEN_ID 0
@@ -36,6 +37,12 @@ struct tagData {
 
 struct encodedData {
     pybind11::object encoded;
+    int chapterNum;
+    int position;
+};
+
+struct decodedData {
+    std::string output;
     int chapterNum;
     int position;
 };
@@ -1071,23 +1078,69 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
 
 
 void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode) {
-    pybind11::list py_list;  // Create a Python list
-
+    // Create a Python dictionary to store all encoded data
+    pybind11::dict py_dict;
+    // int mockCounter = 0;
     for (const auto& data : data_vector) {
-        // Create a Python dictionary for each encodedData
-        pybind11::dict py_dict;
-        py_dict["encoded"] = data.encoded;
-        py_dict["chapterNum"] = data.chapterNum;
-        py_dict["position"] = data.position;
-
-        // Append the dictionary to the Python list
-        py_list.append(py_dict);
+        // if (mockCounter == 20) {
+        //     break;
+        // }
+        // Here, we use a tuple of (chapterNum, position) as a key
+        py_dict[pybind11::make_tuple(data.chapterNum, data.position)] = data.encoded;
+        // mockCounter++;
+        
     }
+
+    // Get the singleton instance of encodedDataSingleton and set the dictionary
     pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
-    encodedDataSingleton.attr("set_encodedDataDict")(py_list);    
+    encodedDataSingleton.attr("set_encodedDataDict")(py_dict);
+}
+
+
+pybind11::object runMultiprocessingPython(pybind11::module& EncodeDecode) {
+    try {
+        // Get the singleton instance in Python (to pass encoded data)
+        pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
+
+        // Call the Python function to run model inference with multiprocessing
+        pybind11::object runModelMultiprocessing = EncodeDecode.attr("run_model_multiprocessing");
+
+
+        // Run the Python function with data from the singleton
+        pybind11::object results = runModelMultiprocessing(encodedDataSingleton.attr("get_encodedDataDict")());
+
+        return results;
+
+    } catch (const pybind11::error_already_set& e) {
+        // Catch and print any Python exceptions
+        std::cerr << "Python exception: " << e.what() << std::endl;
+        return pybind11::none();
+    }
+    
+}
+
+std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& EncodeDecode) {
+    std::vector<decodedData> decodedDataVector;
+     
+    // Iterate over the results and convert them to decodedData objects
+    for (const auto& item : results) {
+        decodedData decoded;
+        // (generated[0], chapterNum, position) 
+        pybind11::tuple resultTuple = item.cast<pybind11::tuple>();
+        decoded.output = EncodeDecode.attr("detokenize_text")(resultTuple[0]).cast<std::string>(); 
+        decoded.chapterNum = resultTuple[1].cast<int>();
+        decoded.position = resultTuple[2].cast<int>();
+
+        decodedDataVector.push_back(decoded);
+    }
+
+    return decodedDataVector;
 }
 
 int main() {
+    //Start timer
+    auto start = std::chrono::high_resolution_clock::now();
+
 
     pybind11::scoped_interpreter guard{};
     pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
@@ -1204,17 +1257,6 @@ int main() {
     }
 
 
-    std::cout << "TEEEEEEEESSSSTTTTT1231231" << std::endl;
-
-
-    // try {
-    //     std::cout << runPyBindTranslateThreaded("この素晴らしい世界に祝福を！ 01 あぁ、駄女神さま", EncodeDecode) << std::endl;
-    // } catch (const std::exception& e) {
-    //     std::cerr << "Error: " << e.what() << std::endl;
-    // }
-
-
-
     // // Process each chapter
     // for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
     //     processChapter(xhtmlFile, EncodeDecode);
@@ -1241,29 +1283,103 @@ int main() {
     convertEncodedDataToPython(encodedTags, EncodeDecode);
 
 
+    pybind11::object results = runMultiprocessingPython(EncodeDecode);
+
+    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, EncodeDecode);
+
+    // Print out decodedDataVector
+    // for (const auto& decoded : decodedDataVector) {
+    //     std::cout << "Chapter: " << decoded.chapterNum << " Position: " << decoded.position << " Output: " << decoded.output << std::endl;
+    // }
 
 
-    // // Write out bookTags to txt file
-    // std::ofstream tagFile("./bookTags.txt");
+
+
+
+    std::vector<std::vector<tagData>> chapterTags;
+    // Divide bookTags into chapters chapterNum is the chapter number
+    for(auto& tag : bookTags) {
+        if (tag.chapterNum >= chapterTags.size()) {
+            chapterTags.resize(tag.chapterNum + 1);
+        }
+        chapterTags[tag.chapterNum].push_back(tag);
+    }
+
+    // Replace chapterTags tags text with the decoded text if the tag is a P_TAG and the position and chapterNum match
+    for (const auto& decoded : decodedDataVector) {
+        for (auto& tag : chapterTags[decoded.chapterNum]) {
+            if (tag.position == decoded.position) {
+                tag.text = decoded.output;
+            }
+        }
+    }
+
+
+
+    // // Write out chapterTags to txt file
+    // std::ofstream tagFile("tags.txt");
     // if (!tagFile.is_open()) {
-    //     std::cerr << "Failed to open file for writing: " << "./bookTags.txt" << std::endl;
+    //     std::cerr << "Failed to open tags.txt file." << std::endl;
     //     return 1;
     // }
-    // for (const auto& tag : bookTags) {
-    //     tagFile << "Tag ID: " << tag.tagId << " Text: " << tag.text << " Position: " << tag.position << " Chapter: " << tag.chapterNum << std::endl;
+
+    // for (const auto& chapter : chapterTags) {
+    //     for (const auto& tag : chapter) {
+    //         tagFile << "Chapter: " << tag.chapterNum << " Position: " << tag.position << " Text: " << tag.text << std::endl;
+    //     }
     // }
 
     // tagFile.close();
 
+   // Write out chapterTags to the html files in spineOrderXHTMLFiles
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+        std::ofstream outFile(outputPath);
+        std::cout << "Writing to: " << outputPath << std::endl;
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+            return 1;
+        }
 
+        outFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        outFile << "<!DOCTYPE html>\n";
+        outFile << "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
+        outFile << "<head>\n";
+        outFile << "<title>" << spineOrderXHTMLFiles[i].filename().string() << "</title>\n";
+        outFile << "</head>\n";
+        outFile << "<body>\n";
+
+        // Iterate through tags in the chapter and write the corresponding HTML tags
+        for (const auto& tag : chapterTags[i]) {
+            if (tag.tagId == P_TAG) {
+                std::cout << "Writing P tag: " << tag.text << std::endl;
+                // Write <p> tag for paragraph content
+                outFile << "<p>" << tag.text << "</p>\n";
+            } else if (tag.tagId == IMG_TAG) {
+                std::cout << "Writing IMG tag: " << tag.text << std::endl;
+                // Write <img> tag for images, ensuring the path is correct
+                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+            }
+            // You can add other tag types here if needed (e.g., headers, links)
+        }
+
+        // Close the body and HTML structure
+        outFile << "</body>\n";
+        outFile << "</html>";
+        
+        // Close the file
+        outFile.close();
+    }
 
     // Zip export directory to create the final EPUB file
-    // exportEpub("export");
+    exportEpub("export");
 
-    // // Remove the unzipped directory
-    // std::filesystem::remove_all(unzippedPath);
-    // // Remove the template directory
-    // std::filesystem::remove_all(templatePath);
+    // End timer
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
 
     return 0;
 }

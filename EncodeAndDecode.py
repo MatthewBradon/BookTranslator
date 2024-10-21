@@ -1,11 +1,12 @@
 from transformers import AutoTokenizer
-import torch
-import numpy as np
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
+import sys
 
 # Global variable to store the model in each worker
 model = None
+onnx_model_path = 'onnx-model-dir'
+mp.set_start_method("fork", force=True)
 
 class encodedDataSingleton:
     _instance = None
@@ -25,70 +26,146 @@ class encodedDataSingleton:
 
     def set_encodedDataDict(self, data):
         print("Setting encoded data dict")
+        sys.stdout.flush()
         self._encodedDataDict = data
 
     def get_encodedDataDict(self):
         return self._encodedDataDict
+    
+    def print_singletonDict(self):
+        for values in self._encodedDataDict.values():
+            print(values)
+            sys.stdout.flush()
 
-
-
-
+    def print_keys(self):
+        print(self._encodedDataDict.keys())
+        sys.stdout.flush()
 
 # Initialize tokenizer once (can be shared across workers)
 tokenizer = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-ja-en')
 
 # Function to initialize the model once per worker
-def init_model(onnx_model_path):
+def init_model():
     global model
-    model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
+    if model is None:
+        print("Loading model in worker process.")
+        sys.stdout.flush()
+        model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
 
 # Tokenize text and return tensors
 def tokenize_text(text):
     inputs = tokenizer(text, return_tensors="pt")
-    print("\n\n\n\nOriginal Sentence: ", text)
-    print("Tokenized Input: ", inputs)
+    print(f"\n\n\n\nOriginal Sentence: {text}")
+    print(f"Tokenized Input: {inputs}")
+    sys.stdout.flush()
     return inputs
 
 # Detokenize text (accepts tokenized arrays)
 def detokenize_text(text):
-    print("Decoder output tokens, ", text)
+    print(f"Decoder output tokens: {text}")
+    sys.stdout.flush()
     decodetext = tokenizer.decode(text, skip_special_tokens=True)
     return decodetext
 
-# Function to run the model and generate translations (used by worker processes)
-def run_model_worker(input_encodedDataDict):
-    global model
-    # Ensure the model has been initialized
-    if model is None:
-        raise ValueError("Model is not initialized in worker")
-    
-    generated = model.generate(**input_encodedDataDict)
-    return generated[0]
+def run_model_worker(encoded_data_queue, model_output_queue, worker_id):
+    """Worker function to process translations."""
+    print(f"Worker {worker_id} started.")
+    sys.stdout.flush()
 
-# Function to run the model using multiprocessing
-def run_model_multiprocessing(inputs, onnx_model_path, num_workers=4):
-    # Create a multiprocessing pool with an initializer to load the model once per worker
-    with mp.Pool(processes=num_workers, initializer=init_model, initargs=(onnx_model_path,)) as pool:
-        # Prepare data to be distributed across processes
-        input_list = [inputs for _ in range(num_workers)]  # Copy the inputs for each worker
+    init_model()  # Initialize model in worker
 
-        # Run model inference in parallel
-        results = pool.map(run_model_worker, input_list)
-    
+    while True:
+        encoded_data = encoded_data_queue.get()
+
+        if encoded_data is None:
+            print(f"Worker {worker_id} received sentinel, stopping.")
+            sys.stdout.flush()
+            break
+
+        encoded, chapterNum, position = encoded_data
+        print(f"Worker {worker_id} is processing chapter {chapterNum} at position {position}.")
+        sys.stdout.flush()
+
+        try:
+            print(f"Worker {worker_id} received input: {encoded}")
+            sys.stdout.flush()
+            # Model inference
+            generated = model.generate(**encoded)
+            print(f"Worker {worker_id} generated output: {generated}")
+            sys.stdout.flush()
+
+            # Put model output plus chapterNum and position in the output queue
+            model_output_queue.put((generated[0], chapterNum, position))
+        except Exception as e:
+            print(f"Error in worker {worker_id} while processing chapter {chapterNum} at position {position}: {str(e)}")
+            sys.stdout.flush()
+
+    print(f"Worker {worker_id} exiting.")
+    sys.stdout.flush()
+
+    # End the worker process
+    return
+
+
+
+def run_model_multiprocessing(inputs, num_workers=4):
+    """Function to distribute tasks among workers using multiprocessing.Process."""
+    # Create queues for encoded data and model output
+    encoded_data_queue = mp.Queue()
+    model_output_queue = mp.Queue()
+
+    # Add the inputs (dict) to the encoded data queue
+    print(f"Adding {len(inputs)} inputs to the queue.")
+    sys.stdout.flush()
+    for (chapterNum, position), encoded_data in inputs.items():
+        # Queue the data along with the chapter number and position
+        print(f"Queueing input for chapter {chapterNum}, position {position}: {encoded_data}")
+        sys.stdout.flush()
+        encoded_data_queue.put((encoded_data, chapterNum, position))
+
+    # Add a sentinel value for each worker to signal the end of the input data
+    for _ in range(num_workers):
+        encoded_data_queue.put(None)
+
+    # Create and start worker processes
+    processes = []
+    for worker_id in range(num_workers):
+        print(f"Starting worker {worker_id}.")
+        sys.stdout.flush()
+        process = mp.Process(target=run_model_worker, args=(encoded_data_queue, model_output_queue, worker_id))
+        processes.append(process)
+        process.start()
+
+    # Wait for all worker processes to finish
+    for process in processes:
+        print(f"Waiting for process {process.pid} to terminate.")
+        sys.stdout.flush()
+        process.join()
+        print(f"Process {process.pid} has terminated.")
+        sys.stdout.flush()
+
+    # Fetch the model outputs from the queue
+    print("Fetching results from the output queue.")
+    sys.stdout.flush()
+    results = []
+    while not model_output_queue.empty():
+        try:
+            output = model_output_queue.get(timeout=5)
+            print(f"Received result from output queue: {output}")
+            sys.stdout.flush()
+            results.append(output)
+        except mp.queues.Empty:
+            print("Queue is empty.")
+            sys.stdout.flush()
+
+    if not results:
+        print("No results were processed by the workers.")
+        sys.stdout.flush()
+    else:
+        print(f"Processed {len(results)} results.")
+        sys.stdout.flush()
+
+    print("Main process exiting.")
+    sys.stdout.flush()
+
     return results
-
-# Example usage in your C++ application through pybind
-def run_translation(text):
-    inputs = tokenize_text(text)
-    onnx_model_path = 'onnx-model-dir'
-    # Run the model with multiprocessing, using 4 workers as an example
-    generated_outputs = run_model_multiprocessing(inputs, onnx_model_path, num_workers=4)
-
-    # Detokenize the results from the first model output as an example
-    decoded_output = detokenize_text(generated_outputs[0].numpy())
-    return decoded_output
-
-
-def run_model(inputs):
-    generated = model.generate(**inputs)
-    return generated[0]
