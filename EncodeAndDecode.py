@@ -6,6 +6,8 @@ import sys
 # Global variable to store the model in each worker
 model = None
 onnx_model_path = 'onnx-model-dir'
+
+# Set start method for multiprocessing
 mp.set_start_method("fork", force=True)
 
 class encodedDataSingleton:
@@ -67,96 +69,38 @@ def detokenize_text(text):
     decodetext = tokenizer.decode(text, skip_special_tokens=True)
     return decodetext
 
-def run_model_worker(encoded_data_queue, model_output_queue, worker_id):
-    """Worker function to process translations."""
-    print(f"Worker {worker_id} started.")
+def process_task(encoded_data):
+    """Process a single task in a worker."""
+    encoded, chapterNum, position = encoded_data
+
+    print(f"Processing chapter {chapterNum} at position {position}.")
     sys.stdout.flush()
 
     init_model()  # Initialize model in worker
 
-    while True:
-        encoded_data = encoded_data_queue.get()
-
-        if encoded_data is None:
-            print(f"Worker {worker_id} received sentinel, stopping.")
-            sys.stdout.flush()
-            break
-
-        encoded, chapterNum, position = encoded_data
-        print(f"Worker {worker_id} is processing chapter {chapterNum} at position {position}.")
+    try:
+        print(f"Starting model inference.")
         sys.stdout.flush()
-
-        try:
-            print(f"Worker {worker_id} received input: {encoded}")
-            sys.stdout.flush()
-            # Model inference
-            generated = model.generate(**encoded)
-            print(f"Worker {worker_id} generated output: {generated}")
-            sys.stdout.flush()
-
-            # Put model output plus chapterNum and position in the output queue
-            model_output_queue.put((generated[0], chapterNum, position))
-        except Exception as e:
-            print(f"Error in worker {worker_id} while processing chapter {chapterNum} at position {position}: {str(e)}")
-            sys.stdout.flush()
-
-    print(f"Worker {worker_id} exiting.")
-    sys.stdout.flush()
-
-    # End the worker process
-    return
-
-
+        generated = model.generate(**encoded)
+        print(f"Generated: {generated[0]}")
+        sys.stdout.flush()
+        return generated[0], chapterNum, position
+    except Exception as e:
+        print(f"Error while processing chapter {chapterNum} at position {position}: {str(e)}")
+        sys.stdout.flush()
+        return None
 
 def run_model_multiprocessing(inputs, num_workers=4):
-    """Function to distribute tasks among workers using multiprocessing.Process."""
-    # Create queues for encoded data and model output
-    encoded_data_queue = mp.Queue()
-    model_output_queue = mp.Queue()
+    """Function to distribute tasks among workers using multiprocessing.Pool."""
+    # Create a pool of worker processes
+    with mp.Pool(processes=num_workers) as pool:
+        tasks = [(encoded_data, chapterNum, position) for (chapterNum, position), encoded_data in inputs.items()]
 
-    # Add the inputs (dict) to the encoded data queue
-    print(f"Adding {len(inputs)} inputs to the queue.")
-    sys.stdout.flush()
-    for (chapterNum, position), encoded_data in inputs.items():
-        # Queue the data along with the chapter number and position
-        print(f"Queueing input for chapter {chapterNum}, position {position}: {encoded_data}")
-        sys.stdout.flush()
-        encoded_data_queue.put((encoded_data, chapterNum, position))
+        # Submit tasks to the pool
+        results = pool.map(process_task, tasks)
 
-    # Add a sentinel value for each worker to signal the end of the input data
-    for _ in range(num_workers):
-        encoded_data_queue.put(None)
-
-    # Create and start worker processes
-    processes = []
-    for worker_id in range(num_workers):
-        print(f"Starting worker {worker_id}.")
-        sys.stdout.flush()
-        process = mp.Process(target=run_model_worker, args=(encoded_data_queue, model_output_queue, worker_id))
-        processes.append(process)
-        process.start()
-
-    # Wait for all worker processes to finish
-    for process in processes:
-        print(f"Waiting for process {process.pid} to terminate.")
-        sys.stdout.flush()
-        process.join()
-        print(f"Process {process.pid} has terminated.")
-        sys.stdout.flush()
-
-    # Fetch the model outputs from the queue
-    print("Fetching results from the output queue.")
-    sys.stdout.flush()
-    results = []
-    while not model_output_queue.empty():
-        try:
-            output = model_output_queue.get(timeout=5)
-            print(f"Received result from output queue: {output}")
-            sys.stdout.flush()
-            results.append(output)
-        except mp.queues.Empty:
-            print("Queue is empty.")
-            sys.stdout.flush()
+    # Filter out None results (if any errors occurred)
+    results = [result for result in results if result is not None]
 
     if not results:
         print("No results were processed by the workers.")

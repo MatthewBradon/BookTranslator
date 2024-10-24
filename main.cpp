@@ -1080,14 +1080,14 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
 void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode) {
     // Create a Python dictionary to store all encoded data
     pybind11::dict py_dict;
-    // int mockCounter = 0;
+    int mockCounter = 0;
     for (const auto& data : data_vector) {
-        // if (mockCounter == 20) {
-        //     break;
-        // }
+        if (mockCounter == 300) {
+            break;
+        }
         // Here, we use a tuple of (chapterNum, position) as a key
         py_dict[pybind11::make_tuple(data.chapterNum, data.position)] = data.encoded;
-        // mockCounter++;
+        mockCounter++;
         
     }
 
@@ -1352,11 +1352,11 @@ int main() {
         // Iterate through tags in the chapter and write the corresponding HTML tags
         for (const auto& tag : chapterTags[i]) {
             if (tag.tagId == P_TAG) {
-                std::cout << "Writing P tag: " << tag.text << std::endl;
+                // std::cout << "Writing P tag: " << tag.text << std::endl;
                 // Write <p> tag for paragraph content
                 outFile << "<p>" << tag.text << "</p>\n";
             } else if (tag.tagId == IMG_TAG) {
-                std::cout << "Writing IMG tag: " << tag.text << std::endl;
+                // std::cout << "Writing IMG tag: " << tag.text << std::endl;
                 // Write <img> tag for images, ensuring the path is correct
                 outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
             }
