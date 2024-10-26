@@ -20,6 +20,11 @@
 #include <condition_variable>
 #include <thread>
 #include <time.h>
+#include "imgui.h"
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+#include <GLFW/glfw3.h>
+
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define EOS_TOKEN_ID 0
@@ -810,34 +815,6 @@ std::string run_onnx_translation(std::string input_text, pybind11::module& token
     return output_text;
 }
 
-std::string runPyBindTranslate(std::string input_text, pybind11::module& EncodeDecode) {
-    try {
-        std::queue<pybind11::object> tokenizedQueue;
-        pybind11::object encodeText = EncodeDecode.attr("tokenize_text");
-        pybind11::object encoded = encodeText(input_text);
-        tokenizedQueue.push(encoded);
-
-
-        std::queue<pybind11::object> modelOutputQueue;
-        pybind11::object runModel = EncodeDecode.attr("run_model");
-        pybind11::object modelInput = tokenizedQueue.front();
-        pybind11::object generated = runModel(modelInput);
-        modelOutputQueue.push(generated);
-
-
-        std::queue<pybind11::object> detokenizedQueue;
-        pybind11::object decodeText = EncodeDecode.attr("detokenize_text");
-        pybind11::object decoded = decodeText(generated);
-        detokenizedQueue.push(decoded);
-
-
-        return decoded.cast<std::string>();
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return "";
-    }
-}
-
 void processChapter(const std::filesystem::path& chapterPath, pybind11::module& EncodeDecode) {
     std::ifstream file(chapterPath);
     if (!file.is_open()) {
@@ -1082,7 +1059,7 @@ void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pyb
     pybind11::dict py_dict;
     int mockCounter = 0;
     for (const auto& data : data_vector) {
-        if (mockCounter == 300) {
+        if (mockCounter == 150) {
             break;
         }
         // Here, we use a tuple of (chapterNum, position) as a key
@@ -1137,20 +1114,15 @@ std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& res
     return decodedDataVector;
 }
 
-int main() {
-    //Start timer
-    auto start = std::chrono::high_resolution_clock::now();
-
-
+int run(const std::string& epubToConvert, const std::string& templateEpub, const std::string& unzippedPath, const std::string& templatePath) {
+    
+    // Initialize the Python interpreter
     pybind11::scoped_interpreter guard{};
     pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
-
-    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
-    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
-    std::string unzippedPath = "unzipped";
-
-    std::string templatePath = "export";
-    std::string templateEpub = "rawEpub/template.epub";
+    
+    // Start the timer
+    auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "START" << std::endl;
 
     // Create the output directory if it doesn't exist
     if (!make_directory(unzippedPath)) {
@@ -1224,6 +1196,7 @@ int main() {
 
     std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
     Section001File.close();
+
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
         std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
         std::ofstream newSectionFile(newSectionPath);
@@ -1236,6 +1209,9 @@ int main() {
     }
     //Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
+
+
+
 
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
@@ -1250,6 +1226,8 @@ int main() {
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
 
 
+
+
     // Clean each chapter
     for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
             cleanChapter(xhtmlFile);
@@ -1257,10 +1235,7 @@ int main() {
     }
 
 
-    // // Process each chapter
-    // for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-    //     processChapter(xhtmlFile, EncodeDecode);
-    // }
+
 
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
@@ -1287,14 +1262,6 @@ int main() {
 
     std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, EncodeDecode);
 
-    // Print out decodedDataVector
-    // for (const auto& decoded : decodedDataVector) {
-    //     std::cout << "Chapter: " << decoded.chapterNum << " Position: " << decoded.position << " Output: " << decoded.output << std::endl;
-    // }
-
-
-
-
 
     std::vector<std::vector<tagData>> chapterTags;
     // Divide bookTags into chapters chapterNum is the chapter number
@@ -1305,33 +1272,41 @@ int main() {
         chapterTags[tag.chapterNum].push_back(tag);
     }
 
-    // Replace chapterTags tags text with the decoded text if the tag is a P_TAG and the position and chapterNum match
+    // Build the position map for each chapter and position
+    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+        for (auto& tag : chapterTags[chapterNum]) {
+            positionMap[chapterNum][tag.position] = &tag;
+        }
+    }
+
+    // Update chapterTags using decodedDataVector
     for (const auto& decoded : decodedDataVector) {
-        for (auto& tag : chapterTags[decoded.chapterNum]) {
-            if (tag.position == decoded.position) {
-                tag.text = decoded.output;
+        // Find the corresponding chapter in the map
+        auto chapterIt = positionMap.find(decoded.chapterNum);
+        if (chapterIt != positionMap.end()) {
+            auto& positionTags = chapterIt->second;
+            // Find the tag by position
+            auto tagIt = positionTags.find(decoded.position);
+            if (tagIt != positionTags.end()) {
+                // Update the text of the corresponding tag
+                tagIt->second->text = decoded.output;
+                std::cout << "Decoded text: " << decoded.output << std::endl;
             }
         }
     }
 
 
+    std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+    <title>)";
 
-    // // Write out chapterTags to txt file
-    // std::ofstream tagFile("tags.txt");
-    // if (!tagFile.is_open()) {
-    //     std::cerr << "Failed to open tags.txt file." << std::endl;
-    //     return 1;
-    // }
+    std::string htmlFooter = R"(</body>
+    </html>)";
 
-    // for (const auto& chapter : chapterTags) {
-    //     for (const auto& tag : chapter) {
-    //         tagFile << "Chapter: " << tag.chapterNum << " Position: " << tag.position << " Text: " << tag.text << std::endl;
-    //     }
-    // }
-
-    // tagFile.close();
-
-   // Write out chapterTags to the html files in spineOrderXHTMLFiles
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
         std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
         std::ofstream outFile(outputPath);
@@ -1341,33 +1316,20 @@ int main() {
             return 1;
         }
 
-        outFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        outFile << "<!DOCTYPE html>\n";
-        outFile << "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
-        outFile << "<head>\n";
-        outFile << "<title>" << spineOrderXHTMLFiles[i].filename().string() << "</title>\n";
-        outFile << "</head>\n";
-        outFile << "<body>\n";
+        // Write pre-built header
+        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
 
-        // Iterate through tags in the chapter and write the corresponding HTML tags
+        // Write content-specific parts
         for (const auto& tag : chapterTags[i]) {
             if (tag.tagId == P_TAG) {
-                // std::cout << "Writing P tag: " << tag.text << std::endl;
-                // Write <p> tag for paragraph content
                 outFile << "<p>" << tag.text << "</p>\n";
             } else if (tag.tagId == IMG_TAG) {
-                // std::cout << "Writing IMG tag: " << tag.text << std::endl;
-                // Write <img> tag for images, ensuring the path is correct
                 outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
             }
-            // You can add other tag types here if needed (e.g., headers, links)
         }
 
-        // Close the body and HTML structure
-        outFile << "</body>\n";
-        outFile << "</html>";
-        
-        // Close the file
+        // Write pre-built footer
+        outFile << htmlFooter;
         outFile.close();
     }
 
@@ -1380,6 +1342,29 @@ int main() {
     std::chrono::duration<double> elapsed = end - start;
 
     std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
+    return 0;
+}
+
+int main() {
+    
+    
+
+    
+
+    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
+    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
+    std::string unzippedPath = "unzipped";
+
+    std::string templatePath = "export";
+    std::string templateEpub = "rawEpub/template.epub";
+
+    int resultCode = run(epubToConvert, templateEpub, unzippedPath, templatePath);
+
+    if (resultCode != 0) {
+        std::cerr << "Failed to convert EPUB file." << std::endl;
+        return 1;
+    }
+    std::cout << "EPUB file converted successfully." << std::endl;
 
     return 0;
 }

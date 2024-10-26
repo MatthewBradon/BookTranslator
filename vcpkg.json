@@ -1,7 +1,10 @@
 {
   "dependencies": [
+    "glfw3",
+    "imgui",
     "libxml2",
     "libzip",
-    "pybind11"
+    "pybind11",
+    "opengl"
   ]
 }

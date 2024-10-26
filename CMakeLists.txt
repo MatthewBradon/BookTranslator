@@ -33,6 +33,9 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 find_package(libzip CONFIG REQUIRED)
 find_package(LibXml2 REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(OpenGL REQUIRED)
 
 # Set the RPATH to tell the executable where to find dynamic libraries
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
@@ -49,12 +52,12 @@ message(STATUS "Python3_INCLUDE_DIR: ${Python3_INCLUDE_DIR}")
 message(STATUS "Python3_LIBRARY: ${Python3_LIBRARY}")
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip LibXml2::LibXml2 imgui::imgui Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
     set(CMAKE_INSTALL_RPATH "${ONNX_RUNTIME_PATH}")
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNXRUTIME_LIB}/onnxruntime.lib ${ONNXRUTIME_LIB}/onnxruntime_providers_shared.lib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime glfw3 libzip::zip LibXml2::LibXml2 imgui::imgui OpenGL::GL Python3::Python pybind11::embed ${ONNXRUTIME_LIB}/onnxruntime.lib ${ONNXRUTIME_LIB}/onnxruntime_providers_shared.lib)
 endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
