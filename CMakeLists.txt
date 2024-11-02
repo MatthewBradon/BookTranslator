@@ -10,6 +10,7 @@ set(ONNXRUNTIME_DIR ${CMAKE_SOURCE_DIR}/external/Microsoft.ML.OnnxRuntime.1.19.2
 include_directories(${ONNXRUNTIME_DIR}/build/native/include)
 
 
+
 # Check the architecture and set the appropriate runtime path
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     message(STATUS "Targeting macOS ARM64 architecture")
@@ -33,13 +34,13 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 find_package(libzip CONFIG REQUIRED)
 find_package(LibXml2 REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
 
 # Set the RPATH to tell the executable where to find dynamic libraries
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 
 
@@ -52,12 +53,12 @@ message(STATUS "Python3_INCLUDE_DIR: ${Python3_INCLUDE_DIR}")
 message(STATUS "Python3_LIBRARY: ${Python3_LIBRARY}")
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE libzip::zip LibXml2::LibXml2 imgui::imgui Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE  glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
     set(CMAKE_INSTALL_RPATH "${ONNX_RUNTIME_PATH}")
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime glfw3 libzip::zip LibXml2::LibXml2 imgui::imgui OpenGL::GL Python3::Python pybind11::embed ${ONNXRUTIME_LIB}/onnxruntime.lib ${ONNXRUTIME_LIB}/onnxruntime_providers_shared.lib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNXRUTIME_LIB}/onnxruntime.lib ${ONNXRUTIME_LIB}/onnxruntime_providers_shared.lib)
 endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -102,16 +103,6 @@ add_custom_command(TARGET main POST_BUILD
     COMMAND python -m pip install -r ${CMAKE_SOURCE_DIR}/requirements.txt >> pip_install.log
     COMMAND python -m pip show transformers >> pip_show.log
 )
-
-# # Copy dylibs to the output directory (important for runtime)
-# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#     COMMAND ${CMAKE_COMMAND} -E copy
-#     ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib
-#     $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#     # Remame the dylib to onnxruntime.dylib
-#     # COMMAND mv $<TARGET_FILE_DIR:${PROJECT_NAME}>/libonnxruntime.dylib $<TARGET_FILE_DIR:${PROJECT_NAME}>/libonnxruntime.1.19.dylib
-# )
-
 
 else()
 

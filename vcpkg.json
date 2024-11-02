@@ -1,10 +1,16 @@
 {
   "dependencies": [
-    "glfw3",
-    "imgui",
+    {
+      "name": "imgui",
+      "features": [
+        "glfw-binding",
+        "opengl3-binding"
+      ]
+    },
     "libxml2",
     "libzip",
     "pybind11",
-    "opengl"
+    "glfw3",
+    "glad"
   ]
 }

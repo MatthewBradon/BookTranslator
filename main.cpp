@@ -20,11 +20,11 @@
 #include <condition_variable>
 #include <thread>
 #include <time.h>
-#include "imgui.h"
-#include <imgui_internal.h>
-#include <imgui_stdlib.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define EOS_TOKEN_ID 0
@@ -635,7 +635,6 @@ std::string stripHtmlTags(const std::string& input) {
     // Replace all occurrences of HTML tags with an empty string
     return std::regex_replace(input, tagRegex, "");
 }
-
 
 std::vector<int64_t> processNumpyArray(pybind11::array_t<int64_t> inputArray) {
     try{
@@ -1345,26 +1344,80 @@ int run(const std::string& epubToConvert, const std::string& templateEpub, const
     return 0;
 }
 
+
 int main() {
-    
-    
 
-    
+	// Setup window
+	if (!glfwInit())
+		return 1;
 
-    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
-    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
-    std::string unzippedPath = "unzipped";
+// Decide GL+GLSL versions
+#if __APPLE__
+	// GL 3.2 + GLSL 150
+	const char *glsl_version = "#version 150";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);		   // Required on Mac
+#else
+	// GL 3.0 + GLSL 130
+	const char *glsl_version = "#version 130";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+#endif
 
-    std::string templatePath = "export";
-    std::string templateEpub = "rawEpub/template.epub";
+	// Create window with graphics context
+	GLFWwindow *window = glfwCreateWindow(1280, 720, "Dear ImGui - Example", NULL, NULL);
+	if (window == NULL)
+		return 1;
+	glfwMakeContextCurrent(window);
+	glfwSwapInterval(1); // Enable vsync
 
-    int resultCode = run(epubToConvert, templateEpub, unzippedPath, templatePath);
-
-    if (resultCode != 0) {
-        std::cerr << "Failed to convert EPUB file." << std::endl;
-        return 1;
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
     }
-    std::cout << "EPUB file converted successfully." << std::endl;
+
+	int screen_width, screen_height;
+	glfwGetFramebufferSize(window, &screen_width, &screen_height);
+	glViewport(0, 0, screen_width, screen_height);
+
+    std::cout << "Running..." << std::endl;
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui::StyleColorsDark();
+
+
+    while(!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        // feed inputs to dear imgui, start new frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGui::Begin("Hello, world!");
+        ImGui::Button("Look at this pretty button");
+        ImGui::End();
+
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSwapBuffers(window);
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }
