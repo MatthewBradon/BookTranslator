@@ -1090,6 +1090,16 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
 
+    // Load a font that supports Japanese characters
+    ImFont* font = io.Fonts->AddFontFromFileTTF("fonts/NotoSansCJKjp-Regular.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    if (font == nullptr) {
+        std::cout << "Failed to load font!" << std::endl;
+    }
+
+    // Rebuild the font atlas after adding the new font
+    io.Fonts->Build();
+
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     ImGui::StyleColorsDark();
@@ -1109,21 +1119,29 @@ int main() {
         
 
         // The GUI code
-        ImGui::Begin("Directory Selection");
+        ImGui::Begin("Epub Translator");
 
-        // Input fields for directories
+                // Input fields for directories
         ImGui::InputText("Epub To Convert", epubToConvert, sizeof(epubToConvert));
         ImGui::InputText("Output Path", outputPath, sizeof(outputPath));
 
-        // Button to trigger the run function
-        if (ImGui::Button("Run Conversion")) {
+        // Check if both fields are filled
+        bool enableButton = strlen(epubToConvert) > 0 && strlen(outputPath) > 0;
 
-            // Convert char arrays to std::string
+        // Disable button if fields are empty
+        if (!enableButton) {
+            ImGui::BeginDisabled();
+        }
+
+        // Button to trigger the run function
+        if (ImGui::Button("Run Conversion") && enableButton) {
             std::string epubToConvertStr(epubToConvert);
             std::string outputPathStr(outputPath);
-
-            // Call the run function with provided paths
             run(epubToConvertStr, outputPathStr);
+        }
+
+        if (!enableButton) {
+            ImGui::EndDisabled();
         }
 
         ImGui::End();
