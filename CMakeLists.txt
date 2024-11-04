@@ -72,14 +72,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
 
 message(STATUS "Windows Copying DLLs to the output directory")
 
-# Install Python packages and create virtual environment
-add_custom_command(TARGET main POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} -m venv $<TARGET_FILE_DIR:main>/..
-    COMMAND $<TARGET_FILE_DIR:main>/../Scripts/activate.bat
-    COMMAND python -m pip install -r ${CMAKE_SOURCE_DIR}/requirements.txt >> pip_install.log
-    COMMAND python -m pip show transformers >> pip_show.log
-)
-
 # Copy DLLs to the output directory (important for runtime)
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
@@ -96,14 +88,16 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 message(STATUS "MacOS onnxruntime.dylib path: ${ONNX_RUNTIME_PATH}/")
 
-# Install Python packages and create virtual environment
-add_custom_command(TARGET main POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} -m venv $<TARGET_FILE_DIR:main>/..
-    COMMAND source $<TARGET_FILE_DIR:main>/../bin/activate
-    COMMAND python -m pip install -r ${CMAKE_SOURCE_DIR}/requirements.txt >> pip_install.log
-    COMMAND python -m pip show transformers >> pip_show.log
-)
+
 
 else()
 
 endif()
+
+# Install Python packages and create virtual environment
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -m venv $<TARGET_FILE_DIR:${PROJECT_NAME}>/.venv/
+    COMMAND source $<TARGET_FILE_DIR:${PROJECT_NAME}>/.venv/bin/activate
+    COMMAND python -m pip install -r ${CMAKE_SOURCE_DIR}/requirements.txt >> pip_install.log
+    COMMAND python -m pip show transformers >> pip_show.log
+)

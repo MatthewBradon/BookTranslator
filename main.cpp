@@ -817,6 +817,15 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
 
     // Initialize the Python interpreter
     pybind11::scoped_interpreter guard{};
+
+    // Import Python's sys module
+    pybind11::module sys = pybind11::module::import("sys");
+
+    std::string venv_path = "./.venv";
+
+    // Add venv paths to sys.path
+    sys.attr("path").cast<pybind11::list>().append(venv_path + "/lib/python3.11/site-packages");
+
     pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
     
     // Start the timer
