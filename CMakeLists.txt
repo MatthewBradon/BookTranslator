@@ -30,7 +30,7 @@ endif()
 link_directories(${ONNX_RUNTIME_PATH})
 set(ONNXRUNTIME_LIB ${ONNX_RUNTIME_PATH})
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp main.h GUI.cpp GUI.h)
 
 find_package(libzip CONFIG REQUIRED)
 find_package(LibXml2 REQUIRED)

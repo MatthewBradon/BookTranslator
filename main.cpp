@@ -1,55 +1,4 @@
-#include <iostream>
-#include <zip.h>
-#include <fstream>
-#include <cstring>
-#include <filesystem>
-#include <string>
-#include <regex>
-#include <vector>
-#include <libxml/HTMLparser.h>
-#include <libxml/xpath.h>
-#include <libxml/uri.h>
-#include <libxml/xmlstring.h>
-#include <onnxruntime_cxx_api.h>
-#include <iostream>
-#include <Python.h>
-#include <random>
-#include <pybind11/embed.h>
-#include <pybind11/numpy.h>  
-#include <mutex>
-#include <condition_variable>
-#include <thread>
-#include <time.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-
-#define PYBIND11_DETAILED_ERROR_MESSAGES
-
-#define P_TAG 0
-#define IMG_TAG 1
-
-struct tagData {
-    int tagId;
-    std::string text;
-    int position;
-    int chapterNum;
-};
-
-struct encodedData {
-    pybind11::object encoded;
-    int chapterNum;
-    int position;
-};
-
-struct decodedData {
-    std::string output;
-    int chapterNum;
-    int position;
-};
-
+#include "main.h"
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -1095,84 +1044,23 @@ int main() {
 	glViewport(0, 0, screen_width, screen_height);
 
     std::cout << "Running..." << std::endl;
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    GUI gui;
 
-    // Load a font that supports Japanese characters
-    ImFont* font = io.Fonts->AddFontFromFileTTF("fonts/NotoSansCJKjp-Regular.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    if (font == nullptr) {
-        std::cout << "Failed to load font!" << std::endl;
-    }
+    gui.init(window, glsl_version);
 
-    // Rebuild the font atlas after adding the new font
-    io.Fonts->Build();
-
-
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
-    ImGui::StyleColorsDark();
-
-    char epubToConvert[256] = "";
-    char outputPath[256] = "";
-    int result = 2;
     while(!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        // feed inputs to dear imgui, start new frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-
-        // The GUI code
-        ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
-
-                // Input fields for directories
-        ImGui::InputText("Epub To Convert", epubToConvert, sizeof(epubToConvert));
-        ImGui::InputText("Output Path", outputPath, sizeof(outputPath));
-
-        // Check if both fields are filled
-        bool enableButton = strlen(epubToConvert) > 0 && strlen(outputPath) > 0;
-
-        // Disable button if fields are empty
-        if (!enableButton) {
-            ImGui::BeginDisabled();
-        }
-        
-        // Button to trigger the run function
-        if (ImGui::Button("Run Conversion") && enableButton) {
-            std::string epubToConvertStr(epubToConvert);
-            std::string outputPathStr(outputPath);
-            result = run(epubToConvertStr, outputPathStr);
-        }
-
-        if (!enableButton) {
-            ImGui::EndDisabled();
-        }
-
-        // Display the result of the conversion
-        if (result == 0) {
-            ImGui::Text("Translation successful!");
-        } else if (result == 1) {
-            ImGui::Text("Translation failed!");
-        }
-
-        ImGui::End();
-
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        gui.newFrame();
+        gui.update();
+        gui.render();
 
         glfwSwapBuffers(window);
     }
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    gui.shutdown();
 
     return 0;
 }
