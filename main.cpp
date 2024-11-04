@@ -1078,7 +1078,7 @@ int main() {
 #endif
 
 	// Create window with graphics context
-	GLFWwindow *window = glfwCreateWindow(1280, 720, "Dear ImGui - Example", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(720, 360, "Dear ImGui - Example", NULL, NULL);
 	if (window == NULL)
 		return 1;
 	glfwMakeContextCurrent(window);
@@ -1115,7 +1115,7 @@ int main() {
 
     char epubToConvert[256] = "";
     char outputPath[256] = "";
-
+    int result = 2;
     while(!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
@@ -1126,9 +1126,11 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 
         // The GUI code
-        ImGui::Begin("Epub Translator");
+        ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
 
                 // Input fields for directories
         ImGui::InputText("Epub To Convert", epubToConvert, sizeof(epubToConvert));
@@ -1141,16 +1143,23 @@ int main() {
         if (!enableButton) {
             ImGui::BeginDisabled();
         }
-
+        
         // Button to trigger the run function
         if (ImGui::Button("Run Conversion") && enableButton) {
             std::string epubToConvertStr(epubToConvert);
             std::string outputPathStr(outputPath);
-            run(epubToConvertStr, outputPathStr);
+            result = run(epubToConvertStr, outputPathStr);
         }
 
         if (!enableButton) {
             ImGui::EndDisabled();
+        }
+
+        // Display the result of the conversion
+        if (result == 0) {
+            ImGui::Text("Translation successful!");
+        } else if (result == 1) {
+            ImGui::Text("Translation failed!");
         }
 
         ImGui::End();
