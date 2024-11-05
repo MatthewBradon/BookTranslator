@@ -32,7 +32,35 @@ void GUI::update(){
 
                 // Input fields for directories
         ImGui::InputText("Epub To Convert", epubToConvert, sizeof(epubToConvert));
+        // Browse button for the epub to convert
+        ImGui::PushID("epub_browse_button"); // Unique ID for the first button
+        if (ImGui::Button("Browse")) {
+            nfdchar_t* outPath = nullptr;
+            // Set up filter for EPUB files
+            nfdfilteritem_t filterItem[1] = { { "EPUB Files", "epub" } };
+            nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
+            if (result == NFD_OKAY) {
+                strcpy(epubToConvert, outPath);
+                free(outPath);
+            }
+        }
+        ImGui::PopID(); // End unique ID for the first button
+
+        // Output path input
         ImGui::InputText("Output Path", outputPath, sizeof(outputPath));
+
+        // Output folder browse button
+        ImGui::PushID("output_browse_button"); // Unique ID for the second button
+        if (ImGui::Button("Browse")) {
+            nfdchar_t* outPath = nullptr;
+            nfdresult_t result = NFD_PickFolder(&outPath, NULL);
+            if (result == NFD_OKAY) {
+                strcpy(outputPath, outPath);
+                free(outPath);
+            }
+        }
+        ImGui::PopID(); // End unique ID for the second button
+
 
         // Check if both fields are filled
         bool enableButton = strlen(epubToConvert) > 0 && strlen(outputPath) > 0;

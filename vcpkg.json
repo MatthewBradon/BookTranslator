@@ -1,5 +1,7 @@
 {
   "dependencies": [
+    "glad",
+    "glfw3",
     {
       "name": "imgui",
       "features": [
@@ -10,7 +12,6 @@
     "libxml2",
     "libzip",
     "pybind11",
-    "glfw3",
-    "glad"
+    "nativefiledialog-extended"
   ]
 }

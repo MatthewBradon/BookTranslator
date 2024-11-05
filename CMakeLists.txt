@@ -41,6 +41,7 @@ find_package(pybind11 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 
 
@@ -53,7 +54,7 @@ message(STATUS "Python3_INCLUDE_DIR: ${Python3_INCLUDE_DIR}")
 message(STATUS "Python3_LIBRARY: ${Python3_LIBRARY}")
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE  glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
+    target_link_libraries(${PROJECT_NAME} PRIVATE  nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed ${ONNX_RUNTIME_PATH}/libonnxruntime.1.19.2.dylib)
     set(CMAKE_INSTALL_RPATH "${ONNX_RUNTIME_PATH}")
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
