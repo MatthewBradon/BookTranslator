@@ -54,21 +54,6 @@ def init_model():
         sys.stdout.flush()
         model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
 
-# Tokenize text and return tensors
-def tokenize_text(text):
-    inputs = tokenizer(text, return_tensors="pt")
-    print(f"\n\n\n\nOriginal Sentence: {text}")
-    print(f"Tokenized Input: {inputs}")
-    sys.stdout.flush()
-    return inputs
-
-# Detokenize text (accepts tokenized arrays)
-def detokenize_text(text):
-    print(f"Decoder output tokens: {text}")
-    sys.stdout.flush()
-    decodetext = tokenizer.decode(text, skip_special_tokens=True)
-    return decodetext
-
 def process_task(encoded_data):
     """Process a single task in a worker."""
     encoded, chapterNum, position = encoded_data

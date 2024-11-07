@@ -736,15 +736,17 @@ pybind11::object runMultiprocessingPython(pybind11::module& EncodeDecode) {
     
 }
 
-std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& EncodeDecode) {
+std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& tokenizer) {
     std::vector<decodedData> decodedDataVector;
      
+    pybind11::object detokenizeText = tokenizer.attr("detokenize_text");
+
     // Iterate over the results and convert them to decodedData objects
     for (const auto& item : results) {
         decodedData decoded;
         // (generated[0], chapterNum, position) 
         pybind11::tuple resultTuple = item.cast<pybind11::tuple>();
-        decoded.output = EncodeDecode.attr("detokenize_text")(resultTuple[0]).cast<std::string>(); 
+        decoded.output = detokenizeText(resultTuple[0]).cast<std::string>(); 
         decoded.chapterNum = resultTuple[1].cast<int>();
         decoded.position = resultTuple[2].cast<int>();
 
@@ -776,6 +778,7 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     sys.attr("path").cast<pybind11::list>().append(venv_path + "/lib/python3.11/site-packages");
 
     pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
+    pybind11::module tokenizer = pybind11::module::import("tokenizer");
     
     // Start the timer
     auto start = std::chrono::high_resolution_clock::now();
@@ -896,7 +899,7 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
 
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
-    pybind11::object encodeText = EncodeDecode.attr("tokenize_text");
+    pybind11::object encodeText = tokenizer.attr("tokenize_text");
 
 
     std::vector<encodedData> encodedTags;
@@ -917,7 +920,7 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
 
     pybind11::object results = runMultiprocessingPython(EncodeDecode);
 
-    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, EncodeDecode);
+    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
 
 
     std::vector<std::vector<tagData>> chapterTags;
