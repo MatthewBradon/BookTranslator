@@ -8,5 +8,7 @@ build/*
 rawEpub/*
 !rawEpub/template.epub
 /external/
-
+/__pycache__/
 output.epub
+imgui.ini
+.DS_Store

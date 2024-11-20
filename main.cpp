@@ -1,24 +1,4 @@
-#include <iostream>
-#include <zip.h>
-#include <fstream>
-#include <cstring>
-#include <filesystem>
-#include <string>
-#include <regex>
-#include <vector>
-#include <libxml/HTMLparser.h>
-#include <libxml/xpath.h>
-#include <libxml/uri.h>
-#include <libxml/xmlstring.h>
-#include <onnxruntime_cxx_api.h>
-#include <iostream>
-#include <Python.h>
-#include <pybind11/embed.h>
-#include <pybind11/numpy.h>  
-
-#define PYBIND11_DETAILED_ERROR_MESSAGES
-
-
+#include "main.h"
 
 std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) {
     try {
@@ -298,6 +278,55 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
     return true;
 }
 
+void exportEpub(const std::string& exportPath, const std::string& outputDir) {
+    // Create an Epub file by zipping the exportPath directory
+
+    // Check if the exportPath directory exists
+    if (!std::filesystem::exists(exportPath)) {
+        std::cerr << "Export directory does not exist: " << exportPath << std::endl;
+        return;
+    }
+
+    // Create the output Epub file
+    std::string epubPath = outputDir + "/output.epub";
+
+    // Create a ZIP archive
+    zip_t* archive = zip_open(epubPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, nullptr);
+
+    // Add all files in the exportPath directory to the ZIP archive
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
+        if (entry.is_regular_file()) {
+            std::filesystem::path filePath = entry.path();
+            std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
+
+            // Create a zip_source_t from the file
+            zip_source_t* source = zip_source_file(archive, filePath.c_str(), 0, 0);
+            if (source == nullptr) {
+                std::cerr << "Error creating zip_source_t for file: " << filePath << std::endl;
+                zip_discard(archive);
+                return;
+            }
+
+            // Add the file to the ZIP archive
+            zip_int64_t index = zip_file_add(archive, relativePath.c_str(), source, ZIP_FL_ENC_UTF_8);
+            if (index < 0) {
+                std::cerr << "Error adding file to ZIP archive: " << filePath << std::endl;
+                zip_source_free(source);
+                zip_discard(archive);
+                return;
+            }
+        }
+    }
+
+    // Close the ZIP archive
+    if (zip_close(archive) < 0) {
+        std::cerr << "Error closing ZIP archive: " << epubPath << std::endl;
+        return;
+    }
+
+    std::cout << "Epub file created: " << epubPath << std::endl;
+}
+
 void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList) {
     std::ifstream navXHTMLFile(navXHTMLPath);
     if (!navXHTMLFile.is_open()) {
@@ -553,312 +582,207 @@ std::string stripHtmlTags(const std::string& input) {
     return std::regex_replace(input, tagRegex, "");
 }
 
-void processChapter(const std::filesystem::path& chapterPath, pybind11::module& EncodeDecode) {
-    std::ifstream file(chapterPath);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << chapterPath << std::endl;
-        return;
-    }
+std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
+    // Initialize the 2D vector to store the tag data for each chapter
+    // Initialize the 2D vector to store the tag data for each chapter
+    std::vector<tagData> bookTags;  // This will hold tag data for the entire book
+    
+    int chapterNum = 0;
 
-    // Read the entire content of the chapter file
-    std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
+    for (const std::filesystem::path& chapterPath : chapterPaths) {
+        
+        std::ifstream file(chapterPath);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file: " << chapterPath << std::endl;
+            continue;  // Continue with the next chapter instead of returning
+        }
 
-    // Parse the content using libxml2
-    htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
-    if (!doc) {
-        std::cerr << "Failed to parse HTML content." << std::endl;
-        return;
-    }
+        // Read the entire content of the chapter file
+        std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
 
-    // Create an XPath context
-    xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
-    if (!xpathCtx) {
-        std::cerr << "Failed to create XPath context." << std::endl;
-        xmlFreeDoc(doc);
-        return;
-    }
+        // Parse the content using libxml2
+        htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        if (!doc) {
+            std::cerr << "Failed to parse HTML content." << std::endl;
+            continue;  // Continue with the next chapter
+        }
 
-    // Extract all <p> and <img> tags
-    xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
-    if (!xpathObj) {
-        std::cerr << "Failed to evaluate XPath expression." << std::endl;
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-        return;
-    }
+        // Create an XPath context
+        xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
+        if (!xpathCtx) {
+            std::cerr << "Failed to create XPath context." << std::endl;
+            xmlFreeDoc(doc);
+            continue;  // Continue with the next chapter
+        }
 
-    xmlNodeSetPtr nodes = xpathObj->nodesetval;
-    int nodeCount = (nodes) ? nodes->nodeNr : 0;
+        // Extract all <p> and <img> tags
+        xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
+        if (!xpathObj) {
+            std::cerr << "Failed to evaluate XPath expression." << std::endl;
+            xmlXPathFreeContext(xpathCtx);
+            xmlFreeDoc(doc);
+            continue;  // Continue with the next chapter
+        }
 
-    std::string chapterContent;
-    for (int i = 0; i < nodeCount; ++i) {
-        xmlNodePtr node = nodes->nodeTab[i];
-        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
-            // Extract text content of <p> tag
-            xmlChar* textContent = xmlNodeGetContent(node);
-            if (textContent) {
-                try{
+        xmlNodeSetPtr nodes = xpathObj->nodesetval;
+        int nodeCount = (nodes) ? nodes->nodeNr : 0;
 
-                    std::string pText(reinterpret_cast<char*>(textContent));
+        std::vector<tagData> chapterTags;  // Vector to hold tag data for the current chapter
+        for (int i = 0; i < nodeCount; ++i) {
+            xmlNodePtr node = nodes->nodeTab[i];
+            if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
+                // Extract text content of <p> tag
+                xmlChar* textContent = xmlNodeGetContent(node);
+                if (textContent) {
+                    try {
+                        std::string pText(reinterpret_cast<char*>(textContent));
 
+                        if (!pText.empty()) {
+                            // Strip HTML tags and prepare the text
+                            std::string strippedText = stripHtmlTags(pText);
 
-                    if (!pText.empty()) {
-                        // Create tokens using encodeText function from Python
-                        pybind11::object result = EncodeDecode.attr("translate_text")(pybind11::str(pText));
+                            // Create tagData struct
+                            tagData tag;
+                            tag.tagId = P_TAG;
+                            tag.text = strippedText;
+                            tag.position = i;
+                            tag.chapterNum = chapterNum;
 
-
-                        std::string decodedText = result.cast<std::string>();
-                        decodedText = stripHtmlTags(decodedText);
-                        std::cout << "Stripped text: " << decodedText << std::endl;
-                        chapterContent += "<p>" + decodedText + "</p>\n";
+                            // Append the tag to chapterTags
+                            bookTags.push_back(tag);
+                        }
+                    } catch (const std::exception& e) {
+                        std::cerr << "Error: " << e.what() << std::endl;
                     }
-                } catch (const std::exception& e) {
-                    std::cerr << "Error: " << e.what() << std::endl;
+                    xmlFree(textContent);
                 }
-                
-                
-                xmlFree(textContent);
-            }
-        } else if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
-            // Extract src attribute of <img> tag
-            xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
-            if (src) {
-                std::string imgSrc(reinterpret_cast<char*>(src));
-                std::string imgFilename = std::filesystem::path(imgSrc).filename().string();
-                chapterContent += "<img src=\"../Images/" + imgFilename + "\"/>\n";
-                xmlFree(src);
+            } else if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
+                // Extract src attribute of <img> tag
+                xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
+                if (src) {
+                    std::string imgSrc(reinterpret_cast<char*>(src));
+                    std::string imgFilename = std::filesystem::path(imgSrc).filename().string();
+
+                    // Create tagData struct for the image
+                    tagData tag;
+                    tag.tagId = IMG_TAG;
+                    tag.text = imgFilename;  // Store the image filename
+                    tag.position = i;
+                    tag.chapterNum = chapterNum;
+
+                    // Append the tag to chapterTags
+                    bookTags.push_back(tag);
+
+                    xmlFree(src);
+                }
             }
         }
-    }
 
-    // If chapterContent is empty, preserve the original body content
-    if (chapterContent.empty()) {
-        xmlChar* bodyContent = xmlNodeGetContent(xmlDocGetRootElement(doc));
-        if (bodyContent) {
-            chapterContent = reinterpret_cast<char*>(bodyContent);
-            xmlFree(bodyContent);
-        }
-    }
 
-    // Construct the XHTML content
-    std::string xhtmlContent =
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-        "<!DOCTYPE html>\n"
-        "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">\n"
-        "<head>\n"
-        "  <title>" + chapterPath.filename().string() + "</title>\n"
-        "</head>\n"
-        "<body>\n" + chapterContent +
-        "</body>\n"
-        "</html>";
 
-    // Write the processed content to a new file
-    std::filesystem::path outputPath = "export/OEBPS/Text/" + chapterPath.filename().string();
-    std::ofstream outFile(outputPath);
-    if (!outFile.is_open()) {
-        std::cerr << "Failed to open output file: " << outputPath << std::endl;
+        // Free resources for the current chapter
         xmlXPathFreeObject(xpathObj);
         xmlXPathFreeContext(xpathCtx);
         xmlFreeDoc(doc);
-        return;
+        
+        std::cout << "Chapter done: " << chapterPath.filename().string() << std::endl;
+        chapterNum++;
     }
 
-    outFile << xhtmlContent;
-    outFile.close();
-
-    std::cout << "Chapter done: " << chapterPath.filename().string() << std::endl;
-
-    xmlXPathFreeObject(xpathObj);
-    xmlXPathFreeContext(xpathCtx);
-    xmlFreeDoc(doc);
+    return bookTags;
 }
 
 
-
-std::vector<int64_t> processNumpyArray(pybind11::array_t<int64_t> inputArray) {
-    try{
-         std::cout << "T111ESTDSSS" << std::endl;
-
-        // Get the buffer information
-        pybind11::buffer_info buf = inputArray.request();
-
-        // Check the number of dimensions
-        // if (buf.ndim != 2) {
-        //     throw std::runtime_error("Number of dimensions must be one");
-        // }
-
-        // Get the pointer to the data
-        int64_t* ptr = static_cast<int64_t*>(buf.ptr);
-
-        std::vector<int64_t> vec(ptr, ptr + buf.size);
-
-        std::cout << "TESTDSSS" << std::endl;
-
-        // for(const auto& value : vec) {
-        //     std::cout << value << std::endl;
-        // }
-        return vec;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return {};
+void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode) {
+    // Create a Python dictionary to store all encoded data
+    pybind11::dict py_dict;
+    int mockCounter = 0;
+    for (const auto& data : data_vector) {
+        if (mockCounter == 150) {
+            break;
+        }
+        // Here, we use a tuple of (chapterNum, position) as a key
+        py_dict[pybind11::make_tuple(data.chapterNum, data.position)] = data.encoded;
+        mockCounter++;
+        
     }
 
-}
-void run_onnx_translation() {
-    // Start the Python interpreter
-    pybind11::scoped_interpreter guard{};
-
-    // Step 1: Python Tokenization - Use pybind11 to call tokenize_text in Python
-    pybind11::object tokenizer_module = pybind11::module::import("EncodeAndDecode");  // Replace with your actual Python module name
-    pybind11::object tokenize_text = tokenizer_module.attr("tokenize_text");
-    pybind11::object detokenize_text = tokenizer_module.attr("detokenize_text");
-
-    std::string input_text = "「ねえカズマ、お金受け取って来なさいよ！ もう、ギルド内の冒険者達のほとん殆どは、魔王の幹部討伐のしよう奨ほう報金貰ったわよ。もちろん私も！ でも見ての通り、もう結構飲んじゃったんだけどね！」"; // Example Japanese input
-
-    // Call Python tokenize_text function
-    pybind11::tuple tokenized = tokenize_text(input_text);
-    std::vector<int64_t> input_ids = processNumpyArray(tokenized[0].cast<pybind11::array_t<int64_t>>());
-    std::vector<int64_t> attention_mask = processNumpyArray(tokenized[1].cast<pybind11::array_t<int64_t>>());
-
-    // ENCODER
-
-    // Path to your ONNX encoder model
-    const wchar_t* encoder_path = L"C:/Users/matth/Desktop/EpubTranslator-Prototype-C-/opus-mt-ja-en-ONNX/encoder_model.onnx";
-
-    // Step 2: Load ONNX encoder model (C++)
-    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test");
-    Ort::SessionOptions session_options;
-    Ort::Session encoder_session(env, encoder_path, session_options);  // Load your encoder model
-
-    // Prepare input for the encoder
-    std::vector<int64_t> input_shape = {1, static_cast<int64_t>(input_ids.size())};
-    std::vector<int64_t> attention_shape = {1, static_cast<int64_t>(attention_mask.size())};
-    size_t input_tensor_size = input_ids.size();
-    size_t attention_tensor_size = attention_mask.size();
-
-    std::vector<int64_t> input_tensor_values = input_ids;
-    std::vector<int64_t> attention_mask_values = attention_mask;
-
-    std::vector<const char*> input_node_names = {"input_ids", "attention_mask"};
-    std::vector<const char*> output_node_names = {"last_hidden_state"};
-
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
-    Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, input_tensor_values.data(), input_tensor_size, input_shape.data(), input_shape.size());
-    Ort::Value attention_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, attention_mask_values.data(), attention_tensor_size, attention_shape.data(), attention_shape.size());
-
-    // Run encoder model
-    std::vector<Ort::Value> encoder_inputs;
-    encoder_inputs.push_back(std::move(input_tensor));    // Move the tensor instead of copying
-    encoder_inputs.push_back(std::move(attention_tensor)); // Move the attention tensor
-    auto encoder_output_tensors = encoder_session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), encoder_inputs.data(), input_node_names.size(), output_node_names.data(), 1);
-
-    std::cout << "Test" << std::endl;
-
-    // Get encoder output tensor
-    float* encoder_output_data = encoder_output_tensors[0].GetTensorMutableData<float>();
-
-    // Get encoder output shape
-    Ort::TensorTypeAndShapeInfo encoder_output_info = encoder_output_tensors[0].GetTensorTypeAndShapeInfo();
-    size_t encoder_output_size = encoder_output_info.GetElementCount();
-    std::vector<int64_t> encoder_output_shape = encoder_output_info.GetShape();
-
-    std::vector<float> encoder_output(encoder_output_data, encoder_output_data + encoder_output_size);
-
-    // DECODER
-
-    // Manually defined BOS and EOS token IDs (not part of the Marian tokenizer)
-    int64_t bos_token_id = -1;
-    int64_t eos_token_id = -2;
-
-    // Initialize decoder input with the BOS token
-    std::vector<int64_t> decoder_input_ids = {bos_token_id};  
-    std::vector<int64_t> decoder_input_shape = {1, 1};  // Start with [BOS]
-    std::vector<const char*> decoder_input_node_names = {"encoder_attention_mask", "input_ids", "encoder_hidden_states"};
-    std::vector<const char*> decoder_output_node_names = {"logits"};
-
-    // Encoder hidden states (output from the encoder model)
-    Ort::Value encoder_hidden_states_tensor = Ort::Value::CreateTensor<float>(memory_info, encoder_output.data(), encoder_output.size(), encoder_output_shape.data(), encoder_output_shape.size());
-
-    std::vector<int64_t> decoder_attention_mask = {1};  // 1 indicates the BOS token is attended to
-    std::vector<int64_t> decoder_attention_shape = {1, static_cast<int64_t>(decoder_attention_mask.size())};  // Shape for a batch size of 1
-
-    // Encoder attention mask (remains the same during decoding)
-    Ort::Value decoder_attention_mask_tensor = Ort::Value::CreateTensor<int64_t>(
-    memory_info, decoder_attention_mask.data(), decoder_attention_mask.size(),
-    decoder_attention_shape.data(), decoder_attention_shape.size());
-
-
-    std::vector<int64_t> token_ids = {bos_token_id};  // Start with BOS token
-    size_t max_decode_steps = 100;  // Limit the number of decoding steps to avoid infinite loops
-
-    // Path to your ONNX decoder model
-    const wchar_t* decoder_path = L"C:/Users/matth/Desktop/EpubTranslator-Prototype-C-/opus-mt-ja-en-ONNX/decoder_model.onnx";
-
-    // Load ONNX decoder model
-    Ort::Session decoder_session(env, decoder_path, session_options);
-
-    // Initialize the decoder input tensor
-    Ort::Value decoder_input_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, token_ids.data(), token_ids.size(), decoder_input_shape.data(), decoder_input_shape.size());
-
-    // Run the decoder model
-
-    std::vector<Ort::Value> decoder_inputs;
-    decoder_inputs.push_back(std::move(decoder_attention_mask_tensor));  // Move the attention mask tensor
-    decoder_inputs.push_back(std::move(decoder_input_tensor));  // Move the decoder input tensor
-    decoder_inputs.push_back(std::move(encoder_hidden_states_tensor));  // Move the encoder hidden states tensor
-
-    auto decoder_output_tensors = decoder_session.Run(Ort::RunOptions{nullptr}, decoder_input_node_names.data(), decoder_inputs.data(), decoder_input_node_names.size(), decoder_output_node_names.data(), 1);
-
-    // Get the decoder output tensor
-    float* decoder_output_data = decoder_output_tensors[0].GetTensorMutableData<float>();
-
-    // Get the decoder output shape
-    Ort::TensorTypeAndShapeInfo decoder_output_info = decoder_output_tensors[0].GetTensorTypeAndShapeInfo();
-
-    size_t decoder_output_size = decoder_output_info.GetElementCount();
-
-    std::vector<int64_t> decoder_output_shape = decoder_output_info.GetShape();
-
-    std::vector<float> decoder_output(decoder_output_data, decoder_output_data + decoder_output_size);
-
-    // Get the predicted token ID
-
-    // Find the token ID with the highest probability
-
-    auto max_element = std::max_element(decoder_output.begin(), decoder_output.end());
-
-    int64_t predicted_token_id = std::distance(decoder_output.begin(), max_element);
-
-    // Append the predicted token ID to the token_ids vector
-
-    token_ids.push_back(predicted_token_id);
-
-    // Update the decoder input tensor with the new token ID
-
-
-
-        // Step 5: Detokenize the output tokens to text
-        pybind11::array_t<int64_t> token_ids_array(token_ids.size(), token_ids.data());
-        pybind11::object detokenized_text = detokenize_text(token_ids_array);
-        std::string output_text = detokenized_text.cast<std::string>();
-
-        std::cout << "Output text: " << output_text << std::endl;
-
-
+    // Get the singleton instance of encodedDataSingleton and set the dictionary
+    pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
+    encodedDataSingleton.attr("set_encodedDataDict")(py_dict);
 }
 
-int main() {
+
+pybind11::object runMultiprocessingPython(pybind11::module& EncodeDecode) {
+    try {
+        // Get the singleton instance in Python (to pass encoded data)
+        pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
+
+        // Call the Python function to run model inference with multiprocessing
+        pybind11::object runModelMultiprocessing = EncodeDecode.attr("run_model_multiprocessing");
 
 
+        // Run the Python function with data from the singleton
+        pybind11::object results = runModelMultiprocessing(encodedDataSingleton.attr("get_encodedDataDict")());
 
+        return results;
 
-    std::string epubToConvert = "rawEpub/この素晴らしい世界に祝福を！ 01　あぁ、駄女神さま.epub";
-    // std::string epubToConvert = "rawEpub/Ascendance of a Bookworm Part 5 volume 11 『Premium Ver』.epub";
+    } catch (const pybind11::error_already_set& e) {
+        // Catch and print any Python exceptions
+        std::cerr << "Python exception: " << e.what() << std::endl;
+        return pybind11::none();
+    }
+    
+}
+
+std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& tokenizer) {
+    std::vector<decodedData> decodedDataVector;
+     
+    pybind11::object detokenizeText = tokenizer.attr("detokenize_text");
+
+    // Iterate over the results and convert them to decodedData objects
+    for (const auto& item : results) {
+        decodedData decoded;
+        // (generated[0], chapterNum, position) 
+        pybind11::tuple resultTuple = item.cast<pybind11::tuple>();
+        decoded.output = detokenizeText(resultTuple[0]).cast<std::string>(); 
+        decoded.chapterNum = resultTuple[1].cast<int>();
+        decoded.position = resultTuple[2].cast<int>();
+
+        decodedDataVector.push_back(decoded);
+    }
+
+    return decodedDataVector;
+}
+
+int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
+    
+    std::cout << "Running the EPUB conversion process..." << std::endl;
+    std::cout << "epubToConvert: " << epubToConvert << std::endl;
+    std::cout << "outputEpubPath: " << outputEpubPath << std::endl;
+
     std::string unzippedPath = "unzipped";
-
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
+
+    // Initialize the Python interpreter
+    pybind11::scoped_interpreter guard{};
+
+    // Import Python's sys module
+    pybind11::module sys = pybind11::module::import("sys");
+
+    std::string venv_path = "./.venv";
+
+    // Add venv paths to sys.path
+    sys.attr("path").cast<pybind11::list>().append(venv_path + "/lib/python3.11/site-packages");
+
+    pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
+    pybind11::module tokenizer = pybind11::module::import("tokenizer");
+    
+    // Start the timer
+    auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "START" << std::endl;
 
     // Create the output directory if it doesn't exist
     if (!make_directory(unzippedPath)) {
@@ -932,6 +856,7 @@ int main() {
 
     std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
     Section001File.close();
+
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
         std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
         std::ofstream newSectionFile(newSectionPath);
@@ -944,6 +869,9 @@ int main() {
     }
     //Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
+
+
+
 
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
@@ -958,33 +886,184 @@ int main() {
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
 
 
+
+
     // Clean each chapter
     for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
             cleanChapter(xhtmlFile);
             std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
     }
 
-    try{
-        std::cout << "Running ONNX translation" << std::endl;
-        run_onnx_translation();
-        std::cout << "ONNX translation complete" << std::endl;
-    } catch (const pybind11::error_already_set& e) {
-        std::cerr << "Error loading the EncodeAndDecode module: " << e.what() << std::endl;
-        return 1;
-    } catch (const Ort::Exception& e) {
-        std::cerr << "ONNX Runtime error: " << e.what() << std::endl;
-        return 1;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
+
+
+
+    std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+    pybind11::object encodeText = tokenizer.attr("tokenize_text");
+
+
+    std::vector<encodedData> encodedTags;
+    // Tokenize every text in the bookTags
+    for (auto& tag : bookTags) {
+        if (tag.tagId == P_TAG) {
+            encodedData encodedTag;
+            encodedTag.encoded = encodeText(tag.text);
+            encodedTag.position = tag.position;
+            encodedTag.chapterNum = tag.chapterNum;
+
+            encodedTags.push_back(encodedTag);
+        }
+    }
+
+    convertEncodedDataToPython(encodedTags, EncodeDecode);
+
+
+    pybind11::object results = runMultiprocessingPython(EncodeDecode);
+
+    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
+
+
+    std::vector<std::vector<tagData>> chapterTags;
+    // Divide bookTags into chapters chapterNum is the chapter number
+    for(auto& tag : bookTags) {
+        if (tag.chapterNum >= chapterTags.size()) {
+            chapterTags.resize(tag.chapterNum + 1);
+        }
+        chapterTags[tag.chapterNum].push_back(tag);
+    }
+
+    // Build the position map for each chapter and position
+    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+        for (auto& tag : chapterTags[chapterNum]) {
+            positionMap[chapterNum][tag.position] = &tag;
+        }
+    }
+
+    // Update chapterTags using decodedDataVector
+    for (const auto& decoded : decodedDataVector) {
+        // Find the corresponding chapter in the map
+        auto chapterIt = positionMap.find(decoded.chapterNum);
+        if (chapterIt != positionMap.end()) {
+            auto& positionTags = chapterIt->second;
+            // Find the tag by position
+            auto tagIt = positionTags.find(decoded.position);
+            if (tagIt != positionTags.end()) {
+                // Update the text of the corresponding tag
+                tagIt->second->text = decoded.output;
+                std::cout << "Decoded text: " << decoded.output << std::endl;
+            }
+        }
     }
 
 
+    std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+    <title>)";
 
-    // // Remove the unzipped directory
-    // std::filesystem::remove_all(unzippedPath);
-    // // Remove the template directory
-    // std::filesystem::remove_all(templatePath);
+    std::string htmlFooter = R"(</body>
+    </html>)";
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+        std::ofstream outFile(outputPath);
+        std::cout << "Writing to: " << outputPath << std::endl;
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+            return 1;
+        }
+
+        // Write pre-built header
+        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
+
+        // Write content-specific parts
+        for (const auto& tag : chapterTags[i]) {
+            if (tag.tagId == P_TAG) {
+                outFile << "<p>" << tag.text << "</p>\n";
+            } else if (tag.tagId == IMG_TAG) {
+                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+            }
+        }
+
+        // Write pre-built footer
+        outFile << htmlFooter;
+        outFile.close();
+    }
+
+    // Zip export directory to create the final EPUB file
+    exportEpub(templatePath, outputEpubPath);
+
+    // End timer
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
+    return 0;
+}
+
+
+int main() {
+
+	// Setup window
+	if (!glfwInit())
+		return 1;
+
+// Decide GL+GLSL versions
+#if __APPLE__
+	// GL 3.2 + GLSL 150
+	const char *glsl_version = "#version 150";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);		   // Required on Mac
+#else
+	// GL 3.0 + GLSL 130
+	const char *glsl_version = "#version 130";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+#endif
+
+	// Create window with graphics context
+	GLFWwindow *window = glfwCreateWindow(720, 360, "Dear ImGui - Example", NULL, NULL);
+	if (window == NULL)
+		return 1;
+	glfwMakeContextCurrent(window);
+	glfwSwapInterval(1); // Enable vsync
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+
+	int screen_width, screen_height;
+	glfwGetFramebufferSize(window, &screen_width, &screen_height);
+	glViewport(0, 0, screen_width, screen_height);
+
+    std::cout << "Running..." << std::endl;
+    GUI gui;
+
+    gui.init(window, glsl_version);
+
+    while(!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        gui.newFrame();
+        gui.update();
+        gui.render();
+
+        glfwSwapBuffers(window);
+    }
+
+    gui.shutdown();
 
     return 0;
 }

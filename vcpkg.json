@@ -1,7 +1,17 @@
 {
   "dependencies": [
+    "glad",
+    "glfw3",
+    {
+      "name": "imgui",
+      "features": [
+        "glfw-binding",
+        "opengl3-binding"
+      ]
+    },
     "libxml2",
     "libzip",
-    "pybind11"
+    "pybind11",
+    "nativefiledialog-extended"
   ]
 }

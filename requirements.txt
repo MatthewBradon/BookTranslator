@@ -4,4 +4,4 @@ torch
 numpy
 sacremoses
 optimum
-optimum[exporters]
+optimum[onnxruntime]
