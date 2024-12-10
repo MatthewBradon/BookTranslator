@@ -279,19 +279,21 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
 }
 
 void exportEpub(const std::string& exportPath, const std::string& outputDir) {
-    // Create an Epub file by zipping the exportPath directory
-
     // Check if the exportPath directory exists
     if (!std::filesystem::exists(exportPath)) {
         std::cerr << "Export directory does not exist: " << exportPath << std::endl;
         return;
     }
 
-    // Create the output Epub file
+    // Create the output Epub file path
     std::string epubPath = outputDir + "/output.epub";
 
     // Create a ZIP archive
     zip_t* archive = zip_open(epubPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, nullptr);
+    if (!archive) {
+        std::cerr << "Error creating ZIP archive: " << epubPath << std::endl;
+        return;
+    }
 
     // Add all files in the exportPath directory to the ZIP archive
     for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
@@ -299,8 +301,12 @@ void exportEpub(const std::string& exportPath, const std::string& outputDir) {
             std::filesystem::path filePath = entry.path();
             std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
 
+            // Convert file paths to UTF-8 encoded strings
+            std::string filePathUtf8 = filePath.u8string();
+            std::string relativePathUtf8 = relativePath.u8string();
+
             // Create a zip_source_t from the file
-            zip_source_t* source = zip_source_file(archive, filePath.c_str(), 0, 0);
+            zip_source_t* source = zip_source_file(archive, filePathUtf8.c_str(), 0, 0);
             if (source == nullptr) {
                 std::cerr << "Error creating zip_source_t for file: " << filePath << std::endl;
                 zip_discard(archive);
@@ -308,7 +314,7 @@ void exportEpub(const std::string& exportPath, const std::string& outputDir) {
             }
 
             // Add the file to the ZIP archive
-            zip_int64_t index = zip_file_add(archive, relativePath.c_str(), source, ZIP_FL_ENC_UTF_8);
+            zip_int64_t index = zip_file_add(archive, relativePathUtf8.c_str(), source, ZIP_FL_ENC_UTF_8);
             if (index < 0) {
                 std::cerr << "Error adding file to ZIP archive: " << filePath << std::endl;
                 zip_source_free(source);
@@ -584,7 +590,6 @@ std::string stripHtmlTags(const std::string& input) {
 
 std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
     // Initialize the 2D vector to store the tag data for each chapter
-    // Initialize the 2D vector to store the tag data for each chapter
     std::vector<tagData> bookTags;  // This will hold tag data for the entire book
     
     int chapterNum = 0;
@@ -699,7 +704,7 @@ void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pyb
     pybind11::dict py_dict;
     int mockCounter = 0;
     for (const auto& data : data_vector) {
-        if (mockCounter == 150) {
+        if (mockCounter == 80) {
             break;
         }
         // Here, we use a tuple of (chapterNum, position) as a key
@@ -758,6 +763,12 @@ std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& res
 
 int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
+    // Get the current executable path and resolve to the known relative path
+    std::filesystem::path exePath = std::filesystem::current_path();
+    std::filesystem::path libPath = exePath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib";
+    std::filesystem::path sitePackagesPath = libPath / "site-packages";
+
+
     std::cout << "Running the EPUB conversion process..." << std::endl;
     std::cout << "epubToConvert: " << epubToConvert << std::endl;
     std::cout << "outputEpubPath: " << outputEpubPath << std::endl;
@@ -765,243 +776,249 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     std::string unzippedPath = "unzipped";
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
-
     // Initialize the Python interpreter
     pybind11::scoped_interpreter guard{};
 
-    // Import Python's sys module
     pybind11::module sys = pybind11::module::import("sys");
 
-    std::string venv_path = "./.venv";
+    sys.attr("path").attr("append")(sitePackagesPath.u8string());
 
-    // Add venv paths to sys.path
-    sys.attr("path").cast<pybind11::list>().append(venv_path + "/lib/python3.11/site-packages");
+    pybind11::print(sys.attr("path"));
 
-    pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
-    pybind11::module tokenizer = pybind11::module::import("tokenizer");
-    
-    // Start the timer
-    auto start = std::chrono::high_resolution_clock::now();
-    std::cout << "START" << std::endl;
-
-    // Create the output directory if it doesn't exist
-    if (!make_directory(unzippedPath)) {
-        std::cerr << "Failed to create output directory: " << unzippedPath << std::endl;
-        return 1;
-    }
-
-    // Unzip the EPUB file
-    if (!unzip_file(epubToConvert, unzippedPath)) {
-        std::cerr << "Failed to unzip EPUB file: " << epubToConvert << std::endl;
-        return 1;
-    }
-
-    std::cout << "EPUB file unzipped successfully to: " << unzippedPath << std::endl;
-
-    // Create the template directory if it doesn't exist
-    if (!make_directory(templatePath)) {
-        std::cerr << "Failed to create template directory: " << templatePath << std::endl;
-        return 1;
-    }
-
-    // Unzip the template EPUB file
-    if (!unzip_file(templateEpub, templatePath)) {
-        std::cerr << "Failed to unzip EPUB file: " << templateEpub << std::endl;
-        return 1;
-    }
-
-    std::cout << "EPUB file unzipped successfully to: " << templatePath << std::endl;
-
-    
-
-    std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
-
-    if (contentOpfPath.empty()) {
-        std::cerr << "No OPF file found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
-
-    std::cout << "Found OPF file: " << contentOpfPath << std::endl;
-
-    std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
-
-    if (spineOrder.empty()) {
-        std::cerr << "No spine order found in the OPF file." << std::endl;
-        return 1;
-    }
+    try {
+        pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
+        pybind11::module tokenizer = pybind11::module::import("tokenizer");
 
 
-    std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
-    if (xhtmlFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
+        // Start the timer
+        auto start = std::chrono::high_resolution_clock::now();
+        std::cout << "START" << std::endl;
 
-
-    // Sort the XHTML files based on the spine order
-    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
-    if (spineOrderXHTMLFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
-        return 1;
-    }
-
-
-    // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
-    std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
-    std::ifstream Section001File(Section001Path);
-    if (!Section001File.is_open()) {
-        std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
-        return 1;
-    }
-
-    std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
-    Section001File.close();
-
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
-        std::ofstream newSectionFile(newSectionPath);
-        if (!newSectionFile.is_open()) {
-            std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
+        // Create the output directory if it doesn't exist
+        if (!make_directory(unzippedPath)) {
+            std::cerr << "Failed to create output directory: " << unzippedPath << std::endl;
             return 1;
         }
-        newSectionFile << Section001Content;
-        newSectionFile.close();
-    }
-    //Remove Section001.xhtml
-    std::filesystem::remove(Section001Path);
 
-
-
-
-    // Update the spine and manifest in the templates OPF file
-    std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
-    updateContentOpf(spineOrder, templateContentOpfPath);
-
-    // Update the nav.xhtml file
-    std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
-    updateNavXHTML(navXHTMLPath, spineOrder);
-
-
-    // Copy images from the unzipped directory to the template directory
-    copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
-
-
-
-
-    // Clean each chapter
-    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-            cleanChapter(xhtmlFile);
-            std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
-    }
-
-
-
-
-    std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
-
-    pybind11::object encodeText = tokenizer.attr("tokenize_text");
-
-
-    std::vector<encodedData> encodedTags;
-    // Tokenize every text in the bookTags
-    for (auto& tag : bookTags) {
-        if (tag.tagId == P_TAG) {
-            encodedData encodedTag;
-            encodedTag.encoded = encodeText(tag.text);
-            encodedTag.position = tag.position;
-            encodedTag.chapterNum = tag.chapterNum;
-
-            encodedTags.push_back(encodedTag);
+        // Unzip the EPUB file
+        if (!unzip_file(epubToConvert, unzippedPath)) {
+            std::cerr << "Failed to unzip EPUB file: " << epubToConvert << std::endl;
+            return 1;
         }
-    }
 
-    convertEncodedDataToPython(encodedTags, EncodeDecode);
+        std::cout << "EPUB file unzipped successfully to: " << unzippedPath << std::endl;
 
-
-    pybind11::object results = runMultiprocessingPython(EncodeDecode);
-
-    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
-
-
-    std::vector<std::vector<tagData>> chapterTags;
-    // Divide bookTags into chapters chapterNum is the chapter number
-    for(auto& tag : bookTags) {
-        if (tag.chapterNum >= chapterTags.size()) {
-            chapterTags.resize(tag.chapterNum + 1);
+        // Create the template directory if it doesn't exist
+        if (!make_directory(templatePath)) {
+            std::cerr << "Failed to create template directory: " << templatePath << std::endl;
+            return 1;
         }
-        chapterTags[tag.chapterNum].push_back(tag);
-    }
 
-    // Build the position map for each chapter and position
-    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
-
-    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
-        for (auto& tag : chapterTags[chapterNum]) {
-            positionMap[chapterNum][tag.position] = &tag;
+        // Unzip the template EPUB file
+        if (!unzip_file(templateEpub, templatePath)) {
+            std::cerr << "Failed to unzip EPUB file: " << templateEpub << std::endl;
+            return 1;
         }
-    }
 
-    // Update chapterTags using decodedDataVector
-    for (const auto& decoded : decodedDataVector) {
-        // Find the corresponding chapter in the map
-        auto chapterIt = positionMap.find(decoded.chapterNum);
-        if (chapterIt != positionMap.end()) {
-            auto& positionTags = chapterIt->second;
-            // Find the tag by position
-            auto tagIt = positionTags.find(decoded.position);
-            if (tagIt != positionTags.end()) {
-                // Update the text of the corresponding tag
-                tagIt->second->text = decoded.output;
-                std::cout << "Decoded text: " << decoded.output << std::endl;
+        std::cout << "EPUB file unzipped successfully to: " << templatePath << std::endl;
+
+        
+
+        std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
+
+        if (contentOpfPath.empty()) {
+            std::cerr << "No OPF file found in the unzipped EPUB directory." << std::endl;
+            return 1;
+        }
+
+        std::cout << "Found OPF file: " << contentOpfPath << std::endl;
+
+        std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
+
+        if (spineOrder.empty()) {
+            std::cerr << "No spine order found in the OPF file." << std::endl;
+            return 1;
+        }
+
+
+        std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
+        if (xhtmlFiles.empty()) {
+            std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
+            return 1;
+        }
+
+
+        // Sort the XHTML files based on the spine order
+        std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+        if (spineOrderXHTMLFiles.empty()) {
+            std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
+            return 1;
+        }
+
+
+        // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
+        std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
+        std::ifstream Section001File(Section001Path);
+        if (!Section001File.is_open()) {
+            std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
+            return 1;
+        }
+
+        std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
+        Section001File.close();
+
+        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+            std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
+            std::ofstream newSectionFile(newSectionPath);
+            if (!newSectionFile.is_open()) {
+                std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
+                return 1;
             }
+            newSectionFile << Section001Content;
+            newSectionFile.close();
         }
-    }
+        //Remove Section001.xhtml
+        std::filesystem::remove(Section001Path);
 
 
-    std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE html>
-    <html xmlns="http://www.w3.org/1999/xhtml">
-    <head>
-    <title>)";
 
-    std::string htmlFooter = R"(</body>
-    </html>)";
 
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
-        std::ofstream outFile(outputPath);
-        std::cout << "Writing to: " << outputPath << std::endl;
-        if (!outFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
-            return 1;
+        // Update the spine and manifest in the templates OPF file
+        std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+        updateContentOpf(spineOrder, templateContentOpfPath);
+
+        // Update the nav.xhtml file
+        std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
+        updateNavXHTML(navXHTMLPath, spineOrder);
+
+
+        // Copy images from the unzipped directory to the template directory
+        copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+
+
+
+
+        // Clean each chapter
+        for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+                cleanChapter(xhtmlFile);
+                std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
         }
 
-        // Write pre-built header
-        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
 
-        // Write content-specific parts
-        for (const auto& tag : chapterTags[i]) {
+
+
+        std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+        pybind11::object encodeText = tokenizer.attr("tokenize_text");
+
+
+        std::vector<encodedData> encodedTags;
+        // Tokenize every text in the bookTags
+        for (auto& tag : bookTags) {
             if (tag.tagId == P_TAG) {
-                outFile << "<p>" << tag.text << "</p>\n";
-            } else if (tag.tagId == IMG_TAG) {
-                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+                encodedData encodedTag;
+                encodedTag.encoded = encodeText(tag.text);
+                encodedTag.position = tag.position;
+                encodedTag.chapterNum = tag.chapterNum;
+
+                encodedTags.push_back(encodedTag);
             }
         }
 
-        // Write pre-built footer
-        outFile << htmlFooter;
-        outFile.close();
+        convertEncodedDataToPython(encodedTags, EncodeDecode);
+
+
+        pybind11::object results = runMultiprocessingPython(EncodeDecode);
+
+        std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
+
+
+        std::vector<std::vector<tagData>> chapterTags;
+        // Divide bookTags into chapters chapterNum is the chapter number
+        for(auto& tag : bookTags) {
+            if (tag.chapterNum >= chapterTags.size()) {
+                chapterTags.resize(tag.chapterNum + 1);
+            }
+            chapterTags[tag.chapterNum].push_back(tag);
+        }
+
+        // Build the position map for each chapter and position
+        std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+        for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+            for (auto& tag : chapterTags[chapterNum]) {
+                positionMap[chapterNum][tag.position] = &tag;
+            }
+        }
+
+        // Update chapterTags using decodedDataVector
+        for (const auto& decoded : decodedDataVector) {
+            // Find the corresponding chapter in the map
+            auto chapterIt = positionMap.find(decoded.chapterNum);
+            if (chapterIt != positionMap.end()) {
+                auto& positionTags = chapterIt->second;
+                // Find the tag by position
+                auto tagIt = positionTags.find(decoded.position);
+                if (tagIt != positionTags.end()) {
+                    // Update the text of the corresponding tag
+                    tagIt->second->text = decoded.output;
+                    std::cout << "Decoded text: " << decoded.output << std::endl;
+                }
+            }
+        }
+
+
+        std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE html>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+        <title>)";
+
+        std::string htmlFooter = R"(</body>
+        </html>)";
+
+        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+            std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+            std::ofstream outFile(outputPath);
+            std::cout << "Writing to: " << outputPath << std::endl;
+            if (!outFile.is_open()) {
+                std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+                return 1;
+            }
+
+            // Write pre-built header
+            outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
+
+            // Write content-specific parts
+            for (const auto& tag : chapterTags[i]) {
+                if (tag.tagId == P_TAG) {
+                    outFile << "<p>" << tag.text << "</p>\n";
+                } else if (tag.tagId == IMG_TAG) {
+                    outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+                }
+            }
+
+            // Write pre-built footer
+            outFile << htmlFooter;
+            outFile.close();
+        }
+
+        // Zip export directory to create the final EPUB file
+        exportEpub(templatePath, outputEpubPath);
+
+        // End timer
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double> elapsed = end - start;
+
+        std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
+
     }
-
-    // Zip export directory to create the final EPUB file
-    exportEpub(templatePath, outputEpubPath);
-
-    // End timer
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> elapsed = end - start;
-
-    std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
+    catch (const pybind11::error_already_set& e) {
+        // Catch and print any Python exceptions
+        std::cerr << "Python exception: " << e.what() << std::endl;
+        return 1;
+    }    
     return 0;
 }
 

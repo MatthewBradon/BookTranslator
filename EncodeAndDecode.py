@@ -8,7 +8,7 @@ model = None
 onnx_model_path = 'onnx-model-dir'
 
 # Set start method for multiprocessing
-mp.set_start_method("fork", force=True)
+mp.set_start_method("spawn", force=True)
 
 class encodedDataSingleton:
     _instance = None
@@ -75,7 +75,7 @@ def process_task(encoded_data):
         sys.stdout.flush()
         return None
 
-def run_model_multiprocessing(inputs, num_workers=4):
+def run_model_multiprocessing(inputs, num_workers=2):
     """Function to distribute tasks among workers using multiprocessing.Pool."""
     # Create a pool of worker processes
     with mp.Pool(processes=num_workers) as pool:
