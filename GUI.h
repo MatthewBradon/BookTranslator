@@ -13,7 +13,7 @@ class GUI {
 public:
     void init(GLFWwindow *window, const char *glsl_version);
     void render();
-    void update();
+    void update(std::ostringstream& logStream);
     void shutdown();
     void newFrame();
 private:

@@ -1098,10 +1098,31 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     return 0;
 }
 
+class LogWindow {
+public:
+    std::string logBuffer;
+
+    void addLog(const std::string& log) {
+        logBuffer += log; // Append new logs to the buffer
+    }
+
+    void render() {
+        ImGui::Begin("Log Output");
+        ImGui::TextUnformatted(logBuffer.c_str()); // Display the logs
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f); // Auto-scroll to the bottom
+        }
+        ImGui::End();
+    }
+};
 
 int main() {
 
-	// Setup window
+    std::streambuf* originalBuffer = std::cout.rdbuf();
+    std::ostringstream captureOutput;
+    std::cout.rdbuf(captureOutput.rdbuf());
+	
+    // Setup window
 	if (!glfwInit())
 		return 1;
 
@@ -1147,16 +1168,16 @@ int main() {
     while(!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-
         glClear(GL_COLOR_BUFFER_BIT);
+
         gui.newFrame();
-        gui.update();
+        gui.update(captureOutput);
         gui.render();
 
         glfwSwapBuffers(window);
     }
 
     gui.shutdown();
-
+    std::cout.rdbuf(originalBuffer); // Restore original std::cout buffer
     return 0;
 }
