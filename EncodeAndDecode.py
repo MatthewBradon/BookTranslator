@@ -2,6 +2,7 @@ from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
 import sys
+import re
 
 # Global variable to store the model in each worker
 model = None
@@ -98,3 +99,34 @@ def run_model_multiprocessing(inputs, num_workers=2):
     sys.stdout.flush()
 
     return results
+
+
+
+def parse_tensor_string(tensor_str):
+    # Replace 'tensor([...])' with just the list inside '[...]'
+    return re.sub(r"tensor\((\[.*?\])\)", r"\1", tensor_str)
+
+def readEncodedData(file_path):
+    tag_dict = {}
+    counter = 0
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split the line into chapter, position, and tensor data
+            parts = line.strip().split(',', 2)
+            if len(parts) != 3:
+                continue  # Skip lines that don't match the expected format
+            
+            chapter = int(parts[0])
+            position = int(parts[1])
+            
+            # Pre-process the tensor data to remove 'tensor(...)'
+            processed_tensor_data = parse_tensor_string(parts[2])
+            
+            # Convert the processed string into a Python dictionary
+            tensor_data = eval(processed_tensor_data)  # Use eval after sanitizing
+            
+            # Use (chapter, position) as the key
+            tag_dict[(chapter, position)] = tensor_data
+            counter += 1
+    
+    return tag_dict
