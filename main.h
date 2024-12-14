@@ -19,6 +19,9 @@
 #include <GLFW/glfw3.h>
 #include "GUI.h"
 #include <cstdlib>
+#include <boost/process.hpp>
+#include <boost/filesystem.hpp>
+
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define P_TAG 0

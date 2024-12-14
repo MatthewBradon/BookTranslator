@@ -11,7 +11,8 @@
     },
     "libxml2",
     "libzip",
+    "nativefiledialog-extended",
     "pybind11",
-    "nativefiledialog-extended"
+    "boost-process"
   ]
 }

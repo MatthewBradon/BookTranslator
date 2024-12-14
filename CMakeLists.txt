@@ -22,8 +22,7 @@ find_package(glad CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
-
-# Add include directories
+find_package(Boost REQUIRED COMPONENTS process filesystem system)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${libzip_INCLUDE_DIRS}
     ${imgui_INCLUDE_DIRS}
@@ -46,9 +45,9 @@ add_custom_target(InstallPythonPackages ALL
 
 # Link libraries
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2 Python3::Python pybind11::embed)
 endif()
 
 # Set output directory for the executable
