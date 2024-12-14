@@ -19,6 +19,9 @@ void GUI::init(GLFWwindow *window, const char *glsl_version){
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
         ImGui::StyleColorsDark();
+
+        running = false;   // Initialize flags
+        finished = false;
     }
 
 void GUI::render(){
@@ -66,33 +69,56 @@ void GUI::update(){
         bool enableButton = strlen(epubToConvert) > 0 && strlen(outputPath) > 0;
 
         // Disable button if fields are empty
-        if (!enableButton) {
+        if (!enableButton || running) {
             ImGui::BeginDisabled();
         }
         
+
+
         // Button to trigger the run function
-        if (ImGui::Button("Run Conversion") && enableButton) {
-            result = 2;
-            std::string epubToConvertStr(epubToConvert);
-            std::string outputPathStr(outputPath);
-            result = run(epubToConvertStr, outputPathStr);
+        if (ImGui::Button("Run Conversion") && enableButton && !running) {
+            running = true;      // Set the running flag
+            finished = false;    // Reset the finished flag
+
+            // Start the worker thread
+            workerThread = std::thread([this]() {
+                {
+                    std::lock_guard<std::mutex> lock(resultMutex); // Protect shared resources
+                    std::string epubToConvertStr(epubToConvert);
+                    std::string outputPathStr(outputPath);
+
+                    result = run(epubToConvertStr, outputPathStr); // Simulated long-running function
+                }
+
+                finished = true;  // Mark as finished
+                running = false;  // Reset the running flag
+
+                if (result == 0) {
+                    statusMessage = "Translation successful!";
+                } else {
+                    statusMessage = "Translation failed!";
+                }
+            });
         }
  
-        if (!enableButton) {
+        if (!enableButton || running) {
             ImGui::EndDisabled();
         }
 
-        // Display the result of the conversion
-        if (result == 0) {
-            ImGui::Text("Translation successful!");
-        } else if (result == 1) {
-            ImGui::Text("Translation failed!");
+        if (running) {
+            ImGui::Text("Conversion in progress...");
+        } else if (finished) {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            ImGui::Text("%s", statusMessage.c_str());
         }
 
         ImGui::End();
     }
 
 void GUI::shutdown(){
+    if (workerThread.joinable()) {
+        workerThread.join(); // Wait for the worker thread to finish
+    }
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

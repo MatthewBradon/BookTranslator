@@ -20,10 +20,10 @@ private:
     char epubToConvert[256] = "";
     char outputPath[256] = "";
 
-    std::thread workerThread;    // Thread for the run function
-    std::atomic<bool> running;  // Flag to indicate if the worker is running
-    std::atomic<bool> finished; // Flag to indicate if the worker is finished
-    std::mutex resultMutex;     // Mutex to protect shared resources
-    std::string statusMessage;  // Shared status message
-    int result = -1;            // Result of the conversion
+    std::thread workerThread;
+    std::atomic<bool> running;
+    std::atomic<bool> finished;
+    std::mutex resultMutex;
+    std::string statusMessage;
+    int result = -1;
 };
