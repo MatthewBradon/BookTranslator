@@ -9,9 +9,9 @@ std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory) 
             }
         }
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        std::cerr << "Filesystem error: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "General error: " << e.what() << std::endl;
+        std::cerr << "General error: " << e.what() << "\n";
     }
 
     return std::filesystem::path();
@@ -24,7 +24,7 @@ std::vector<std::string> getSpineOrder(const std::filesystem::path& directory) {
         std::ifstream opfFile(directory);
 
         if (!opfFile.is_open()) {
-            std::cerr << "Failed to open OPF file: " << directory << std::endl;
+            std::cerr << "Failed to open OPF file: " << directory << "\n";
             return spineOrder;  // Return the empty vector
         }
 
@@ -40,7 +40,7 @@ std::vector<std::string> getSpineOrder(const std::filesystem::path& directory) {
         auto spineEndIt = std::sregex_iterator(content.begin(), content.end(), spineEndPattern);
 
         if (spineStartIt == spineEndIt) {
-            std::cerr << "No <spine> tag found in the OPF file." << std::endl;
+            std::cerr << "No <spine> tag found in the OPF file." << "\n";
             return spineOrder;  // No <spine> tag found
         }
 
@@ -65,9 +65,9 @@ std::vector<std::string> getSpineOrder(const std::filesystem::path& directory) {
         }
 
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        std::cerr << "Filesystem error: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "General error: " << e.what() << std::endl;
+        std::cerr << "General error: " << e.what() << "\n";
     }
 
     return spineOrder;  // Ensure we always return a vector
@@ -84,9 +84,9 @@ std::vector<std::filesystem::path> getAllXHTMLFiles(const std::filesystem::path&
             }
         }
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        std::cerr << "Filesystem error: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "General error: " << e.what() << std::endl;
+        std::cerr << "General error: " << e.what() << "\n";
     }
 
     return xhtmlFiles;
@@ -110,7 +110,7 @@ std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<
 void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath) {
     std::ifstream inputFile(contentOpfPath);
     if (!inputFile.is_open()) {
-        std::cerr << "Failed to open content.opf file!" << std::endl;
+        std::cerr << "Failed to open content.opf file!" << "\n";
         return;
     }
 
@@ -165,14 +165,14 @@ void updateContentOpf(const std::vector<std::string>& epubChapterList, const std
     // Write the updated content back to the file
     std::ofstream outputFile(contentOpfPath);
     if (!outputFile.is_open()) {
-        std::cerr << "Failed to open content.opf file for writing!" << std::endl;
+        std::cerr << "Failed to open content.opf file for writing!" << "\n";
         return;
     }
 
     // Output everything before </package>
     for (const auto& fileLine : fileContent) {
         if (fileLine.find("</metadata>") != std::string::npos) {
-            outputFile << fileLine << std::endl;
+            outputFile << fileLine << "\n";
             // Write manifest after metadata
             for (const auto& manifestLine : manifest) {
                 outputFile << manifestLine;
@@ -185,12 +185,12 @@ void updateContentOpf(const std::vector<std::string>& epubChapterList, const std
             // Skip writing </package> for now; it will be written later
             continue;
         } else {
-            outputFile << fileLine << std::endl;
+            outputFile << fileLine << "\n";
         }
     }
 
     // Finally, close the package
-    outputFile << "</package>" << std::endl;
+    outputFile << "</package>" << "\n";
 
     outputFile.close();
 }
@@ -200,13 +200,13 @@ bool make_directory(const std::filesystem::path& path) {
 
         // Check if the directory already exists
         if (std::filesystem::exists(path)) {
-            // std::cerr << "Directory already exists: " << path << std::endl;
+            // std::cerr << "Directory already exists: " << path << "\n";
             return true;
         }
         // Use create_directories to create the directory and any necessary parent directories
         return std::filesystem::create_directories(path);
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Error creating directory: " << e.what() << std::endl;
+        std::cerr << "Error creating directory: " << e.what() << "\n";
         return false;
     }
 }
@@ -216,7 +216,7 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
     int err = 0;
     zip* archive = zip_open(zipPath.c_str(), ZIP_RDONLY, &err);
     if (archive == nullptr) {
-        std::cerr << "Error opening ZIP archive: " << zipPath << std::endl;
+        std::cerr << "Error opening ZIP archive: " << zipPath << "\n";
         return false;
     }
 
@@ -226,7 +226,7 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
         // Get the file name
         const char* name = zip_get_name(archive, i, 0);
         if (name == nullptr) {
-            std::cerr << "Error getting file name in ZIP archive." << std::endl;
+            std::cerr << "Error getting file name in ZIP archive." << "\n";
             zip_close(archive);
             return false;
         }
@@ -245,7 +245,7 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
             // Open the file inside the ZIP archive
             zip_file* file = zip_fopen_index(archive, i, 0);
             if (file == nullptr) {
-                std::cerr << "Error opening file in ZIP archive: " << name << std::endl;
+                std::cerr << "Error opening file in ZIP archive: " << name << "\n";
                 zip_close(archive);
                 return false;
             }
@@ -253,7 +253,7 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
             // Open the output file
             std::ofstream outputFile(outputPath, std::ios::binary);
             if (!outputFile.is_open()) {
-                std::cerr << "Error creating output file: " << outputPath << std::endl;
+                std::cerr << "Error creating output file: " << outputPath << "\n";
                 zip_fclose(file);
                 zip_close(archive);
                 return false;
@@ -279,19 +279,21 @@ bool unzip_file(const std::string& zipPath, const std::string& outputDir) {
 }
 
 void exportEpub(const std::string& exportPath, const std::string& outputDir) {
-    // Create an Epub file by zipping the exportPath directory
-
     // Check if the exportPath directory exists
     if (!std::filesystem::exists(exportPath)) {
-        std::cerr << "Export directory does not exist: " << exportPath << std::endl;
+        std::cerr << "Export directory does not exist: " << exportPath << "\n";
         return;
     }
 
-    // Create the output Epub file
+    // Create the output Epub file path
     std::string epubPath = outputDir + "/output.epub";
 
     // Create a ZIP archive
     zip_t* archive = zip_open(epubPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, nullptr);
+    if (!archive) {
+        std::cerr << "Error creating ZIP archive: " << epubPath << "\n";
+        return;
+    }
 
     // Add all files in the exportPath directory to the ZIP archive
     for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
@@ -299,18 +301,22 @@ void exportEpub(const std::string& exportPath, const std::string& outputDir) {
             std::filesystem::path filePath = entry.path();
             std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
 
+            // Convert file paths to UTF-8 encoded strings
+            std::string filePathUtf8 = filePath.u8string();
+            std::string relativePathUtf8 = relativePath.u8string();
+
             // Create a zip_source_t from the file
-            zip_source_t* source = zip_source_file(archive, filePath.c_str(), 0, 0);
+            zip_source_t* source = zip_source_file(archive, filePathUtf8.c_str(), 0, 0);
             if (source == nullptr) {
-                std::cerr << "Error creating zip_source_t for file: " << filePath << std::endl;
+                std::cerr << "Error creating zip_source_t for file: " << filePath << "\n";
                 zip_discard(archive);
                 return;
             }
 
             // Add the file to the ZIP archive
-            zip_int64_t index = zip_file_add(archive, relativePath.c_str(), source, ZIP_FL_ENC_UTF_8);
+            zip_int64_t index = zip_file_add(archive, relativePathUtf8.c_str(), source, ZIP_FL_ENC_UTF_8);
             if (index < 0) {
-                std::cerr << "Error adding file to ZIP archive: " << filePath << std::endl;
+                std::cerr << "Error adding file to ZIP archive: " << filePath << "\n";
                 zip_source_free(source);
                 zip_discard(archive);
                 return;
@@ -320,17 +326,17 @@ void exportEpub(const std::string& exportPath, const std::string& outputDir) {
 
     // Close the ZIP archive
     if (zip_close(archive) < 0) {
-        std::cerr << "Error closing ZIP archive: " << epubPath << std::endl;
+        std::cerr << "Error closing ZIP archive: " << epubPath << "\n";
         return;
     }
 
-    std::cout << "Epub file created: " << epubPath << std::endl;
+    std::cout << "Epub file created: " << epubPath << "\n";
 }
 
 void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList) {
     std::ifstream navXHTMLFile(navXHTMLPath);
     if (!navXHTMLFile.is_open()) {
-        std::cerr << "Failed to open nav.xhtml file!" << std::endl;
+        std::cerr << "Failed to open nav.xhtml file!" << "\n";
         return;
     }
 
@@ -369,12 +375,12 @@ void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::s
     // Write the updated content back to the file
     std::ofstream outputFile(navXHTMLPath);
     if (!outputFile.is_open()) {
-        std::cerr << "Failed to open nav.xhtml file for writing!" << std::endl;
+        std::cerr << "Failed to open nav.xhtml file for writing!" << "\n";
         return;
     }
 
     for (const auto& fileLine : fileContent) {
-        outputFile << fileLine << std::endl;
+        outputFile << fileLine << "\n";
     }
 
     outputFile.close();
@@ -397,11 +403,11 @@ void copyImages(const std::filesystem::path& sourceDir, const std::filesystem::p
                 }
             }
         }
-        std::cout << "Image files copied successfully." << std::endl;
+        std::cout << "Image files copied successfully." << "\n";
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        std::cerr << "Filesystem error: " << e.what() << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << "\n";
     }
 }
 
@@ -493,7 +499,7 @@ void removeUnwantedTags(xmlNodePtr node) {
 void cleanChapter(const std::filesystem::path& chapterPath) {
     std::ifstream file(chapterPath);
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << chapterPath << std::endl;
+        std::cerr << "Failed to open file: " << chapterPath << "\n";
         return;
     }
 
@@ -504,14 +510,14 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     // Parse the content using libxml2
     htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
     if (!doc) {
-        std::cerr << "Failed to parse HTML content." << std::endl;
+        std::cerr << "Failed to parse HTML content." << "\n";
         return;
     }
 
     // Create an XPath context
     xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
     if (!xpathCtx) {
-        std::cerr << "Failed to create XPath context." << std::endl;
+        std::cerr << "Failed to create XPath context." << "\n";
         xmlFreeDoc(doc);
         return;
     }
@@ -519,7 +525,7 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     // Extract all <p> and <img> tags
     xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
     if (!xpathObj) {
-        std::cerr << "Failed to evaluate XPath expression." << std::endl;
+        std::cerr << "Failed to evaluate XPath expression." << "\n";
         xmlXPathFreeContext(xpathCtx);
         xmlFreeDoc(doc);
         return;
@@ -537,7 +543,7 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     // Create a buffer to hold the serialized XML content
     xmlBufferPtr buffer = xmlBufferCreate();
     if (buffer == nullptr) {
-        std::cerr << "Failed to create XML buffer." << std::endl;
+        std::cerr << "Failed to create XML buffer." << "\n";
         xmlXPathFreeObject(xpathObj);
         xmlXPathFreeContext(xpathCtx);
         xmlFreeDoc(doc);
@@ -547,7 +553,7 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     // Dump the document into the buffer
     int result = xmlNodeDump(buffer, doc, xmlDocGetRootElement(doc), 0, 1);
     if (result == -1) {
-        std::cerr << "Failed to serialize XML document." << std::endl;
+        std::cerr << "Failed to serialize XML document." << "\n";
         xmlBufferFree(buffer);
         xmlXPathFreeObject(xpathObj);
         xmlXPathFreeContext(xpathCtx);
@@ -558,7 +564,7 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     // Write the updated content back to the original file
     std::ofstream outFile(chapterPath);
     if (!outFile.is_open()) {
-        std::cerr << "Failed to open file for writing: " << chapterPath << std::endl;
+        std::cerr << "Failed to open file for writing: " << chapterPath << "\n";
         xmlBufferFree(buffer);
         xmlXPathFreeObject(xpathObj);
         xmlXPathFreeContext(xpathCtx);
@@ -584,7 +590,6 @@ std::string stripHtmlTags(const std::string& input) {
 
 std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
     // Initialize the 2D vector to store the tag data for each chapter
-    // Initialize the 2D vector to store the tag data for each chapter
     std::vector<tagData> bookTags;  // This will hold tag data for the entire book
     
     int chapterNum = 0;
@@ -593,7 +598,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
         
         std::ifstream file(chapterPath);
         if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << chapterPath << std::endl;
+            std::cerr << "Failed to open file: " << chapterPath << "\n";
             continue;  // Continue with the next chapter instead of returning
         }
 
@@ -604,14 +609,14 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
         // Parse the content using libxml2
         htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
         if (!doc) {
-            std::cerr << "Failed to parse HTML content." << std::endl;
+            std::cerr << "Failed to parse HTML content." << "\n";
             continue;  // Continue with the next chapter
         }
 
         // Create an XPath context
         xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
         if (!xpathCtx) {
-            std::cerr << "Failed to create XPath context." << std::endl;
+            std::cerr << "Failed to create XPath context." << "\n";
             xmlFreeDoc(doc);
             continue;  // Continue with the next chapter
         }
@@ -619,7 +624,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
         // Extract all <p> and <img> tags
         xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
         if (!xpathObj) {
-            std::cerr << "Failed to evaluate XPath expression." << std::endl;
+            std::cerr << "Failed to evaluate XPath expression." << "\n";
             xmlXPathFreeContext(xpathCtx);
             xmlFreeDoc(doc);
             continue;  // Continue with the next chapter
@@ -653,7 +658,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
                             bookTags.push_back(tag);
                         }
                     } catch (const std::exception& e) {
-                        std::cerr << "Error: " << e.what() << std::endl;
+                        std::cerr << "Error: " << e.what() << "\n";
                     }
                     xmlFree(textContent);
                 }
@@ -686,329 +691,412 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
         xmlXPathFreeContext(xpathCtx);
         xmlFreeDoc(doc);
         
-        std::cout << "Chapter done: " << chapterPath.filename().string() << std::endl;
+        std::cout << "Extracted Tags for: " << chapterPath.filename().string() << "\n";
         chapterNum++;
     }
 
     return bookTags;
 }
 
-
-void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode) {
-    // Create a Python dictionary to store all encoded data
-    pybind11::dict py_dict;
-    int mockCounter = 0;
-    for (const auto& data : data_vector) {
-        if (mockCounter == 150) {
-            break;
-        }
-        // Here, we use a tuple of (chapterNum, position) as a key
-        py_dict[pybind11::make_tuple(data.chapterNum, data.position)] = data.encoded;
-        mockCounter++;
-        
-    }
-
-    // Get the singleton instance of encodedDataSingleton and set the dictionary
-    pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
-    encodedDataSingleton.attr("set_encodedDataDict")(py_dict);
-}
-
-
-pybind11::object runMultiprocessingPython(pybind11::module& EncodeDecode) {
-    try {
-        // Get the singleton instance in Python (to pass encoded data)
-        pybind11::object encodedDataSingleton = EncodeDecode.attr("encodedDataSingleton").attr("get_instance")();
-
-        // Call the Python function to run model inference with multiprocessing
-        pybind11::object runModelMultiprocessing = EncodeDecode.attr("run_model_multiprocessing");
-
-
-        // Run the Python function with data from the singleton
-        pybind11::object results = runModelMultiprocessing(encodedDataSingleton.attr("get_encodedDataDict")());
-
-        return results;
-
-    } catch (const pybind11::error_already_set& e) {
-        // Catch and print any Python exceptions
-        std::cerr << "Python exception: " << e.what() << std::endl;
-        return pybind11::none();
-    }
-    
-}
-
-std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& tokenizer) {
-    std::vector<decodedData> decodedDataVector;
-     
-    pybind11::object detokenizeText = tokenizer.attr("detokenize_text");
-
-    // Iterate over the results and convert them to decodedData objects
-    for (const auto& item : results) {
-        decodedData decoded;
-        // (generated[0], chapterNum, position) 
-        pybind11::tuple resultTuple = item.cast<pybind11::tuple>();
-        decoded.output = detokenizeText(resultTuple[0]).cast<std::string>(); 
-        decoded.chapterNum = resultTuple[1].cast<int>();
-        decoded.position = resultTuple[2].cast<int>();
-
-        decodedDataVector.push_back(decoded);
-    }
-
-    return decodedDataVector;
-}
-
 int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
-    std::cout << "Running the EPUB conversion process..." << std::endl;
-    std::cout << "epubToConvert: " << epubToConvert << std::endl;
-    std::cout << "outputEpubPath: " << outputEpubPath << std::endl;
+    // Initialize the Python interpreter
+    pybind11::scoped_interpreter guard{};
+
+    pybind11::module sys = pybind11::module::import("sys");
+
+    // Defining Python Environment using the VCPKG but based on what operating system your using
+    std::filesystem::path currentDirPath = std::filesystem::current_path();
+    std::filesystem::path libPath;
+    std::filesystem::path pythonEXEPath;
+
+    #if defined(__APPLE__)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "lib" / "python3.11" /  "site-packages";
+        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "tools" / "python3" / "python3";
+
+    #elif defined(_WIN32)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib" / "site-packages";
+        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
+
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    sys.attr("path").attr("append")(libPath.u8string());
+    pybind11::print(sys.attr("path"));
+
+    std::cout << "Running the EPUB conversion process..." << "\n";
+    std::cout << "epubToConvert: " << epubToConvert << "\n";
+    std::cout << "outputEpubPath: " << outputEpubPath << "\n";
 
     std::string unzippedPath = "unzipped";
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
 
-    // Initialize the Python interpreter
-    pybind11::scoped_interpreter guard{};
 
-    // Import Python's sys module
-    pybind11::module sys = pybind11::module::import("sys");
-
-    std::string venv_path = "./.venv";
-
-    // Add venv paths to sys.path
-    sys.attr("path").cast<pybind11::list>().append(venv_path + "/lib/python3.11/site-packages");
-
-    pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
-    pybind11::module tokenizer = pybind11::module::import("tokenizer");
-    
-    // Start the timer
-    auto start = std::chrono::high_resolution_clock::now();
-    std::cout << "START" << std::endl;
-
-    // Create the output directory if it doesn't exist
-    if (!make_directory(unzippedPath)) {
-        std::cerr << "Failed to create output directory: " << unzippedPath << std::endl;
-        return 1;
-    }
-
-    // Unzip the EPUB file
-    if (!unzip_file(epubToConvert, unzippedPath)) {
-        std::cerr << "Failed to unzip EPUB file: " << epubToConvert << std::endl;
-        return 1;
-    }
-
-    std::cout << "EPUB file unzipped successfully to: " << unzippedPath << std::endl;
-
-    // Create the template directory if it doesn't exist
-    if (!make_directory(templatePath)) {
-        std::cerr << "Failed to create template directory: " << templatePath << std::endl;
-        return 1;
-    }
-
-    // Unzip the template EPUB file
-    if (!unzip_file(templateEpub, templatePath)) {
-        std::cerr << "Failed to unzip EPUB file: " << templateEpub << std::endl;
-        return 1;
-    }
-
-    std::cout << "EPUB file unzipped successfully to: " << templatePath << std::endl;
-
-    
-
-    std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
-
-    if (contentOpfPath.empty()) {
-        std::cerr << "No OPF file found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
-
-    std::cout << "Found OPF file: " << contentOpfPath << std::endl;
-
-    std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
-
-    if (spineOrder.empty()) {
-        std::cerr << "No spine order found in the OPF file." << std::endl;
-        return 1;
-    }
+    try {
+        pybind11::module readEncodedDataModule = pybind11::module::import("readEncodedData");
+        pybind11::module tokenizer = pybind11::module::import("tokenizer");
 
 
-    std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
-    if (xhtmlFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory." << std::endl;
-        return 1;
-    }
+        // Start the timer
+        auto start = std::chrono::high_resolution_clock::now();
+        std::cout << "START" << "\n";
 
-
-    // Sort the XHTML files based on the spine order
-    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
-    if (spineOrderXHTMLFiles.empty()) {
-        std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << std::endl;
-        return 1;
-    }
-
-
-    // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
-    std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
-    std::ifstream Section001File(Section001Path);
-    if (!Section001File.is_open()) {
-        std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << std::endl;
-        return 1;
-    }
-
-    std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
-    Section001File.close();
-
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
-        std::ofstream newSectionFile(newSectionPath);
-        if (!newSectionFile.is_open()) {
-            std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << std::endl;
+        // Create the output directory if it doesn't exist
+        if (!make_directory(unzippedPath)) {
+            std::cerr << "Failed to create output directory: " << unzippedPath << "\n";
             return 1;
         }
-        newSectionFile << Section001Content;
-        newSectionFile.close();
-    }
-    //Remove Section001.xhtml
-    std::filesystem::remove(Section001Path);
 
-
-
-
-    // Update the spine and manifest in the templates OPF file
-    std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
-    updateContentOpf(spineOrder, templateContentOpfPath);
-
-    // Update the nav.xhtml file
-    std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
-    updateNavXHTML(navXHTMLPath, spineOrder);
-
-
-    // Copy images from the unzipped directory to the template directory
-    copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
-
-
-
-
-    // Clean each chapter
-    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-            cleanChapter(xhtmlFile);
-            std::cout << "Chapter cleaned: " << xhtmlFile.string() << std::endl;
-    }
-
-
-
-
-    std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
-
-    pybind11::object encodeText = tokenizer.attr("tokenize_text");
-
-
-    std::vector<encodedData> encodedTags;
-    // Tokenize every text in the bookTags
-    for (auto& tag : bookTags) {
-        if (tag.tagId == P_TAG) {
-            encodedData encodedTag;
-            encodedTag.encoded = encodeText(tag.text);
-            encodedTag.position = tag.position;
-            encodedTag.chapterNum = tag.chapterNum;
-
-            encodedTags.push_back(encodedTag);
+        // Unzip the EPUB file
+        if (!unzip_file(epubToConvert, unzippedPath)) {
+            std::cerr << "Failed to unzip EPUB file: " << epubToConvert << "\n";
+            return 1;
         }
-    }
 
-    convertEncodedDataToPython(encodedTags, EncodeDecode);
+        std::cout << "EPUB file unzipped successfully to: " << unzippedPath << "\n";
 
-
-    pybind11::object results = runMultiprocessingPython(EncodeDecode);
-
-    std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
-
-
-    std::vector<std::vector<tagData>> chapterTags;
-    // Divide bookTags into chapters chapterNum is the chapter number
-    for(auto& tag : bookTags) {
-        if (tag.chapterNum >= chapterTags.size()) {
-            chapterTags.resize(tag.chapterNum + 1);
+        // Create the template directory if it doesn't exist
+        if (!make_directory(templatePath)) {
+            std::cerr << "Failed to create template directory: " << templatePath << "\n";
+            return 1;
         }
-        chapterTags[tag.chapterNum].push_back(tag);
-    }
 
-    // Build the position map for each chapter and position
-    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
-
-    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
-        for (auto& tag : chapterTags[chapterNum]) {
-            positionMap[chapterNum][tag.position] = &tag;
+        // Unzip the template EPUB file
+        if (!unzip_file(templateEpub, templatePath)) {
+            std::cerr << "Failed to unzip EPUB file: " << templateEpub << "\n";
+            return 1;
         }
-    }
 
-    // Update chapterTags using decodedDataVector
-    for (const auto& decoded : decodedDataVector) {
-        // Find the corresponding chapter in the map
-        auto chapterIt = positionMap.find(decoded.chapterNum);
-        if (chapterIt != positionMap.end()) {
-            auto& positionTags = chapterIt->second;
-            // Find the tag by position
-            auto tagIt = positionTags.find(decoded.position);
-            if (tagIt != positionTags.end()) {
-                // Update the text of the corresponding tag
-                tagIt->second->text = decoded.output;
-                std::cout << "Decoded text: " << decoded.output << std::endl;
+        std::cout << "EPUB file unzipped successfully to: " << templatePath << "\n";
+
+        
+
+        std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
+
+        if (contentOpfPath.empty()) {
+            std::cerr << "No OPF file found in the unzipped EPUB directory." << "\n";
+            return 1;
+        }
+
+        std::cout << "Found OPF file: " << contentOpfPath << "\n";
+
+        std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
+
+        if (spineOrder.empty()) {
+            std::cerr << "No spine order found in the OPF file." << "\n";
+            return 1;
+        }
+
+
+        std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
+        if (xhtmlFiles.empty()) {
+            std::cerr << "No XHTML files found in the unzipped EPUB directory." << "\n";
+            return 1;
+        }
+
+
+        // Sort the XHTML files based on the spine order
+        std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+        if (spineOrderXHTMLFiles.empty()) {
+            std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << "\n";
+            return 1;
+        }
+
+
+        // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
+        std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
+        std::ifstream Section001File(Section001Path);
+        if (!Section001File.is_open()) {
+            std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << "\n";
+            return 1;
+        }
+
+        std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
+        Section001File.close();
+
+        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+            std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
+            std::ofstream newSectionFile(newSectionPath);
+            if (!newSectionFile.is_open()) {
+                std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << "\n";
+                return 1;
             }
+            newSectionFile << Section001Content;
+            newSectionFile.close();
         }
-    }
+        //Remove Section001.xhtml
+        std::filesystem::remove(Section001Path);
 
 
-    std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE html>
-    <html xmlns="http://www.w3.org/1999/xhtml">
-    <head>
-    <title>)";
 
-    std::string htmlFooter = R"(</body>
-    </html>)";
 
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
-        std::ofstream outFile(outputPath);
-        std::cout << "Writing to: " << outputPath << std::endl;
-        if (!outFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+        // Update the spine and manifest in the templates OPF file
+        std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+        updateContentOpf(spineOrder, templateContentOpfPath);
+
+        // Update the nav.xhtml file
+        std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
+        updateNavXHTML(navXHTMLPath, spineOrder);
+
+
+        // Copy images from the unzipped directory to the template directory
+        copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+
+
+
+
+        // Clean each chapter
+        for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+                cleanChapter(xhtmlFile);
+                std::cout << "Chapter cleaned: " << xhtmlFile.string() << "\n";
+        }
+
+        //Extract all of the relevant tags
+        std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+
+
+        pybind11::object encodeText = tokenizer.attr("tokenize_text");
+
+        std::string encodedTagsPathString = "encodedTags.txt";
+        std::string translatedTagsPathString = "translatedTags.txt";
+
+        std::filesystem::path encodedTagsPath = encodedTagsPathString;
+        std::ofstream encodedTagsFile(encodedTagsPath);
+        if (!encodedTagsFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << encodedTagsPath << "\n";
             return 1;
         }
-
-        // Write pre-built header
-        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
-
-        // Write content-specific parts
-        for (const auto& tag : chapterTags[i]) {
+        std::cout << "Tokenizing the EPUB..." << '\n';
+        for (auto& tag : bookTags) {
             if (tag.tagId == P_TAG) {
-                outFile << "<p>" << tag.text << "</p>\n";
-            } else if (tag.tagId == IMG_TAG) {
-                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+                pybind11::object encodedText = encodeText(tag.text);
+                std::string convertedText = pybind11::str(encodedText);
+
+                // Replace line breaks in the tensor data with a single space
+                std::string singleLineText;
+                for (char c : convertedText) {
+                    if (c == '\n' || c == '\r') {
+                        singleLineText += ' ';
+                    } else {
+                        singleLineText += c;
+                    }
+                }
+
+                encodedTagsFile << tag.chapterNum << "," << tag.position << "," << singleLineText << "\n";
             }
         }
 
-        // Write pre-built footer
-        outFile << htmlFooter;
-        outFile.close();
-    }
+        encodedTagsFile.close();
 
-    // Zip export directory to create the final EPUB file
-    exportEpub(templatePath, outputEpubPath);
+        // Send all the tokenized data to the text file for python to be able to read it
+        pybind11::object readEncodedData = readEncodedDataModule.attr("readEncodedData");
+        readEncodedData(encodedTagsPathString);
 
-    // End timer
-    auto end = std::chrono::high_resolution_clock::now();
 
-    std::chrono::duration<double> elapsed = end - start;
+        //Start the multiprocessing translaton
+        std::filesystem::path scriptPath = currentDirPath / "multiprocessTranslation.py";
+        std::string multiprocessPythonScriptPath = scriptPath.string();
+        std::cout << multiprocessPythonScriptPath << "\n";
+        
+        // Create pipes for capturing stdout and stderr
+        boost::process::ipstream pipe_stdout;
+        boost::process::ipstream pipe_stderr;
 
-    std::cout << "Time taken: " << elapsed.count() << "s" << std::endl;
+        std::string pythonEXEStringPath = pythonEXEPath.string();
+
+        try {
+            // Start the Python script as a child process
+            boost::process::child c(
+                pythonEXEStringPath,           // Find the Python executable
+                multiprocessPythonScriptPath,                    // Script path
+                boost::process::std_out > pipe_stdout,           // Redirect stdout
+                boost::process::std_err > pipe_stderr            // Redirect stderr
+            );
+
+            // Read the outputs asynchronously
+            std::string line;
+            while (c.running() && std::getline(pipe_stdout, line)) {
+                std::cout << line << "\n";
+            }
+
+            // Read any remaining output after the process has finished
+            while (std::getline(pipe_stdout, line)) {
+                std::cout << line << "\n";
+            }
+
+            // Read any errors
+            while (std::getline(pipe_stderr, line)) {
+                std::cerr << "Python stderr: " << line << "\n";
+            }
+
+            // Wait for the process to exit
+            c.wait();
+
+            // Check exit code
+            if (c.exit_code() == 0) {
+                std::cout << "Translation Python script executed successfully." << "\n";
+            } else {
+                std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
+            }
+        } catch (const std::exception& ex) {
+            std::cerr << "Exception: " << ex.what() << "\n";
+        }
+
+        std::vector<decodedData> decodedDataVector;
+        std::ifstream file(translatedTagsPathString);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file: " << translatedTagsPathString << "\n";
+            return 1;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream lineStream(line);
+            std::string chapterNumStr, positionStr, text;
+
+            // Extract chapterNum (first value)
+            if (!std::getline(lineStream, chapterNumStr, ',')) continue;
+
+            // Extract position (second value)
+            if (!std::getline(lineStream, positionStr, ',')) continue;
+
+            // The rest of the line is text
+            std::getline(lineStream, text);
+
+            // Convert chapterNum and position to integers
+            try {
+                decodedData data;
+                data.chapterNum = std::stoi(chapterNumStr);
+                data.position = std::stoi(positionStr);
+                data.output = text;
+                // Store the extracted data
+                decodedDataVector.push_back(data);
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing line: " << line << " - " << e.what() << "\n";
+            }
+        }
+        file.close();
+
+
+
+
+        std::vector<std::vector<tagData>> chapterTags;
+        // Divide bookTags into chapters chapterNum is the chapter number
+        for(auto& tag : bookTags) {
+            if (tag.chapterNum >= chapterTags.size()) {
+                chapterTags.resize(tag.chapterNum + 1);
+            }
+            chapterTags[tag.chapterNum].push_back(tag);
+        }
+
+        // Build the position map for each chapter and position
+        std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+        for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+            for (auto& tag : chapterTags[chapterNum]) {
+                positionMap[chapterNum][tag.position] = &tag;
+            }
+        }
+
+        // Update chapterTags using decodedDataVector
+        for (const auto& decoded : decodedDataVector) {
+            // Find the corresponding chapter in the map
+            auto chapterIt = positionMap.find(decoded.chapterNum);
+            if (chapterIt != positionMap.end()) {
+                auto& positionTags = chapterIt->second;
+                // Find the tag by position
+                auto tagIt = positionTags.find(decoded.position);
+                if (tagIt != positionTags.end()) {
+                    // Update the text of the corresponding tag
+                    tagIt->second->text = decoded.output;
+                    // std::cout << "Decoded text: " << decoded.output << "\n";
+                }
+            }
+        }
+
+        //Write out to the template EPUB
+        std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE html>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+        <title>)";
+
+        std::string htmlFooter = R"(</body>
+        </html>)";
+
+        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+            std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+            std::ofstream outFile(outputPath);
+            std::cout << "Writing to: " << outputPath << "\n";
+            if (!outFile.is_open()) {
+                std::cerr << "Failed to open file for writing: " << outputPath << "\n";
+                return 1;
+            }
+
+            // Write pre-built header
+            outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
+
+            // Write content-specific parts
+            for (const auto& tag : chapterTags[i]) {
+                if (tag.tagId == P_TAG) {
+                    outFile << "<p>" << tag.text << "</p>\n";
+                } else if (tag.tagId == IMG_TAG) {
+                    outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+                }
+            }
+
+            // Write pre-built footer
+            outFile << htmlFooter;
+            outFile.close();
+        }
+
+        // Zip export directory to create the final EPUB file
+        exportEpub(templatePath, outputEpubPath);
+
+        // Remove the unzipped and export directories
+        std::filesystem::remove_all(unzippedPath);
+        std::filesystem::remove_all(templatePath);
+
+
+        // Remove the temp text files
+        try {
+            if (std::filesystem::exists(encodedTagsPathString)) {
+                std::filesystem::remove(encodedTagsPathString);
+                std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+            }
+            if (std::filesystem::exists(translatedTagsPathString)) {
+                std::filesystem::remove(translatedTagsPathString);
+                std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << "\n";
+        }
+
+        // End timer
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
+
+    } 
+    catch (const pybind11::error_already_set& e) {
+        // Catch and print any Python exceptions
+        std::cerr << "Python exception: " << e.what() << "\n";
+        return 1;
+    }    
     return 0;
 }
 
-
 int main() {
-
-	// Setup window
+    // All the couts are redirected to captureOutput so we can use it in our GUI
+    std::streambuf* originalBuffer = std::cout.rdbuf();
+    std::ostringstream captureOutput;
+    std::cout.rdbuf(captureOutput.rdbuf());
+	
+    // Setup window
 	if (!glfwInit())
 		return 1;
 
@@ -1038,7 +1126,7 @@ int main() {
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        std::cout << "Failed to initialize GLAD" << std::endl;
+        std::cout << "Failed to initialize GLAD" << "\n";
         return -1;
     }
 
@@ -1046,7 +1134,7 @@ int main() {
 	glfwGetFramebufferSize(window, &screen_width, &screen_height);
 	glViewport(0, 0, screen_width, screen_height);
 
-    std::cout << "Running..." << std::endl;
+    std::cout << "Running..." << "\n";
     GUI gui;
 
     gui.init(window, glsl_version);
@@ -1054,16 +1142,16 @@ int main() {
     while(!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-
         glClear(GL_COLOR_BUFFER_BIT);
+
         gui.newFrame();
-        gui.update();
+        gui.update(captureOutput);
         gui.render();
 
         glfwSwapBuffers(window);
     }
 
     gui.shutdown();
-
+    std::cout.rdbuf(originalBuffer); // Restore original std::cout buffer
     return 0;
 }

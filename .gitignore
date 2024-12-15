@@ -12,3 +12,7 @@ rawEpub/*
 output.epub
 imgui.ini
 .DS_Store
+encodedTags.txt
+translatedTags.txt
+pip_install.log
+pip_show.log

@@ -9,7 +9,6 @@
 #include <libxml/xpath.h>
 #include <libxml/uri.h>
 #include <libxml/xmlstring.h>
-#include <onnxruntime_cxx_api.h>
 #include <Python.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
@@ -19,6 +18,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "GUI.h"
+#include <cstdlib>
+#include <boost/process.hpp>
+#include <boost/filesystem.hpp>
+
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define P_TAG 0
