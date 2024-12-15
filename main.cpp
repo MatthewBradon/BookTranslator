@@ -871,18 +871,6 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         pybind11::object encodeText = tokenizer.attr("tokenize_text");
 
 
-        // std::vector<encodedData> encodedTags;
-        // // Tokenize every text in the bookTags
-        // for (auto& tag : bookTags) {
-        //     if (tag.tagId == P_TAG) {
-        //         encodedData encodedTag;
-        //         encodedTag.encoded = encodeText(tag.text);
-        //         encodedTag.position = tag.position;
-        //         encodedTag.chapterNum = tag.chapterNum;
-
-        //         encodedTags.push_back(encodedTag);
-        //     }
-        // }
 
         std::string encodedTagsPathString = "./encodedTags.txt";
         std::filesystem::path encodedTagsPath = encodedTagsPathString;
@@ -927,7 +915,6 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         std::string pythonEXEStringPath = pythonEXEPath.string();
 
         try {
-            // C:\Users\matth\Desktop\EpubTranslator\build\vcpkg_installed\x64-windows\tools\python3\python.exe
             // Start the Python script as a child process
             boost::process::child c(
                 pythonEXEStringPath,           // Find the Python executable
@@ -964,8 +951,6 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         } catch (const std::exception& ex) {
             std::cerr << "Exception: " << ex.what() << "\n";
         }
-
-        // std::vector<decodedData> decodedDataVector = convertPythonResultsToDecodedData(results, tokenizer);
 
         std::vector<decodedData> decodedDataVector;
         std::ifstream file("translatedTags.txt");
