@@ -2,6 +2,7 @@ from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
 from readEncodedData import readEncodedData
+import sys
 
 # Global variable to store the model in each worker
 model = None
@@ -15,6 +16,7 @@ def init_model():
     global model
     if model is None:
         print("Loading model in worker process.")
+        sys.stdout.flush()
         
         model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
 
@@ -23,6 +25,8 @@ def process_task(task):
     encoded_data, chapterNum, position = task
 
     print(f"Processing chapter {chapterNum} at position {position}.")
+    sys.stdout.flush()
+
     
 
     init_model()  # Initialize model in worker
@@ -37,11 +41,13 @@ def process_task(task):
         # Detokenize
         text = tokenizer.decode(generated[0], skip_special_tokens=True)
         print(text)
+        sys.stdout.flush()
         
   
         return chapterNum, position, text
     except Exception as e:
         print(f"Error while processing chapter {chapterNum} at position {position}: {str(e)}")
+        sys.stdout.flush()
         
         return None
 
@@ -68,12 +74,15 @@ def run_model_multiprocessing(file_path, num_workers=2):
 
     if not results:
         print("No results were processed by the workers.")
+        sys.stdout.flush()
         
     else:
         print(f"Processed {len(results)} results.")
+        sys.stdout.flush()
         
 
     print("Main process exiting.")
+    sys.stdout.flush()
     
 
     return results
@@ -81,6 +90,7 @@ def run_model_multiprocessing(file_path, num_workers=2):
 def main(file_path):
     """Parent process that spawns workers."""
     print("Starting parent process.")
+    sys.stdout.flush()
     
 
     # Set the spawn start method
