@@ -589,51 +589,60 @@ std::string stripHtmlTags(const std::string& input) {
 }
 
 std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
-    // Initialize the 2D vector to store the tag data for each chapter
-    std::vector<tagData> bookTags;  // This will hold tag data for the entire book
-    
+    // Helper function to read file content as UTF-8
+
+    auto readFileUtf8 = [](const std::filesystem::path& filePath) -> std::string {
+        std::ifstream file(filePath, std::ios::binary); // Open as binary
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file: " + filePath.string());
+        }
+        std::ostringstream buffer;
+        buffer << file.rdbuf(); // Read the entire file
+        file.close();
+
+        return buffer.str(); // Return the UTF-8 string
+    };
+
+    std::vector<tagData> bookTags; // This will hold tag data for the entire book
     int chapterNum = 0;
 
     for (const std::filesystem::path& chapterPath : chapterPaths) {
-        
-        std::ifstream file(chapterPath);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << chapterPath << "\n";
-            continue;  // Continue with the next chapter instead of returning
+        std::string data;
+
+        try {
+            data = readFileUtf8(chapterPath); // Read file as UTF-8
+        } catch (const std::exception& e) {
+            std::cerr << "Error reading file: " << e.what() << "\n";
+            continue; // Continue with the next chapter
         }
 
-        // Read the entire content of the chapter file
-        std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
-
         // Parse the content using libxml2
-        htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
         if (!doc) {
-            std::cerr << "Failed to parse HTML content." << "\n";
-            continue;  // Continue with the next chapter
+            std::cerr << "Failed to parse HTML content.\n";
+            continue; // Continue with the next chapter
         }
 
         // Create an XPath context
         xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
         if (!xpathCtx) {
-            std::cerr << "Failed to create XPath context." << "\n";
+            std::cerr << "Failed to create XPath context.\n";
             xmlFreeDoc(doc);
-            continue;  // Continue with the next chapter
+            continue; // Continue with the next chapter
         }
 
         // Extract all <p> and <img> tags
         xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
         if (!xpathObj) {
-            std::cerr << "Failed to evaluate XPath expression." << "\n";
+            std::cerr << "Failed to evaluate XPath expression.\n";
             xmlXPathFreeContext(xpathCtx);
             xmlFreeDoc(doc);
-            continue;  // Continue with the next chapter
+            continue; // Continue with the next chapter
         }
 
         xmlNodeSetPtr nodes = xpathObj->nodesetval;
         int nodeCount = (nodes) ? nodes->nodeNr : 0;
 
-        std::vector<tagData> chapterTags;  // Vector to hold tag data for the current chapter
         for (int i = 0; i < nodeCount; ++i) {
             xmlNodePtr node = nodes->nodeTab[i];
             if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
@@ -654,7 +663,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
                             tag.position = i;
                             tag.chapterNum = chapterNum;
 
-                            // Append the tag to chapterTags
+                            // Append the tag to bookTags
                             bookTags.push_back(tag);
                         }
                     } catch (const std::exception& e) {
@@ -676,7 +685,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
                     tag.position = i;
                     tag.chapterNum = chapterNum;
 
-                    // Append the tag to chapterTags
+                    // Append the tag to bookTags
                     bookTags.push_back(tag);
 
                     xmlFree(src);
@@ -684,19 +693,18 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
             }
         }
 
-
-
         // Free resources for the current chapter
         xmlXPathFreeObject(xpathObj);
         xmlXPathFreeContext(xpathCtx);
         xmlFreeDoc(doc);
-        
+
         std::cout << "Extracted Tags for: " << chapterPath.filename().string() << "\n";
         chapterNum++;
     }
 
     return bookTags;
 }
+
 
 int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
@@ -1094,6 +1102,7 @@ int main() {
     // All the couts are redirected to captureOutput so we can use it in our GUI
     std::streambuf* originalBuffer = std::cout.rdbuf();
     std::ostringstream captureOutput;
+    // Comment out this line if you want the couts to be in the terminal for debugging purposes
     std::cout.rdbuf(captureOutput.rdbuf());
 	
     // Setup window
