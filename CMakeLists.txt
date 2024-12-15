@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Set the toolchain for vcpkg
- if(CMAKE_SYSTEM_NAME MATCHES "Windows")
-set(CMAKE_TOOLCHAIN_FILE "C:/Users/matth/vcpkg/scripts/buildsystems/vcpkg.cmake")
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-set(CMAKE_TOOLCHAIN_FILE "/Users/xsmoked/vcpkg/scripts/buildsystems/vcpkg.cmake")
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 project(main)
 
