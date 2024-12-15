@@ -721,11 +721,26 @@ std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& res
 
 int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
+    // Initialize the Python interpreter
+    pybind11::scoped_interpreter guard{};
+
+    pybind11::module sys = pybind11::module::import("sys");
+
     // Get the current executable path and resolve to the known relative path
     std::filesystem::path currentDirPath = std::filesystem::current_path();
-    std::filesystem::path libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib";
-    std::filesystem::path sitePackagesPath = libPath / "site-packages";
+    std::filesystem::path libPath;
 
+    #if defined(__APPLE__)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "lib" / "python3.11" /  "site-packages";
+    #elif defined(_WIN32)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib" / "site-packages";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    sys.attr("path").attr("append")(libPath.u8string());
+    pybind11::print(sys.attr("path"));
 
     std::cout << "Running the EPUB conversion process..." << "\n";
     std::cout << "epubToConvert: " << epubToConvert << "\n";
@@ -734,15 +749,7 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     std::string unzippedPath = "unzipped";
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
-    // Initialize the Python interpreter
-    pybind11::scoped_interpreter guard{};
 
-    pybind11::module sys = pybind11::module::import("sys");
-
-    sys.attr("path").attr("append")(sitePackagesPath.u8string());
-
-
-    pybind11::print(sys.attr("path"));
 
     try {
         pybind11::module EncodeDecode = pybind11::module::import("EncodeAndDecode");
@@ -910,7 +917,17 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         boost::process::ipstream pipe_stdout;
         boost::process::ipstream pipe_stderr;
 
-        std::filesystem::path pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
+        std::filesystem::path pythonEXEPath;
+
+        #if defined(__APPLE__)
+            pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "tools" / "python3" / "python3";
+        #elif defined(_WIN32)
+            pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
+            
+        #else
+            std::cerr << "Unsupported platform!" << std::endl;
+            return 1; // Or some other error handling
+        #endif
 
         std::string pythonEXEStringPath = pythonEXEPath.string();
 
