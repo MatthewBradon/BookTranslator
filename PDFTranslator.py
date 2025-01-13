@@ -5,8 +5,8 @@ from io import BytesIO
 from transformers import MarianMTModel, MarianTokenizer
 from fpdf import FPDF
 import PyPDF2
-from sudachipy import tokenizer
-from sudachipy import dictionary
+from sudachipy import dictionary, tokenizer as sudachi_tokenizer
+import re
 
 # Load the translation model and tokenizer
 model_name = "Helsinki-NLP/opus-mt-ja-en"
@@ -19,43 +19,118 @@ def translate_text(text):
     translated = model.generate(inputs, max_length=512, num_beams=4, early_stopping=True)
     return tokenizer.decode(translated[0], skip_special_tokens=True)
 
-def extract_text_from_pdf(file_path):
-    """Extracts text from a PDF file."""
-    with open(file_path, 'rb') as pdf_file:
-        reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() + "\n"
-        return text
+def split_long_sentences(sentence, max_length=300):
+    """Splits long sentences into smaller ones based on logical breakpoints."""
+    # Logical breakpoints: commas, conjunctions, etc.
+    breakpoints = ["、", "。", "しかし", "そして", "だから", "そのため"]
+    sentences = []
+    current_chunk = ""
+    token_count = 0
+
+    for token in sentence:
+        current_chunk += token
+        token_count += 1
+
+        # Check if the current token is a logical breakpoint
+        if token in breakpoints:
+            if len(current_chunk) > max_length:  # Only split if chunk exceeds max_length
+                sentences.append(current_chunk.strip())
+                current_chunk = ""
+                token_count = 0
+
+        # Force a split if the token count exceeds the max_length
+        if token_count > max_length:
+            sentences.append(current_chunk.strip())
+            current_chunk = ""
+            token_count = 0
+
+    # Add any remaining text as the last sentence
+    if current_chunk:
+        sentences.append(current_chunk.strip())
+
+    return sentences
+
+
 
 def split_japanese_text(text):
-    """Splits Japanese text into sentences using SudachiPy."""
+    """Intelligently splits Japanese text into sentences with advanced handling for long sentences."""
+    # Normalize repeating quotes
+    text = re.sub(r"「{2,}", "「", text)
+    text = re.sub(r"」{2,}", "」", text)
+
+
     tokenizer_obj = dictionary.Dictionary().create()
-    mode = tokenizer.Tokenizer.SplitMode.C
+    mode = sudachi_tokenizer.Tokenizer.SplitMode.C
     sentences = []
     current_sentence = ""
+
+    # Flag to track if we are inside a quote
+    in_quote = False
+
     for token in tokenizer_obj.tokenize(text, mode):
         current_sentence += token.surface()
-        if token.surface() in "。！？":  # End of sentence markers
-            sentences.append(current_sentence.strip())
+
+        # Handle opening quotes and closing quotes
+        if token.surface() == "「":
+            in_quote = True
+        elif token.surface() == "」":
+            in_quote = False
+
+        # Check for sentence-ending punctuation
+        if token.surface() in "。！？" and not in_quote:  # Avoid splitting inside quotes
+            if len(current_sentence) > 300:  # Handle long sentences
+                sentences.extend(split_long_sentences(current_sentence.strip(), max_length=300))
+            else:
+                sentences.append(current_sentence.strip())
             current_sentence = ""
-    # Add any remaining text as a sentence
+
+        # Handle cases where sentence ends inside quotes
+        if token.surface() == "。」" and not in_quote:
+            if len(current_sentence) > 300:  # Handle long sentences
+                sentences.extend(split_long_sentences(current_sentence.strip(), max_length=300))
+            else:
+                sentences.append(current_sentence.strip())
+            current_sentence = ""
+
+    # Add any remaining text as the last sentence
     if current_sentence:
-        sentences.append(current_sentence.strip())
+        if len(current_sentence) > 300:
+            sentences.extend(split_long_sentences(current_sentence.strip(), max_length=300))
+        else:
+            sentences.append(current_sentence.strip())
+
     return sentences
+
+
+def extract_text_from_pdf(file_path):
+    """Extracts and intelligently tokenizes text from a PDF."""
+    tokenizer_obj = dictionary.Dictionary().create()
+    mode = sudachi_tokenizer.Tokenizer.SplitMode.C
+    sentences = []
+
+    with open(file_path, 'rb') as pdf_file:
+        reader = PyPDF2.PdfReader(pdf_file)
+        for page in reader.pages:
+            text = page.extract_text()
+            # Split text intelligently
+            page_sentences = split_japanese_text(text)
+            sentences.extend(page_sentences)
+
+    return sentences
+
+
+def is_main_image(image):
+    # Convert to grayscale and analyze pixel intensity variance
+    grayscale = image.convert("L")
+    stat = ImageStat.Stat(grayscale)
+    stddev = stat.stddev[0]  # Standard deviation of pixel values
+    return stddev > 50  # Threshold for complexity
 
 def filter_main_images(pdf_file, output_dir):
     """Extracts and filters main images from a PDF."""
     os.makedirs(output_dir, exist_ok=True)
     page_nums = len(pdf_file)
     main_images = []
-
-    def is_main_image(image):
-        # Convert to grayscale and analyze pixel intensity variance
-        grayscale = image.convert("L")
-        stat = ImageStat.Stat(grayscale)
-        stddev = stat.stddev[0]  # Standard deviation of pixel values
-        return stddev > 50  # Threshold for complexity
 
     for page_num in range(page_nums):
         page = pdf_file[page_num]
@@ -98,6 +173,11 @@ def main():
     output_dir = "FilteredImages"
     output_pdf = "translated_with_images.pdf"
 
+    # If output_pdf already exists, delete it
+    if os.path.exists(output_pdf):
+        os.remove(output_pdf)
+        
+
     # Make sure output_dir is empty
     for file in os.listdir(output_dir):
         os.remove(os.path.join(output_dir, file))
@@ -110,12 +190,10 @@ def main():
     main_images = filter_main_images(pdf_file, output_dir)
 
     # Step 2: Extract text from the PDF
-    print("Extracting text from the PDF...")
-    japanese_text = extract_text_from_pdf(input_pdf)
+    print("Extracting and tokenizing text from the PDF...")
+    sentences = extract_text_from_pdf(input_pdf)
 
-    # Step 3: Split the text into sentences
-    print("Splitting text into sentences...")
-    sentences = japanese_text.split("\u3002")  # Split on Japanese period character
+
 
     # Step 4: Translate each sentence
     print("Translating sentences...")
