@@ -16,3 +16,5 @@ encodedTags.txt
 translatedTags.txt
 pip_install.log
 pip_show.log
+FilteredImages/
+*.pkl
