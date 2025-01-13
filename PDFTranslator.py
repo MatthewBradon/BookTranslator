@@ -5,6 +5,8 @@ from io import BytesIO
 from transformers import MarianMTModel, MarianTokenizer
 from fpdf import FPDF
 import PyPDF2
+from sudachipy import tokenizer
+from sudachipy import dictionary
 
 # Load the translation model and tokenizer
 model_name = "Helsinki-NLP/opus-mt-ja-en"
@@ -25,6 +27,22 @@ def extract_text_from_pdf(file_path):
         for page in reader.pages:
             text += page.extract_text() + "\n"
         return text
+
+def split_japanese_text(text):
+    """Splits Japanese text into sentences using SudachiPy."""
+    tokenizer_obj = dictionary.Dictionary().create()
+    mode = tokenizer.Tokenizer.SplitMode.C
+    sentences = []
+    current_sentence = ""
+    for token in tokenizer_obj.tokenize(text, mode):
+        current_sentence += token.surface()
+        if token.surface() in "。！？":  # End of sentence markers
+            sentences.append(current_sentence.strip())
+            current_sentence = ""
+    # Add any remaining text as a sentence
+    if current_sentence:
+        sentences.append(current_sentence.strip())
+    return sentences
 
 def filter_main_images(pdf_file, output_dir):
     """Extracts and filters main images from a PDF."""
