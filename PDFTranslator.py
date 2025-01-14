@@ -169,7 +169,7 @@ def create_translated_pdf_with_images(main_images, translated_sentences, output_
     pdf.output(output_path)
 
 def main():
-    input_pdf = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 1 [JP].pdf"
+    input_pdf = "/Users/xsmoked/Downloads/Konosuba Volume 2 [JP].pdf"
     output_dir = "FilteredImages"
     output_pdf = "translated_with_images.pdf"
 
@@ -177,6 +177,10 @@ def main():
     if os.path.exists(output_pdf):
         os.remove(output_pdf)
         
+
+    # Make sure output_dir exists
+    os.makedirs(output_dir, exist_ok=True)
+
 
     # Make sure output_dir is empty
     for file in os.listdir(output_dir):

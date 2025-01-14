@@ -1,5 +1,6 @@
 #include "GUI.h"
 #include "main.h"
+#include "PDFParser.h"
 
 void GUI::init(GLFWwindow *window, const char *glsl_version) {
     IMGUI_CHECKVERSION();
@@ -118,6 +119,13 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::SetScrollHereY(1.0f); // Auto-scroll to bottom
     }
     ImGui::EndChild();
+
+    // Test button
+    if (ImGui::Button("PDF Test")) {
+        // Call PDFParser run
+        PDFParser parser;
+        parser.run();
+    }
 
     ImGui::End();
 }

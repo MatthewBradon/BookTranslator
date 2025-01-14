@@ -1102,8 +1102,8 @@ int main() {
     // All the couts are redirected to captureOutput so we can use it in our GUI
     std::streambuf* originalBuffer = std::cout.rdbuf();
     std::ostringstream captureOutput;
-    // Comment out this line if you want the couts to be in the terminal for debugging purposes
-    std::cout.rdbuf(captureOutput.rdbuf());
+    // DEBUG: Comment out this line if you want the couts to be in the terminal for debugging purposes
+    // std::cout.rdbuf(captureOutput.rdbuf());
 	
     // Setup window
 	if (!glfwInit())

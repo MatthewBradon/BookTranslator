@@ -1,5 +1,6 @@
 {
   "dependencies": [
+    "boost-process",
     "glad",
     "glfw3",
     {
@@ -12,7 +13,8 @@
     "libxml2",
     "libzip",
     "nativefiledialog-extended",
+    "poppler",
     "pybind11",
-    "boost-process"
+    "mecab"
   ]
 }
