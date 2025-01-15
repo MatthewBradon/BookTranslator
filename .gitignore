@@ -21,3 +21,5 @@ FilteredImages/
 *.pdf
 *.txt
 *.exe
+*.spec
+onnx-runtime-dir/*
