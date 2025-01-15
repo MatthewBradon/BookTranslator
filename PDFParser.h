@@ -23,7 +23,7 @@ private:
     void getMainImages();
     std::string extractTextFromPDF(std::string pdfFilePath);
     std::vector<std::string> splitLongSentences(const std::string &sentence, size_t maxLength = 300);
-    std::vector<std::string> splitJapaneseText(const std::string &text);
+    std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, size_t maxLength = 300);
     void createPDF();
 
     char pdfToConvert[256] = "";

@@ -159,7 +159,7 @@ def create_translated_pdf_with_images(main_images, translated_sentences, output_
 
     # Add translated text
     pdf.add_page()
-    pdf.add_font("DejaVu", style="", fname="DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", style="", fname="fonts/DejaVuSans.ttf", uni=True)
     pdf.set_font("DejaVu", size=12)
 
     for sentence in translated_sentences:
@@ -169,7 +169,7 @@ def create_translated_pdf_with_images(main_images, translated_sentences, output_
     pdf.output(output_path)
 
 def main():
-    input_pdf = "/Users/xsmoked/Downloads/Konosuba Volume 2 [JP].pdf"
+    input_pdf = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf"
     output_dir = "FilteredImages"
     output_pdf = "translated_with_images.pdf"
 

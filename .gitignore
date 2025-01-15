@@ -19,3 +19,4 @@ pip_show.log
 FilteredImages/
 *.pkl
 *.pdf
+.txt

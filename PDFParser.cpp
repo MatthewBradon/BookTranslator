@@ -3,7 +3,7 @@
 void PDFParser::run() {
     std::cout << "Hello from PDFParser!\n";
 
-    std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
+    std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf";
 
     std::string fullText = extractTextFromPDF(pdfFilePath);
 
@@ -32,6 +32,44 @@ void PDFParser::run() {
 
     std::cout << "Text extracted from PDF and written to pdftext.txt\n";
     
+     // Initialize the Python interpreter
+    pybind11::scoped_interpreter guard{};
+
+    pybind11::module sys = pybind11::module::import("sys");
+
+    // Defining Python Environment using the VCPKG but based on what operating system your using
+    std::filesystem::path currentDirPath = std::filesystem::current_path();
+    std::filesystem::path libPath;
+    std::filesystem::path pythonEXEPath;
+
+    #if defined(__APPLE__)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "lib" / "python3.11" /  "site-packages";
+        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "tools" / "python3" / "python3";
+
+    #elif defined(_WIN32)
+        libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib" / "site-packages";
+        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
+
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    sys.attr("path").attr("append")(libPath.u8string());
+    pybind11::print(sys.attr("path"));
+
+    try {
+        pybind11::module tokenizer = pybind11::module::import("tokenizer");
+
+    } catch (const pybind11::error_already_set &e) {
+        std::cerr << "Python error: " << e.what() << std::endl;
+        return;
+    }
+
+
+
+    std::cout << "Finished" << std::endl;
+
     return;
 }
 
@@ -99,130 +137,92 @@ void PDFParser::createPDF() {
 }
 
 
-// Splits long sentences into smaller ones at "breakpoints" if the chunk exceeds maxLength
-std::vector<std::string> PDFParser::splitLongSentences(const std::string &sentence, size_t maxLength) {
-    // Potential "logical" breakpoints: 、「", "。", "しかし", etc.
-    // For simplicity, let’s treat these punctuation marks as possible breakpoints:
-    // (In practice, you could also look for specific words or patterns.)
-    const std::vector<std::string> breakpoints = {"、", "。", "しかし", "そして", "だから", "そのため"};
 
-    std::vector<std::string> results;
+// Function to split long sentences into smaller chunks based on logical breakpoints
+std::vector<std::string> PDFParser::splitLongSentences(const std::string& sentence, size_t maxLength) {
+    std::vector<std::string> breakpoints = {"、", "。", "しかし", "そして", "だから", "そのため"};
+    std::vector<std::string> sentences;
     std::string currentChunk;
-    currentChunk.reserve(sentence.size());
+    size_t tokenCount = 0;
 
-    size_t chunkLength = 0;
-
-    // We iterate by characters; in C++, we have to be careful with UTF-8.
-    // For simplicity, assume this is already a well-formed UTF-8 string,
-    // and we’ll do a naive approach here. In real code, consider using an ICU-based approach
-    // or a library that can handle wide chars properly.
-    //
-    // If you do morphological tokenization, you'll get tokens already split at morpheme boundaries.
-    // Then you can iterate token-by-token, instead of character-by-character.
-
-    // We'll do a super-simplified approach here:
     for (size_t i = 0; i < sentence.size(); ++i) {
-        // Append current character to chunk
-        currentChunk.push_back(sentence[i]);
-        chunkLength++;
+        currentChunk += sentence[i];
+        ++tokenCount;
 
-        // Check if this character is any of our breakpoints
-        // (We do a naive check to see if the substring at position i
-        // matches any of the multi-character breakpoints too.)
-        bool isBreakpoint = false;
-        for (auto &bp : breakpoints) {
-            // If there's enough space left in sentence to compare
-            if (i + bp.size() <= sentence.size()) {
-                if (sentence.compare(i, bp.size(), bp) == 0) {
-                    isBreakpoint = true;
-                    break;
+        // Check if the current character is a logical breakpoint
+        for (const auto& breakpoint : breakpoints) {
+            if (sentence.substr(i, breakpoint.size()) == breakpoint) {
+                if (currentChunk.size() > maxLength) {
+                    sentences.push_back(currentChunk);
+                    currentChunk.clear();
+                    tokenCount = 0;
                 }
+                break;
             }
         }
 
-        // If we're on a breakpoint AND the chunk is longer than maxLength, split here
-        if (isBreakpoint && chunkLength > maxLength) {
-            results.push_back(std::regex_replace(currentChunk, std::regex("^\\s+|\\s+$"), "")); // trim
+        // Force a split if the token count exceeds the maxLength
+        if (tokenCount > maxLength) {
+            sentences.push_back(currentChunk);
             currentChunk.clear();
-            chunkLength = 0;
-        }
-        // Otherwise, if we exceed maxLength (even without a breakpoint), force split
-        else if (chunkLength > maxLength) {
-            results.push_back(std::regex_replace(currentChunk, std::regex("^\\s+|\\s+$"), "")); // trim
-            currentChunk.clear();
-            chunkLength = 0;
+            tokenCount = 0;
         }
     }
 
-    // Add any leftover text
+    // Add any remaining text as the last sentence
     if (!currentChunk.empty()) {
-        results.push_back(std::regex_replace(currentChunk, std::regex("^\\s+|\\s+$"), ""));
+        sentences.push_back(currentChunk);
     }
 
-    return results;
+    return sentences;
 }
 
-// Morphologically tokenize Japanese text using MeCab
-// and then apply your splitting logic on punctuation or quotes.
-std::vector<std::string> PDFParser::splitJapaneseText(const std::string &text) {
-    // Create MeCab tagger
-    MeCab::Tagger *tagger = MeCab::createTagger("");
-    if (!tagger) {
-        std::cerr << "Failed to create MeCab tagger." << std::endl;
-        return {};
-    }
-
-    // We’ll hold final "sentences" here
+// Function to intelligently split Japanese text into sentences
+std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, size_t maxLength) {
     std::vector<std::string> sentences;
-
-    // For quote detection
-    bool inQuote = false;
     std::string currentSentence;
+    bool inQuote = false;
 
-    // Parse the text
-    const MeCab::Node* node = tagger->parseToNode(text.c_str());
-    if (!node) {
-        std::cerr << "Failed to parse text with MeCab." << std::endl;
-        return {};
-    }
+    for (size_t i = 0; i < text.size(); ++i) {
+        char currentChar = text[i];
+        currentSentence += currentChar;
 
-    // Iterate over MeCab tokens
-    for (; node; node = node->next) {
-        if (node->stat == MECAB_BOS_NODE || node->stat == MECAB_EOS_NODE) {
-            // Skip beginning-of-sentence/end-of-sentence tokens
-            continue;
-        }
-
-        // surface is the actual string for this token
-        std::string tokenStr(node->surface, node->length);
-
-        currentSentence += tokenStr;
-
-        if (tokenStr == "「") {
+        // Handle opening and closing quotes
+        if (currentChar == '「') {
             inQuote = true;
-        } else if (tokenStr == "」") {
+        } else if (currentChar == '」') {
             inQuote = false;
         }
 
-        // Check for sentence delimiters if not in quotes
-        if (!inQuote && (tokenStr == "。" || tokenStr == "！" || tokenStr == "？")) {
-            // If the current sentence is too long, split into smaller ones
-            if (currentSentence.size() > 300) {
-                auto splitted = splitLongSentences(currentSentence, 300);
-                sentences.insert(sentences.end(), splitted.begin(), splitted.end());
+        // Check for sentence-ending punctuation
+        if ((currentChar == '。' || currentChar == '！' || currentChar == '？') && !inQuote) {
+            if (currentSentence.size() > maxLength) {
+                // Handle long sentences
+                auto splitChunks = splitLongSentences(currentSentence, maxLength);
+                sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
             } else {
-                // Just add the sentence
+                sentences.push_back(currentSentence);
+            }
+            currentSentence.clear();
+        }
+
+        // Handle sentence-ending punctuation inside quotes
+        if (i > 0 && text[i - 1] == '」' && currentChar == '。' && !inQuote) {
+            if (currentSentence.size() > maxLength) {
+                auto splitChunks = splitLongSentences(currentSentence, maxLength);
+                sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
+            } else {
                 sentences.push_back(currentSentence);
             }
             currentSentence.clear();
         }
     }
 
-    // If there's leftover text, add it
+    // Add any remaining text as the last sentence
     if (!currentSentence.empty()) {
-        if (currentSentence.size() > 300) {
-            auto splitted = splitLongSentences(currentSentence, 300);
-            sentences.insert(sentences.end(), splitted.begin(), splitted.end());
+        if (currentSentence.size() > maxLength) {
+            auto splitChunks = splitLongSentences(currentSentence, maxLength);
+            sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
         } else {
             sentences.push_back(currentSentence);
         }
