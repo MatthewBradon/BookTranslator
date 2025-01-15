@@ -859,9 +859,16 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         
 
         std::cout << "Before call to tokenizeRawTags.exe" << '\n';
+        boost::filesystem::path exePath;
+        #if defined(__APPLE__)
+            exePath = "tokenizeRawTags";
 
-        // Define the paths
-        boost::filesystem::path exePath = "tokenizeRawTags.exe"; // Path to the .exe file
+        #elif defined(_WIN32)
+            exePath = "tokenizeRawTags.exe";
+        #else
+            std::cerr << "Unsupported platform!" << std::endl;
+            return 1; // Or some other error handling
+        #endif
         boost::filesystem::path inputFilePath = "rawTags.txt";  // Path to the input file
 
         // Ensure the .exe exists
@@ -923,7 +930,23 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
 
 
         //Start the multiprocessing translaton
-        std::filesystem::path multiprocessExe = currentDirPath / "multiprocessTranslation.exe";
+        std::filesystem::path multiprocessExe;
+
+        #if defined(__APPLE__)
+            multiprocessExe = currentDirPath / "multiprocessTranslation";
+
+        #elif defined(_WIN32)
+            multiprocessExe = currentDirPath / "multiprocessTranslation.exe";
+        #else
+            std::cerr << "Unsupported platform!" << std::endl;
+            return 1; // Or some other error handling
+        #endif
+
+        if (!std::filesystem::exists(multiprocessExe)) {
+            std::cerr << "Executable not found: " << multiprocessExe << std::endl;
+            return 1;
+        }
+
         std::string multiprocessExePath = multiprocessExe.string();
 
         std::cout << "Before call to multiprocessTranslation.py" << '\n';

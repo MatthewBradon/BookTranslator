@@ -23,3 +23,5 @@ FilteredImages/
 *.exe
 *.spec
 onnx-runtime-dir/*
+multiprocessTranslation
+tokenizeRawTags

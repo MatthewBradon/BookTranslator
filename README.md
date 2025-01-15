@@ -14,7 +14,7 @@ For the translation and tokenizing main.cpp uses standalone .exe files to create
 pyinstaller --onefile --name multiprocessTranslation --distpath ./ ./multiprocessTranslation.py 
 ```
 ```
-pyinstaller --onefile --name tokenizeRawTags --distpath ./ .\tokenizeRawTags.py
+pyinstaller --onefile --name tokenizeRawTags --distpath ./ ./tokenizeRawTags.py
 ```
 
 To create the ONNX model make sure you have optimum-cli installed and run this command
