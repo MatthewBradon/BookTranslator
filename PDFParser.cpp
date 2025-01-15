@@ -3,7 +3,8 @@
 void PDFParser::run() {
     std::cout << "Hello from PDFParser!\n";
 
-    std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf";
+    // std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf";
+    std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
 
     std::string fullText = extractTextFromPDF(pdfFilePath);
 
@@ -188,14 +189,14 @@ std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, s
         currentSentence += currentChar;
 
         // Handle opening and closing quotes
-        if (currentChar == '「') {
+        if (std::string(1, currentChar) == "「") {
             inQuote = true;
-        } else if (currentChar == '」') {
+        } else if (std::string(1, currentChar) == "」") {
             inQuote = false;
         }
 
         // Check for sentence-ending punctuation
-        if ((currentChar == '。' || currentChar == '！' || currentChar == '？') && !inQuote) {
+        if ((std::string(1, currentChar) == "。" || std::string(1, currentChar) == "！" || std::string(1, currentChar) == "？") && !inQuote) {
             if (currentSentence.size() > maxLength) {
                 // Handle long sentences
                 auto splitChunks = splitLongSentences(currentSentence, maxLength);
@@ -207,7 +208,7 @@ std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, s
         }
 
         // Handle sentence-ending punctuation inside quotes
-        if (i > 0 && text[i - 1] == '」' && currentChar == '。' && !inQuote) {
+        if (i > 0 && std::string(1, text[i - 1]) == "」" && std::string(1, currentChar) == "。" && !inQuote) {
             if (currentSentence.size() > maxLength) {
                 auto splitChunks = splitLongSentences(currentSentence, maxLength);
                 sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
