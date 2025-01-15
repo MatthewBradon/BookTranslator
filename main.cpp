@@ -708,31 +708,7 @@ std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapt
 
 int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
-    // Initialize the Python interpreter
-    pybind11::scoped_interpreter guard{};
-
-    pybind11::module sys = pybind11::module::import("sys");
-
-    // Defining Python Environment using the VCPKG but based on what operating system your using
     std::filesystem::path currentDirPath = std::filesystem::current_path();
-    std::filesystem::path libPath;
-    std::filesystem::path pythonEXEPath;
-
-    #if defined(__APPLE__)
-        libPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "lib" / "python3.11" /  "site-packages";
-        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "tools" / "python3" / "python3";
-
-    #elif defined(_WIN32)
-        libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib" / "site-packages";
-        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
-
-    #else
-        std::cerr << "Unsupported platform!" << std::endl;
-        return 1; // Or some other error handling
-    #endif
-
-    sys.attr("path").attr("append")(libPath.u8string());
-    pybind11::print(sys.attr("path"));
 
     std::cout << "Running the EPUB conversion process..." << "\n";
     std::cout << "epubToConvert: " << epubToConvert << "\n";
@@ -743,9 +719,8 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     std::string templateEpub = "rawEpub/template.epub";
 
 
-    try {
-        pybind11::module readEncodedDataModule = pybind11::module::import("readEncodedData");
-        pybind11::module tokenizer = pybind11::module::import("tokenizer");
+    // try {
+
 
 
         // Start the timer
@@ -781,7 +756,6 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         std::cout << "EPUB file unzipped successfully to: " << templatePath << "\n";
 
         
-
         std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
 
         if (contentOpfPath.empty()) {
@@ -866,85 +840,124 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
 
-
-        pybind11::object encodeText = tokenizer.attr("tokenize_text");
-
+        std::string rawTagsPathString = "rawTags.txt";
         std::string encodedTagsPathString = "encodedTags.txt";
         std::string translatedTagsPathString = "translatedTags.txt";
 
-        std::filesystem::path encodedTagsPath = encodedTagsPathString;
-        std::ofstream encodedTagsFile(encodedTagsPath);
-        if (!encodedTagsFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << encodedTagsPath << "\n";
+        // Write out a file of the raw tags
+        std::filesystem::path rawTagsPath = rawTagsPathString;
+        std::ofstream rawTagsFile(rawTagsPath);
+        if(!rawTagsFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << rawTagsPath << "\n";
             return 1;
         }
-        std::cout << "Tokenizing the EPUB..." << '\n';
-        for (auto& tag : bookTags) {
-            if (tag.tagId == P_TAG) {
-                pybind11::object encodedText = encodeText(tag.text);
-                std::string convertedText = pybind11::str(encodedText);
 
-                // Replace line breaks in the tensor data with a single space
-                std::string singleLineText;
-                for (char c : convertedText) {
-                    if (c == '\n' || c == '\r') {
-                        singleLineText += ' ';
-                    } else {
-                        singleLineText += c;
-                    }
-                }
+        for(auto& tag : bookTags) {
+            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
+        }
+        rawTagsFile.close();
+        
 
-                encodedTagsFile << tag.chapterNum << "," << tag.position << "," << singleLineText << "\n";
-            }
+        std::cout << "Before call to tokenizeRawTags.exe" << '\n';
+
+        // Define the paths
+        boost::filesystem::path exePath = "tokenizeRawTags.exe"; // Path to the .exe file
+        boost::filesystem::path inputFilePath = "rawTags.txt";  // Path to the input file
+
+        // Ensure the .exe exists
+        if (!boost::filesystem::exists(exePath)) {
+            std::cerr << "Executable not found: " << exePath << std::endl;
+            return 1;
         }
 
-        encodedTagsFile.close();
+        // Ensure the input file exists
+        if (!boost::filesystem::exists(inputFilePath)) {
+            std::cerr << "Input file not found: " << inputFilePath << std::endl;
+            return 1;
+        }
 
-        // Send all the tokenized data to the text file for python to be able to read it
-        pybind11::object readEncodedData = readEncodedDataModule.attr("readEncodedData");
-        readEncodedData(encodedTagsPathString);
-
-
-        //Start the multiprocessing translaton
-        std::filesystem::path scriptPath = currentDirPath / "multiprocessTranslation.py";
-        std::string multiprocessPythonScriptPath = scriptPath.string();
-        std::cout << multiprocessPythonScriptPath << "\n";
-        
         // Create pipes for capturing stdout and stderr
-        boost::process::ipstream pipe_stdout;
-        boost::process::ipstream pipe_stderr;
-
-        std::string pythonEXEStringPath = pythonEXEPath.string();
+        boost::process::ipstream encodeTagspipe_stdout;
+        boost::process::ipstream encodeTagspipe_stderr;
 
         try {
-            // Start the Python script as a child process
+            // Start the .exe process with arguments
             boost::process::child c(
-                pythonEXEStringPath,           // Find the Python executable
-                multiprocessPythonScriptPath,                    // Script path
-                boost::process::std_out > pipe_stdout,           // Redirect stdout
-                boost::process::std_err > pipe_stderr            // Redirect stderr
+                exePath.string(),                 // Executable path
+                inputFilePath.string(),           // Argument: path to input file
+                boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
+                boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
             );
 
-            // Read the outputs asynchronously
+            // Read stdout
             std::string line;
-            while (c.running() && std::getline(pipe_stdout, line)) {
-                std::cout << line << "\n";
+            while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
+                std::cout << line << std::endl;
             }
 
-            // Read any remaining output after the process has finished
-            while (std::getline(pipe_stdout, line)) {
-                std::cout << line << "\n";
+            // Read any remaining stdout
+            while (std::getline(encodeTagspipe_stdout, line)) {
+                std::cout << line << std::endl;
             }
 
-            // Read any errors
-            while (std::getline(pipe_stderr, line)) {
-                std::cerr << "Python stderr: " << line << "\n";
+            // Read stderr
+            while (std::getline(encodeTagspipe_stderr, line)) {
+                std::cerr << "Error: " << line << std::endl;
             }
 
             // Wait for the process to exit
             c.wait();
 
-            // Check exit code
+            // Check the exit code
+            if (c.exit_code() == 0) {
+                std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
+            } else {
+                std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
+            }
+        } catch (const std::exception& ex) {
+            std::cerr << "Exception: " << ex.what() << std::endl;
+            return 1;
+        }
+
+        std::cout << "After call to tokenizeRawTags.exe" << '\n';
+
+
+        //Start the multiprocessing translaton
+        std::filesystem::path multiprocessExe = currentDirPath / "multiprocessTranslation.exe";
+        std::string multiprocessExePath = multiprocessExe.string();
+
+        std::cout << "Before call to multiprocessTranslation.py" << '\n';
+
+        boost::process::ipstream pipe_stdout, pipe_stderr;
+
+        try {
+
+            boost::process::child c(
+                multiprocessExePath,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+
+            // Threads to handle asynchronous reading
+            std::thread stdout_thread([&pipe_stdout]() {
+                std::string line;
+                while (std::getline(pipe_stdout, line)) {
+                    std::cout << "Python stdout: " << line << "\n";
+                }
+            });
+
+            std::thread stderr_thread([&pipe_stderr]() {
+                std::string line;
+                while (std::getline(pipe_stderr, line)) {
+                    std::cerr << "Python stderr: " << line << "\n";
+                }
+            });
+
+            c.wait(); // Wait for process completion
+
+            stdout_thread.join();
+            stderr_thread.join();
+
             if (c.exit_code() == 0) {
                 std::cout << "Translation Python script executed successfully." << "\n";
             } else {
@@ -953,6 +966,8 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         } catch (const std::exception& ex) {
             std::cerr << "Exception: " << ex.what() << "\n";
         }
+
+        std::cout << "After call to multiprocessTranslation.py" << '\n';
 
         std::vector<decodedData> decodedDataVector;
         std::ifstream file(translatedTagsPathString);
@@ -1089,12 +1104,12 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
         std::chrono::duration<double> elapsed = end - start;
         std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
 
-    } 
-    catch (const pybind11::error_already_set& e) {
-        // Catch and print any Python exceptions
-        std::cerr << "Python exception: " << e.what() << "\n";
-        return 1;
-    }    
+    // } 
+    // catch (const pybind11::error_already_set& e) {
+    //     // Catch and print any Python exceptions
+    //     std::cerr << "Python exception: " << e.what() << "\n";
+    //     return 1;
+    // }    
     return 0;
 }
 

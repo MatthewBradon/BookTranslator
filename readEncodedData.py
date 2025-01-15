@@ -4,31 +4,66 @@ import re
 def readEncodedData(file_path):
     """Read and parse encoded data from a file."""
     tag_dict = {}
-    counter = 0
+
+    # Regex pattern to match the entire tensor blocks
+    tensor_pattern = re.compile(r"tensor\(\[\[(.*?)\]\]\),tensor\(\[\[(.*?)\]\]\)")
+
     with open(file_path, 'r') as file:
         for line in file:
-            # Split the line into chapter, position, and tensor data
-            parts = line.strip().split(',', 2)
+            # Match the chapter, position, and tensor blocks
+            parts = line.strip().split(',', 2)  # First split on the first two commas
             if len(parts) != 3:
-                continue  # Skip lines that don't match the expected format
+                print(f"Skipping malformed line: {line}")
+                continue
 
-            chapter = int(parts[0])
-            position = int(parts[1])
+            try:
+                chapter = int(parts[0])
+                position = int(parts[1])
 
-            # Pre-process the tensor data to remove 'tensor(...)'
-            processed_tensor_data = re.sub(r"tensor\((\[.*?\])\)", r"\1", parts[2])
+                # Extract `input_ids` and `attention_mask` using regex
+                match = tensor_pattern.search(parts[2])
+                if not match:
+                    print(f"Skipping line due to tensor mismatch: {line}")
+                    continue
 
-            # Convert the processed string into a Python dictionary
-            tensor_data = eval(processed_tensor_data)  # Use eval after sanitizing
+                # Parse `input_ids`
+                input_ids_numbers = list(map(int, match.group(1).split(',')))
+                input_ids = torch.tensor([input_ids_numbers], dtype=torch.long)
 
-            tensor_data = {
-                "input_ids": torch.tensor(tensor_data["input_ids"], dtype=torch.long),
-                "attention_mask": torch.tensor(tensor_data["attention_mask"], dtype=torch.long),
-            }
+                # Parse `attention_mask`
+                attention_mask_numbers = list(map(int, match.group(2).split(',')))
+                attention_mask = torch.tensor([attention_mask_numbers], dtype=torch.long)
 
+                # Check and log shape mismatches
+                if input_ids.size(1) != attention_mask.size(1):
+                    print(f"Shape mismatch at Chapter {chapter}, Position {position}:")
+                    print(f"input_ids: {input_ids.size()}, attention_mask: {attention_mask.size()}")
 
-            # Use (chapter, position) as the key
-            tag_dict[(chapter, position)] = tensor_data
-            counter += 1
+                # Store the tensors in a dictionary
+                tensor_data = {
+                    "input_ids": input_ids,
+                    "attention_mask": attention_mask,
+                }
+
+                # Use (chapter, position) as the key
+                tag_dict[(chapter, position)] = tensor_data
+
+            except Exception as e:
+                print(f"Error processing line: {line}")
+                print(f"Details: {e}")
+                continue
 
     return tag_dict
+
+if __name__ == "__main__":
+    file_path = "encodedTags.txt"
+    inputs = readEncodedData(file_path)
+    
+    # # Print out input data for debugging
+    for (chapter, position), tensor_data in inputs.items():
+        print(f"Chapter {chapter}, Position {position}:")
+        print(f"input_ids: {tensor_data['input_ids']}")
+        print(f"attention_mask: {tensor_data['attention_mask']}")
+        print()
+        
+        

@@ -3,8 +3,8 @@
 void PDFParser::run() {
     std::cout << "Hello from PDFParser!\n";
 
-    // std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf";
-    std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
+    std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 2 [JP].pdf";
+    // std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
 
     std::string fullText = extractTextFromPDF(pdfFilePath);
 
@@ -33,42 +33,6 @@ void PDFParser::run() {
 
     std::cout << "Text extracted from PDF and written to pdftext.txt\n";
     
-     // Initialize the Python interpreter
-    pybind11::scoped_interpreter guard{};
-
-    pybind11::module sys = pybind11::module::import("sys");
-
-    // Defining Python Environment using the VCPKG but based on what operating system your using
-    std::filesystem::path currentDirPath = std::filesystem::current_path();
-    std::filesystem::path libPath;
-    std::filesystem::path pythonEXEPath;
-
-    #if defined(__APPLE__)
-        libPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "lib" / "python3.11" /  "site-packages";
-        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "arm64-osx" / "tools" / "python3" / "python3";
-
-    #elif defined(_WIN32)
-        libPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "Lib" / "site-packages";
-        pythonEXEPath = currentDirPath / "build" / "vcpkg_installed" / "x64-windows" / "tools" / "python3" / "python.exe";
-
-    #else
-        std::cerr << "Unsupported platform!" << std::endl;
-        return 1; // Or some other error handling
-    #endif
-
-    sys.attr("path").attr("append")(libPath.u8string());
-    pybind11::print(sys.attr("path"));
-
-    try {
-        pybind11::module tokenizer = pybind11::module::import("tokenizer");
-
-    } catch (const pybind11::error_already_set &e) {
-        std::cerr << "Python error: " << e.what() << std::endl;
-        return;
-    }
-
-
-
     std::cout << "Finished" << std::endl;
 
     return;

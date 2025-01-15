@@ -9,9 +9,6 @@
 #include <libxml/xpath.h>
 #include <libxml/uri.h>
 #include <libxml/xmlstring.h>
-#include <Python.h>
-#include <pybind11/embed.h>
-#include <pybind11/numpy.h>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -21,7 +18,8 @@
 #include <cstdlib>
 #include <boost/process.hpp>
 #include <boost/filesystem.hpp>
-
+#include <sstream>
+#include <iostream>
 
 #define PYBIND11_DETAILED_ERROR_MESSAGES
 #define P_TAG 0
@@ -35,11 +33,6 @@ struct tagData {
     int chapterNum;
 };
 
-struct encodedData {
-    pybind11::object encoded;
-    int chapterNum;
-    int position;
-};
 
 struct decodedData {
     std::string output;
@@ -64,7 +57,4 @@ void removeUnwantedTags(xmlNodePtr node);
 void cleanChapter(const std::filesystem::path& chapterPath);
 std::string stripHtmlTags(const std::string& input);
 std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
-void convertEncodedDataToPython(const std::vector<encodedData>& data_vector, pybind11::module& EncodeDecode);
-pybind11::object runMultiprocessingPython(pybind11::module& EncodeDecode);
-std::vector<decodedData> convertPythonResultsToDecodedData(pybind11::object& results, pybind11::module& EncodeDecode);
 int run(const std::string& epubToConvert, const std::string& outputEpubPath);

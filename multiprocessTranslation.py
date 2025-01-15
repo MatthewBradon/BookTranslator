@@ -17,7 +17,6 @@ def init_model():
     if model is None:
         print("Loading model in worker process.")
         sys.stdout.flush()
-        
         model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
 
 def process_task(task):
@@ -27,31 +26,20 @@ def process_task(task):
     print(f"Processing chapter {chapterNum} at position {position}.")
     sys.stdout.flush()
 
-    
-
     init_model()  # Initialize model in worker
 
     try:
-        # print("Starting model inference.")
-        
+        # Perform model inference
         generated = model.generate(**encoded_data)
-        # print(f"Generated: {generated[0]}")
-        
-        
         # Detokenize
         text = tokenizer.decode(generated[0], skip_special_tokens=True)
         print(text)
         sys.stdout.flush()
-        
-  
         return chapterNum, position, text
     except Exception as e:
         print(f"Error while processing chapter {chapterNum} at position {position}: {str(e)}")
         sys.stdout.flush()
-        
         return None
-
-
 
 def run_model_multiprocessing(file_path, num_workers=2):
     """Function to distribute tasks among workers using multiprocessing.Pool."""
@@ -60,14 +48,12 @@ def run_model_multiprocessing(file_path, num_workers=2):
 
     # Prepare tasks for workers
     tasks = [(encoded_data, chapterNum, position) for (chapterNum, position), encoded_data in inputs.items()]
-    mock_tasks = tasks[:50]
-
+    # tasks = tasks[:50]
 
     # Create a pool of worker processes
     with mp.Pool(processes=num_workers) as pool:
         # Submit tasks to the pool
-        # results = pool.map(process_task, tasks)
-        results = pool.map(process_task, mock_tasks)
+        results = pool.map(process_task, tasks)
 
     # Filter out None results (if any errors occurred)
     results = [result for result in results if result is not None]
@@ -75,40 +61,36 @@ def run_model_multiprocessing(file_path, num_workers=2):
     if not results:
         print("No results were processed by the workers.")
         sys.stdout.flush()
-        
     else:
         print(f"Processed {len(results)} results.")
         sys.stdout.flush()
-        
 
     print("Main process exiting.")
     sys.stdout.flush()
-    
-
     return results
 
 def main(file_path):
     """Parent process that spawns workers."""
     print("Starting parent process.")
     sys.stdout.flush()
-    
-
-    # Set the spawn start method
-    mp.set_start_method("spawn", force=True)
-
-    num_workers = 4
 
     # Run the multiprocessing task
+    num_workers = 4
     results = run_model_multiprocessing(file_path, num_workers)
 
     # Write out results to translatedTags.txt
     with open("translatedTags.txt", "w", encoding="utf-8") as file:
         for result in results:
             file.write(f"{result[0]},{result[1]},{result[2]}\n")
-    
     return 0
-            
-        
+
 if __name__ == "__main__":
+    # Ensure this block is only executed in the main process
+    print("Hello from multiprocessTranslation.py", flush=True)
+
+    # Required for PyInstaller to prevent infinite process spawning
+    mp.freeze_support()
+
+    mp.set_start_method("spawn", force=True)  # Set the spawn method
     file_path = "encodedTags.txt"
-    main(file_path)
+    sys.exit(main(file_path))

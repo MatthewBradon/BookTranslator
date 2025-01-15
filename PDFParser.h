@@ -1,11 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <pybind11/embed.h>
-#include <pybind11/numpy.h>
 #include <poppler-document.h>
 #include <poppler-page.h>
-#include <mecab/mecab.h>
 #include <fstream>
 #include <cstring>
 #include <filesystem>
