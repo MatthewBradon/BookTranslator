@@ -25,3 +25,5 @@ FilteredImages/
 onnx-runtime-dir/*
 multiprocessTranslation
 tokenizeRawTags
+main
+main.pdb

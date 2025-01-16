@@ -508,7 +508,7 @@ void cleanChapter(const std::filesystem::path& chapterPath) {
     file.close();
 
     // Parse the content using libxml2
-    htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, NULL, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+    htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
     if (!doc) {
         std::cerr << "Failed to parse HTML content." << "\n";
         return;
@@ -718,421 +718,413 @@ int run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
 
+    // Start the timer
+    auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "START" << "\n";
 
-    // try {
+    // Create the output directory if it doesn't exist
+    if (!make_directory(unzippedPath)) {
+        std::cerr << "Failed to create output directory: " << unzippedPath << "\n";
+        return 1;
+    }
+
+    // Unzip the EPUB file
+    if (!unzip_file(epubToConvert, unzippedPath)) {
+        std::cerr << "Failed to unzip EPUB file: " << epubToConvert << "\n";
+        return 1;
+    }
+
+    std::cout << "EPUB file unzipped successfully to: " << unzippedPath << "\n";
+
+    // Create the template directory if it doesn't exist
+    if (!make_directory(templatePath)) {
+        std::cerr << "Failed to create template directory: " << templatePath << "\n";
+        return 1;
+    }
+
+    // Unzip the template EPUB file
+    if (!unzip_file(templateEpub, templatePath)) {
+        std::cerr << "Failed to unzip EPUB file: " << templateEpub << "\n";
+        return 1;
+    }
+
+    std::cout << "EPUB file unzipped successfully to: " << templatePath << "\n";
+
+    
+    std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
+
+    if (contentOpfPath.empty()) {
+        std::cerr << "No OPF file found in the unzipped EPUB directory." << "\n";
+        return 1;
+    }
+
+    std::cout << "Found OPF file: " << contentOpfPath << "\n";
+
+    std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
+
+    if (spineOrder.empty()) {
+        std::cerr << "No spine order found in the OPF file." << "\n";
+        return 1;
+    }
 
 
+    std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
+    if (xhtmlFiles.empty()) {
+        std::cerr << "No XHTML files found in the unzipped EPUB directory." << "\n";
+        return 1;
+    }
 
-        // Start the timer
-        auto start = std::chrono::high_resolution_clock::now();
-        std::cout << "START" << "\n";
 
-        // Create the output directory if it doesn't exist
-        if (!make_directory(unzippedPath)) {
-            std::cerr << "Failed to create output directory: " << unzippedPath << "\n";
+    // Sort the XHTML files based on the spine order
+    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+    if (spineOrderXHTMLFiles.empty()) {
+        std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << "\n";
+        return 1;
+    }
+
+
+    // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
+    std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
+    std::ifstream Section001File(Section001Path);
+    if (!Section001File.is_open()) {
+        std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << "\n";
+        return 1;
+    }
+
+    std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
+    Section001File.close();
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
+        std::ofstream newSectionFile(newSectionPath);
+        if (!newSectionFile.is_open()) {
+            std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << "\n";
             return 1;
         }
-
-        // Unzip the EPUB file
-        if (!unzip_file(epubToConvert, unzippedPath)) {
-            std::cerr << "Failed to unzip EPUB file: " << epubToConvert << "\n";
-            return 1;
-        }
-
-        std::cout << "EPUB file unzipped successfully to: " << unzippedPath << "\n";
-
-        // Create the template directory if it doesn't exist
-        if (!make_directory(templatePath)) {
-            std::cerr << "Failed to create template directory: " << templatePath << "\n";
-            return 1;
-        }
-
-        // Unzip the template EPUB file
-        if (!unzip_file(templateEpub, templatePath)) {
-            std::cerr << "Failed to unzip EPUB file: " << templateEpub << "\n";
-            return 1;
-        }
-
-        std::cout << "EPUB file unzipped successfully to: " << templatePath << "\n";
-
-        
-        std::filesystem::path contentOpfPath = searchForOPFFiles(std::filesystem::path(unzippedPath));
-
-        if (contentOpfPath.empty()) {
-            std::cerr << "No OPF file found in the unzipped EPUB directory." << "\n";
-            return 1;
-        }
-
-        std::cout << "Found OPF file: " << contentOpfPath << "\n";
-
-        std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
-
-        if (spineOrder.empty()) {
-            std::cerr << "No spine order found in the OPF file." << "\n";
-            return 1;
-        }
-
-
-        std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
-        if (xhtmlFiles.empty()) {
-            std::cerr << "No XHTML files found in the unzipped EPUB directory." << "\n";
-            return 1;
-        }
-
-
-        // Sort the XHTML files based on the spine order
-        std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
-        if (spineOrderXHTMLFiles.empty()) {
-            std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << "\n";
-            return 1;
-        }
-
-
-        // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
-        std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
-        std::ifstream Section001File(Section001Path);
-        if (!Section001File.is_open()) {
-            std::cerr << "Failed to open Section001.xhtml file: " << Section001Path << "\n";
-            return 1;
-        }
-
-        std::string Section001Content((std::istreambuf_iterator<char>(Section001File)), std::istreambuf_iterator<char>());
-        Section001File.close();
-
-        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-            std::filesystem::path newSectionPath = std::filesystem::path("export/OEBPS/Text/" +  spineOrderXHTMLFiles[i].filename().string());
-            std::ofstream newSectionFile(newSectionPath);
-            if (!newSectionFile.is_open()) {
-                std::cerr << "Failed to create new Section" << i + 1 << ".xhtml file." << "\n";
-                return 1;
-            }
-            newSectionFile << Section001Content;
-            newSectionFile.close();
-        }
-        //Remove Section001.xhtml
-        std::filesystem::remove(Section001Path);
-
-
-
-
-        // Update the spine and manifest in the templates OPF file
-        std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
-        updateContentOpf(spineOrder, templateContentOpfPath);
-
-        // Update the nav.xhtml file
-        std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
-        updateNavXHTML(navXHTMLPath, spineOrder);
-
-
-        // Copy images from the unzipped directory to the template directory
-        copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
-
-
-
-
-        // Clean each chapter
-        for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
-                cleanChapter(xhtmlFile);
-                std::cout << "Chapter cleaned: " << xhtmlFile.string() << "\n";
-        }
-
-        //Extract all of the relevant tags
-        std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
-
-
-        std::string rawTagsPathString = "rawTags.txt";
-        std::string encodedTagsPathString = "encodedTags.txt";
-        std::string translatedTagsPathString = "translatedTags.txt";
-
-        // Write out a file of the raw tags
-        std::filesystem::path rawTagsPath = rawTagsPathString;
-        std::ofstream rawTagsFile(rawTagsPath);
-        if(!rawTagsFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << rawTagsPath << "\n";
-            return 1;
-        }
-
-        for(auto& tag : bookTags) {
-            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
-        }
-        rawTagsFile.close();
-        
-
-        std::cout << "Before call to tokenizeRawTags.exe" << '\n';
-        boost::filesystem::path exePath;
-        #if defined(__APPLE__)
-            exePath = "tokenizeRawTags";
-
-        #elif defined(_WIN32)
-            exePath = "tokenizeRawTags.exe";
-        #else
-            std::cerr << "Unsupported platform!" << std::endl;
-            return 1; // Or some other error handling
-        #endif
-        boost::filesystem::path inputFilePath = "rawTags.txt";  // Path to the input file
-
-        // Ensure the .exe exists
-        if (!boost::filesystem::exists(exePath)) {
-            std::cerr << "Executable not found: " << exePath << std::endl;
-            return 1;
-        }
-
-        // Ensure the input file exists
-        if (!boost::filesystem::exists(inputFilePath)) {
-            std::cerr << "Input file not found: " << inputFilePath << std::endl;
-            return 1;
-        }
-
-        // Create pipes for capturing stdout and stderr
-        boost::process::ipstream encodeTagspipe_stdout;
-        boost::process::ipstream encodeTagspipe_stderr;
-
-        try {
-            // Start the .exe process with arguments
-            boost::process::child c(
-                exePath.string(),                 // Executable path
-                inputFilePath.string(),           // Argument: path to input file
-                boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
-                boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
-            );
-
-            // Read stdout
-            std::string line;
-            while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
-                std::cout << line << std::endl;
-            }
-
-            // Read any remaining stdout
-            while (std::getline(encodeTagspipe_stdout, line)) {
-                std::cout << line << std::endl;
-            }
-
-            // Read stderr
-            while (std::getline(encodeTagspipe_stderr, line)) {
-                std::cerr << "Error: " << line << std::endl;
-            }
-
-            // Wait for the process to exit
-            c.wait();
-
-            // Check the exit code
-            if (c.exit_code() == 0) {
-                std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
-            } else {
-                std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
-            }
-        } catch (const std::exception& ex) {
-            std::cerr << "Exception: " << ex.what() << std::endl;
-            return 1;
-        }
-
-        std::cout << "After call to tokenizeRawTags.exe" << '\n';
-
-
-        //Start the multiprocessing translaton
-        std::filesystem::path multiprocessExe;
-
-        #if defined(__APPLE__)
-            multiprocessExe = currentDirPath / "multiprocessTranslation";
-
-        #elif defined(_WIN32)
-            multiprocessExe = currentDirPath / "multiprocessTranslation.exe";
-        #else
-            std::cerr << "Unsupported platform!" << std::endl;
-            return 1; // Or some other error handling
-        #endif
-
-        if (!std::filesystem::exists(multiprocessExe)) {
-            std::cerr << "Executable not found: " << multiprocessExe << std::endl;
-            return 1;
-        }
-
-        std::string multiprocessExePath = multiprocessExe.string();
-
-        std::cout << "Before call to multiprocessTranslation.py" << '\n';
-
-        boost::process::ipstream pipe_stdout, pipe_stderr;
-
-        try {
-
-            boost::process::child c(
-                multiprocessExePath,
-                boost::process::std_out > pipe_stdout, 
-                boost::process::std_err > pipe_stderr
-            );
-
-            // Threads to handle asynchronous reading
-            std::thread stdout_thread([&pipe_stdout]() {
-                std::string line;
-                while (std::getline(pipe_stdout, line)) {
-                    std::cout << "Python stdout: " << line << "\n";
-                }
-            });
-
-            std::thread stderr_thread([&pipe_stderr]() {
-                std::string line;
-                while (std::getline(pipe_stderr, line)) {
-                    std::cerr << "Python stderr: " << line << "\n";
-                }
-            });
-
-            c.wait(); // Wait for process completion
-
-            stdout_thread.join();
-            stderr_thread.join();
-
-            if (c.exit_code() == 0) {
-                std::cout << "Translation Python script executed successfully." << "\n";
-            } else {
-                std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
-            }
-        } catch (const std::exception& ex) {
-            std::cerr << "Exception: " << ex.what() << "\n";
-        }
-
-        std::cout << "After call to multiprocessTranslation.py" << '\n';
-
-        std::vector<decodedData> decodedDataVector;
-        std::ifstream file(translatedTagsPathString);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << translatedTagsPathString << "\n";
-            return 1;
-        }
-
+        newSectionFile << Section001Content;
+        newSectionFile.close();
+    }
+    //Remove Section001.xhtml
+    std::filesystem::remove(Section001Path);
+
+
+
+
+    // Update the spine and manifest in the templates OPF file
+    std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+    updateContentOpf(spineOrder, templateContentOpfPath);
+
+    // Update the nav.xhtml file
+    std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
+    updateNavXHTML(navXHTMLPath, spineOrder);
+
+
+    // Copy images from the unzipped directory to the template directory
+    copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
+
+
+
+
+    // Clean each chapter
+    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+            cleanChapter(xhtmlFile);
+            std::cout << "Chapter cleaned: " << xhtmlFile.string() << "\n";
+    }
+
+    //Extract all of the relevant tags
+    std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+
+    std::string rawTagsPathString = "rawTags.txt";
+    std::string encodedTagsPathString = "encodedTags.txt";
+    std::string translatedTagsPathString = "translatedTags.txt";
+
+    // Write out a file of the raw tags
+    std::filesystem::path rawTagsPath = rawTagsPathString;
+    std::ofstream rawTagsFile(rawTagsPath);
+    if(!rawTagsFile.is_open()) {
+        std::cerr << "Failed to open file for writing: " << rawTagsPath << "\n";
+        return 1;
+    }
+
+    for(auto& tag : bookTags) {
+        rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
+    }
+    rawTagsFile.close();
+    
+
+    std::cout << "Before call to tokenizeRawTags.exe" << '\n';
+    boost::filesystem::path exePath;
+    #if defined(__APPLE__)
+        exePath = "tokenizeRawTags";
+
+    #elif defined(_WIN32)
+        exePath = "tokenizeRawTags.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+    boost::filesystem::path inputFilePath = "rawTags.txt";  // Path to the input file
+    std::string chapterNumberMode = "0";
+    // Ensure the .exe exists
+    if (!boost::filesystem::exists(exePath)) {
+        std::cerr << "Executable not found: " << exePath << std::endl;
+        return 1;
+    }
+
+    // Ensure the input file exists
+    if (!boost::filesystem::exists(inputFilePath)) {
+        std::cerr << "Input file not found: " << inputFilePath << std::endl;
+        return 1;
+    }
+
+    // Create pipes for capturing stdout and stderr
+    boost::process::ipstream encodeTagspipe_stdout;
+    boost::process::ipstream encodeTagspipe_stderr;
+
+    try {
+        // Start the .exe process with arguments
+        boost::process::child c(
+            exePath.string(),                 // Executable path
+            inputFilePath.string(),           // Argument: path to input file
+            chapterNumberMode,                // Argument: chapter number mode
+            boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
+            boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
+        );
+
+        // Read stdout
         std::string line;
-        while (std::getline(file, line)) {
-            std::istringstream lineStream(line);
-            std::string chapterNumStr, positionStr, text;
-
-            // Extract chapterNum (first value)
-            if (!std::getline(lineStream, chapterNumStr, ',')) continue;
-
-            // Extract position (second value)
-            if (!std::getline(lineStream, positionStr, ',')) continue;
-
-            // The rest of the line is text
-            std::getline(lineStream, text);
-
-            // Convert chapterNum and position to integers
-            try {
-                decodedData data;
-                data.chapterNum = std::stoi(chapterNumStr);
-                data.position = std::stoi(positionStr);
-                data.output = text;
-                // Store the extracted data
-                decodedDataVector.push_back(data);
-            } catch (const std::exception& e) {
-                std::cerr << "Error parsing line: " << line << " - " << e.what() << "\n";
-            }
-        }
-        file.close();
-
-
-
-
-        std::vector<std::vector<tagData>> chapterTags;
-        // Divide bookTags into chapters chapterNum is the chapter number
-        for(auto& tag : bookTags) {
-            if (tag.chapterNum >= chapterTags.size()) {
-                chapterTags.resize(tag.chapterNum + 1);
-            }
-            chapterTags[tag.chapterNum].push_back(tag);
+        while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
         }
 
-        // Build the position map for each chapter and position
-        std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
-
-        for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
-            for (auto& tag : chapterTags[chapterNum]) {
-                positionMap[chapterNum][tag.position] = &tag;
-            }
+        // Read any remaining stdout
+        while (std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
         }
 
-        // Update chapterTags using decodedDataVector
-        for (const auto& decoded : decodedDataVector) {
-            // Find the corresponding chapter in the map
-            auto chapterIt = positionMap.find(decoded.chapterNum);
-            if (chapterIt != positionMap.end()) {
-                auto& positionTags = chapterIt->second;
-                // Find the tag by position
-                auto tagIt = positionTags.find(decoded.position);
-                if (tagIt != positionTags.end()) {
-                    // Update the text of the corresponding tag
-                    tagIt->second->text = decoded.output;
-                    // std::cout << "Decoded text: " << decoded.output << "\n";
-                }
-            }
+        // Read stderr
+        while (std::getline(encodeTagspipe_stderr, line)) {
+            std::cerr << "Error: " << line << std::endl;
         }
 
-        //Write out to the template EPUB
-        std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE html>
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head>
-        <title>)";
+        // Wait for the process to exit
+        c.wait();
 
-        std::string htmlFooter = R"(</body>
-        </html>)";
-
-        for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-            std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
-            std::ofstream outFile(outputPath);
-            std::cout << "Writing to: " << outputPath << "\n";
-            if (!outFile.is_open()) {
-                std::cerr << "Failed to open file for writing: " << outputPath << "\n";
-                return 1;
-            }
-
-            // Write pre-built header
-            outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
-
-            // Write content-specific parts
-            for (const auto& tag : chapterTags[i]) {
-                if (tag.tagId == P_TAG) {
-                    outFile << "<p>" << tag.text << "</p>\n";
-                } else if (tag.tagId == IMG_TAG) {
-                    outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
-                }
-            }
-
-            // Write pre-built footer
-            outFile << htmlFooter;
-            outFile.close();
+        // Check the exit code
+        if (c.exit_code() == 0) {
+            std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
+        } else {
+            std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
         }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << std::endl;
+        return 1;
+    }
 
-        // Zip export directory to create the final EPUB file
-        exportEpub(templatePath, outputEpubPath);
-
-        // Remove the unzipped and export directories
-        std::filesystem::remove_all(unzippedPath);
-        std::filesystem::remove_all(templatePath);
+    std::cout << "After call to tokenizeRawTags.exe" << '\n';
 
 
-        // Remove the temp text files
+    //Start the multiprocessing translaton
+    std::filesystem::path multiprocessExe;
+
+    #if defined(__APPLE__)
+        multiprocessExe = currentDirPath / "multiprocessTranslation";
+
+    #elif defined(_WIN32)
+        multiprocessExe = currentDirPath / "multiprocessTranslation.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    if (!std::filesystem::exists(multiprocessExe)) {
+        std::cerr << "Executable not found: " << multiprocessExe << std::endl;
+        return 1;
+    }
+
+    std::string multiprocessExePath = multiprocessExe.string();
+    
+
+    std::cout << "Before call to multiprocessTranslation.py" << '\n';
+
+    boost::process::ipstream pipe_stdout, pipe_stderr;
+
+    try {
+
+        boost::process::child c(
+            multiprocessExePath,
+            chapterNumberMode,
+            boost::process::std_out > pipe_stdout, 
+            boost::process::std_err > pipe_stderr
+        );
+
+        // Threads to handle asynchronous reading
+        std::thread stdout_thread([&pipe_stdout]() {
+            std::string line;
+            while (std::getline(pipe_stdout, line)) {
+                std::cout << "Python stdout: " << line << "\n";
+            }
+        });
+
+        std::thread stderr_thread([&pipe_stderr]() {
+            std::string line;
+            while (std::getline(pipe_stderr, line)) {
+                std::cerr << "Python stderr: " << line << "\n";
+            }
+        });
+
+        c.wait(); // Wait for process completion
+
+        stdout_thread.join();
+        stderr_thread.join();
+
+        if (c.exit_code() == 0) {
+            std::cout << "Translation Python script executed successfully." << "\n";
+        } else {
+            std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
+    }
+
+    std::cout << "After call to multiprocessTranslation.py" << '\n';
+
+    std::vector<decodedData> decodedDataVector;
+    std::ifstream file(translatedTagsPathString);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << translatedTagsPathString << "\n";
+        return 1;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream lineStream(line);
+        std::string chapterNumStr, positionStr, text;
+
+        // Extract chapterNum (first value)
+        if (!std::getline(lineStream, chapterNumStr, ',')) continue;
+
+        // Extract position (second value)
+        if (!std::getline(lineStream, positionStr, ',')) continue;
+
+        // The rest of the line is text
+        std::getline(lineStream, text);
+
+        // Convert chapterNum and position to integers
         try {
-            if (std::filesystem::exists(encodedTagsPathString)) {
-                std::filesystem::remove(encodedTagsPathString);
-                std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+            decodedData data;
+            data.chapterNum = std::stoi(chapterNumStr);
+            data.position = std::stoi(positionStr);
+            data.output = text;
+            // Store the extracted data
+            decodedDataVector.push_back(data);
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing line: " << line << " - " << e.what() << "\n";
+        }
+    }
+    file.close();
+
+
+
+
+    std::vector<std::vector<tagData>> chapterTags;
+    // Divide bookTags into chapters chapterNum is the chapter number
+    for(auto& tag : bookTags) {
+        if (tag.chapterNum >= chapterTags.size()) {
+            chapterTags.resize(tag.chapterNum + 1);
+        }
+        chapterTags[tag.chapterNum].push_back(tag);
+    }
+
+    // Build the position map for each chapter and position
+    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+        for (auto& tag : chapterTags[chapterNum]) {
+            positionMap[chapterNum][tag.position] = &tag;
+        }
+    }
+
+    // Update chapterTags using decodedDataVector
+    for (const auto& decoded : decodedDataVector) {
+        // Find the corresponding chapter in the map
+        auto chapterIt = positionMap.find(decoded.chapterNum);
+        if (chapterIt != positionMap.end()) {
+            auto& positionTags = chapterIt->second;
+            // Find the tag by position
+            auto tagIt = positionTags.find(decoded.position);
+            if (tagIt != positionTags.end()) {
+                // Update the text of the corresponding tag
+                tagIt->second->text = decoded.output;
+                // std::cout << "Decoded text: " << decoded.output << "\n";
             }
-            if (std::filesystem::exists(translatedTagsPathString)) {
-                std::filesystem::remove(translatedTagsPathString);
-                std::cout << "Deleted file: " << translatedTagsPathString << "\n";
-            }
-        } catch (const std::filesystem::filesystem_error& e) {
-            std::cerr << "Filesystem error: " << e.what() << "\n";
+        }
+    }
+
+    //Write out to the template EPUB
+    std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+    <title>)";
+
+    std::string htmlFooter = R"(</body>
+    </html>)";
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+        std::ofstream outFile(outputPath);
+        std::cout << "Writing to: " << outputPath << "\n";
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << outputPath << "\n";
+            return 1;
         }
 
-        // End timer
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
+        // Write pre-built header
+        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
 
-    // } 
-    // catch (const pybind11::error_already_set& e) {
-    //     // Catch and print any Python exceptions
-    //     std::cerr << "Python exception: " << e.what() << "\n";
-    //     return 1;
-    // }    
+        // Write content-specific parts
+        for (const auto& tag : chapterTags[i]) {
+            if (tag.tagId == P_TAG) {
+                outFile << "<p>" << tag.text << "</p>\n";
+            } else if (tag.tagId == IMG_TAG) {
+                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+            }
+        }
+
+        // Write pre-built footer
+        outFile << htmlFooter;
+        outFile.close();
+    }
+
+    // Zip export directory to create the final EPUB file
+    exportEpub(templatePath, outputEpubPath);
+
+    // Remove the unzipped and export directories
+    std::filesystem::remove_all(unzippedPath);
+    std::filesystem::remove_all(templatePath);
+
+
+    // Remove the temp text files
+    try {
+        if (std::filesystem::exists(encodedTagsPathString)) {
+            std::filesystem::remove(encodedTagsPathString);
+            std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+        }
+        if (std::filesystem::exists(translatedTagsPathString)) {
+            std::filesystem::remove(translatedTagsPathString);
+            std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << "\n";
+    }
+
+    // End timer
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
+
     return 0;
 }
 
@@ -1141,7 +1133,7 @@ int main() {
     std::streambuf* originalBuffer = std::cout.rdbuf();
     std::ostringstream captureOutput;
     // DEBUG: Comment out this line if you want the couts to be in the terminal for debugging purposes
-    std::cout.rdbuf(captureOutput.rdbuf());
+    // std::cout.rdbuf(captureOutput.rdbuf());
 	
     // Setup window
 	if (!glfwInit())

@@ -1,8 +1,9 @@
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
-from readEncodedData import readEncodedData
+from functools import partial
 import sys
+from readEncodedData import readEncodedData
 
 # Global variable to store the model in each worker
 model = None
@@ -19,78 +20,113 @@ def init_model():
         sys.stdout.flush()
         model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
 
+# Worker initializer to set up global state
+def worker_initializer(mode):
+    global chapter_num_mode
+    chapter_num_mode = mode  # Store mode globally for this worker
+
+# Worker function
 def process_task(task):
-    """Process a single task in a worker."""
-    encoded_data, chapterNum, position = task
-
-    print(f"Processing chapter {chapterNum} at position {position}.")
-    sys.stdout.flush()
-
-    init_model()  # Initialize model in worker
+    global chapter_num_mode
+    init_model()  # Initialize the model in the worker
 
     try:
+        if chapter_num_mode == 0:
+            encoded_data, chapterNum, position = task
+        elif chapter_num_mode == 1:
+            encoded_data, position = task
+
         # Perform model inference
-        generated = model.generate(**encoded_data)
-        # Detokenize
+        generated = model.generate(
+            **encoded_data,
+            no_repeat_ngram_size=3,   # Prevent repeating trigrams
+            repetition_penalty=1.5,   # Penalize token repetition
+        )
+
+        # Detokenize the output
         text = tokenizer.decode(generated[0], skip_special_tokens=True)
-        print(text)
-        sys.stdout.flush()
-        return chapterNum, position, text
+        text = text.encode('utf-8', errors='replace').decode('utf-8')
+        
+        if chapter_num_mode == 0:
+            print(f"Translated chapter {chapterNum} at position {position}: {text}", flush=True)
+        elif chapter_num_mode == 1:
+            print(f"Translated {position}: {text}", flush=True)
+        
+
+        if chapter_num_mode == 0:
+            return chapterNum, position, text
+        elif chapter_num_mode == 1:
+            return position, text
     except Exception as e:
-        print(f"Error while processing chapter {chapterNum} at position {position}: {str(e)}")
-        sys.stdout.flush()
+        error_msg = (
+            f"Error while processing task {task}: {str(e)}"
+            if chapter_num_mode == 1 else
+            f"Error while processing chapter {task[1]} at position {task[2]}: {str(e)}"
+        )
+        print(error_msg, flush=True)
         return None
 
-def run_model_multiprocessing(file_path, num_workers=2):
-    """Function to distribute tasks among workers using multiprocessing.Pool."""
-    # Read encoded data from the file
-    inputs = readEncodedData(file_path)
+# Multiprocessing function
+def run_model_multiprocessing(file_path, num_workers=4, chapter_num_mode=0):
+    """Distribute tasks among workers using multiprocessing."""
+    # Read encoded data
+    inputs = readEncodedData(file_path, chapter_num_mode)
 
-    # Prepare tasks for workers
-    tasks = [(encoded_data, chapterNum, position) for (chapterNum, position), encoded_data in inputs.items()]
-    # tasks = tasks[:50]
+    # Prepare tasks based on the mode
+    tasks = [(encoded_data, chapterNum, position) for (chapterNum, position), encoded_data in inputs.items()] if chapter_num_mode == 0 else \
+            [(encoded_data, position) for position, encoded_data in inputs.items()]
 
-    # Create a pool of worker processes
-    with mp.Pool(processes=num_workers) as pool:
-        # Submit tasks to the pool
+    print(f"Processing {len(tasks)} tasks.", flush=True)
+
+    # Set up the pool with an initializer to pass chapter_num_mode to each worker
+    with mp.Pool(processes=num_workers, initializer=worker_initializer, initargs=(chapter_num_mode,)) as pool:
         results = pool.map(process_task, tasks)
 
-    # Filter out None results (if any errors occurred)
+    # Filter out None results
     results = [result for result in results if result is not None]
 
-    if not results:
-        print("No results were processed by the workers.")
-        sys.stdout.flush()
-    else:
-        print(f"Processed {len(results)} results.")
-        sys.stdout.flush()
-
-    print("Main process exiting.")
-    sys.stdout.flush()
+    print(f"Processed {len(results)} results.", flush=True)
     return results
 
-def main(file_path):
-    """Parent process that spawns workers."""
-    print("Starting parent process.")
-    sys.stdout.flush()
+# Main function
+def main(file_path, chapter_num_mode=0):
+    """Parent process to coordinate workers."""
+    print("Starting parent process.", flush=True)
 
     # Run the multiprocessing task
     num_workers = 4
-    results = run_model_multiprocessing(file_path, num_workers)
+    results = run_model_multiprocessing(file_path, num_workers, chapter_num_mode)
 
-    # Write out results to translatedTags.txt
-    with open("translatedTags.txt", "w", encoding="utf-8") as file:
+    # Write results to file
+    output_file = "translatedTags.txt"
+    with open(output_file, "w", encoding="utf-8") as file:
         for result in results:
-            file.write(f"{result[0]},{result[1]},{result[2]}\n")
+            if chapter_num_mode == 0 and len(result) == 3:
+                chapterNum, position, text = result
+                file.write(f"{chapterNum},{position},{text}\n")
+            elif chapter_num_mode == 1 and len(result) == 2:
+                position, text = result
+                file.write(f"{position},{text}\n")
+    print(f"Results written to {output_file}.", flush=True)
     return 0
 
+# Entry point for the script
 if __name__ == "__main__":
-    # Ensure this block is only executed in the main process
+    mp.freeze_support()  # Required for Windows and PyInstaller
     print("Hello from multiprocessTranslation.py", flush=True)
 
-    # Required for PyInstaller to prevent infinite process spawning
-    mp.freeze_support()
+    # Ensure proper usage
+    if len(sys.argv) != 2:
+        print("Usage: python multiprocessTranslation.py <chapter_num_mode>")
+        sys.exit(1)
 
-    mp.set_start_method("spawn", force=True)  # Set the spawn method
+    chapter_num_mode = int(sys.argv[1])
+
+    # Set the multiprocessing start method to spawn
+    mp.set_start_method("spawn", force=True)
+
+    # File path for input data
     file_path = "encodedTags.txt"
-    sys.exit(main(file_path))
+
+    # Run the main function
+    sys.exit(main(file_path, chapter_num_mode))

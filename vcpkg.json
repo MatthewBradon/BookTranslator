@@ -12,9 +12,10 @@
     },
     "libxml2",
     "libzip",
+    "mecab",
     "nativefiledialog-extended",
     "poppler",
     "pybind11",
-    "mecab"
+    "utf8h"
   ]
 }

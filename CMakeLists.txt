@@ -14,9 +14,9 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS process filesystem system)
-find_package(mecab CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(POPPLER_CPP REQUIRED IMPORTED_TARGET poppler-cpp)
+
 
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -26,9 +26,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # Link libraries
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE mecab::mecab PkgConfig::POPPLER_CPP Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::POPPLER_CPP Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    target_link_libraries(${PROJECT_NAME} PRIVATE mecab::mecab PkgConfig::POPPLER_CPP Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::POPPLER_CPP Boost::process Boost::filesystem Boost::system nfd::nfd glad::glad glfw imgui::imgui libzip::zip LibXml2::LibXml2)
 endif()
 
 # Set output directory for the executable

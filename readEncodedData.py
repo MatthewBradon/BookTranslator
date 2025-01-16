@@ -1,57 +1,100 @@
 import torch
 import re
 
-def readEncodedData(file_path):
+def readEncodedData(file_path, chapter_num_mode):
     """Read and parse encoded data from a file."""
     tag_dict = {}
 
     # Regex pattern to match the entire tensor blocks
     tensor_pattern = re.compile(r"tensor\(\[\[(.*?)\]\]\),tensor\(\[\[(.*?)\]\]\)")
-
-    with open(file_path, 'r') as file:
-        for line in file:
-            # Match the chapter, position, and tensor blocks
-            parts = line.strip().split(',', 2)  # First split on the first two commas
-            if len(parts) != 3:
-                print(f"Skipping malformed line: {line}")
-                continue
-
-            try:
-                chapter = int(parts[0])
-                position = int(parts[1])
-
-                # Extract `input_ids` and `attention_mask` using regex
-                match = tensor_pattern.search(parts[2])
-                if not match:
-                    print(f"Skipping line due to tensor mismatch: {line}")
+    if chapter_num_mode == 0:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Match the chapter, position, and tensor blocks
+                parts = line.strip().split(',', 2)  # First split on the first two commas
+                if len(parts) != 3:
+                    print(f"Skipping malformed line: {line}")
                     continue
 
-                # Parse `input_ids`
-                input_ids_numbers = list(map(int, match.group(1).split(',')))
-                input_ids = torch.tensor([input_ids_numbers], dtype=torch.long)
+                try:
+                    chapter = int(parts[0])
+                    position = int(parts[1])
 
-                # Parse `attention_mask`
-                attention_mask_numbers = list(map(int, match.group(2).split(',')))
-                attention_mask = torch.tensor([attention_mask_numbers], dtype=torch.long)
+                    # Extract `input_ids` and `attention_mask` using regex
+                    match = tensor_pattern.search(parts[2])
+                    if not match:
+                        print(f"Skipping line due to tensor mismatch: {line}")
+                        continue
 
-                # Check and log shape mismatches
-                if input_ids.size(1) != attention_mask.size(1):
-                    print(f"Shape mismatch at Chapter {chapter}, Position {position}:")
-                    print(f"input_ids: {input_ids.size()}, attention_mask: {attention_mask.size()}")
+                    # Parse `input_ids`
+                    input_ids_numbers = list(map(int, match.group(1).split(',')))
+                    input_ids = torch.tensor([input_ids_numbers], dtype=torch.long)
 
-                # Store the tensors in a dictionary
-                tensor_data = {
-                    "input_ids": input_ids,
-                    "attention_mask": attention_mask,
-                }
+                    # Parse `attention_mask`
+                    attention_mask_numbers = list(map(int, match.group(2).split(',')))
+                    attention_mask = torch.tensor([attention_mask_numbers], dtype=torch.long)
 
-                # Use (chapter, position) as the key
-                tag_dict[(chapter, position)] = tensor_data
+                    # Check and log shape mismatches
+                    if input_ids.size(1) != attention_mask.size(1):
+                        print(f"Shape mismatch at Chapter {chapter}, Position {position}:")
+                        print(f"input_ids: {input_ids.size()}, attention_mask: {attention_mask.size()}")
 
-            except Exception as e:
-                print(f"Error processing line: {line}")
-                print(f"Details: {e}")
-                continue
+                    # Store the tensors in a dictionary
+                    tensor_data = {
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                    }
+
+                    # Use (chapter, position) as the key
+                    tag_dict[(chapter, position)] = tensor_data
+
+                except Exception as e:
+                    print(f"Error processing line: {line}")
+                    print(f"Details: {e}")
+                    continue
+    elif chapter_num_mode == 1:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Match the position and tensor blocks
+                parts = line.strip().split(',', 1)  # First split on the first comma
+                if len(parts) != 2:
+                    print(f"Skipping malformed line: {line}")
+                    continue
+                try:
+                    position = int(parts[0])
+
+                    # Extract `input_ids` and `attention_mask` using regex
+                    match = tensor_pattern.search(parts[1])
+                    if not match:
+                        print(f"Skipping line due to tensor mismatch: {line}")
+                        continue
+
+                    # Parse `input_ids`
+                    input_ids_numbers = list(map(int, match.group(1).split(',')))
+                    input_ids = torch.tensor([input_ids_numbers], dtype=torch.long)
+
+                    # Parse `attention_mask`
+                    attention_mask_numbers = list(map(int, match.group(2).split(',')))
+                    attention_mask = torch.tensor([attention_mask_numbers], dtype=torch.long)
+
+                    # Check and log shape mismatches
+                    if input_ids.size(1) != attention_mask.size(1):
+                        print(f"Shape mismatch at Position {position}:")
+                        print(f"input_ids: {input_ids.size()}, attention_mask: {attention_mask.size()}")
+
+                    # Store the tensors in a dictionary
+                    tensor_data = {
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                    }
+
+                    # Use (chapter, position) as the key
+                    tag_dict[position] = tensor_data
+
+                except Exception as e:
+                    print(f"Error processing line: {line}")
+                    print(f"Details: {e}")
+                    continue
 
     return tag_dict
 
