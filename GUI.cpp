@@ -123,6 +123,7 @@ void GUI::update(std::ostringstream& logStream) {
     // Test button
     if (ImGui::Button("PDF Test")) {
         // Call PDFParser run
+        std::cout << "Calling PDFParser run" << std::endl;
         PDFParser parser;
         parser.run();
     }

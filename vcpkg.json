@@ -12,10 +12,8 @@
     },
     "libxml2",
     "libzip",
-    "mecab",
     "nativefiledialog-extended",
-    "poppler",
-    "pybind11",
-    "utf8h"
+    "stb",
+    "cairo"
   ]
 }

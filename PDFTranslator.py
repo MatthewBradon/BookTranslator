@@ -108,14 +108,18 @@ def extract_text_from_pdf(file_path):
     mode = sudachi_tokenizer.Tokenizer.SplitMode.C
     sentences = []
 
+    dump_file = open("dump.txt", "w", encoding="utf-8")
+    
     with open(file_path, 'rb') as pdf_file:
         reader = PyPDF2.PdfReader(pdf_file)
         for page in reader.pages:
             text = page.extract_text()
+            dump_file.write(text)
             # Split text intelligently
             page_sentences = split_japanese_text(text)
             sentences.extend(page_sentences)
 
+    dump_file.close()
     return sentences
 
 
@@ -197,6 +201,10 @@ def main():
     print("Extracting and tokenizing text from the PDF...")
     sentences = extract_text_from_pdf(input_pdf)
 
+    # Dump the sentences to a file
+    with open("sentences.txt", "w", encoding="utf-8") as dump_file:
+        for sentence in sentences:
+            dump_file.write(sentence + "\n")
 
 
     # Step 4: Translate each sentence

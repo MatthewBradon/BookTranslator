@@ -21,3 +21,5 @@ To create the ONNX model make sure you have optimum-cli installed and run this c
 ```
 optimum-cli export onnx --model Helsinki-NLP/opus-mt-ja-en ./onnx-model-dir
 ```
+
+Need to install and build the MUPDF and place it inside the external directory.

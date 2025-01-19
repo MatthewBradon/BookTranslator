@@ -27,3 +27,4 @@ multiprocessTranslation
 tokenizeRawTags
 main
 main.pdb
+external/*
