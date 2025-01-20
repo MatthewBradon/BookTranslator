@@ -1,6 +1,6 @@
 #include "GUI.h"
 #include "main.h"
-#include "PDFParser.h"
+#include "PDFTranslator.h"
 
 void GUI::init(GLFWwindow *window, const char *glsl_version) {
     IMGUI_CHECKVERSION();
@@ -122,9 +122,9 @@ void GUI::update(std::ostringstream& logStream) {
 
     // Test button
     if (ImGui::Button("PDF Test")) {
-        // Call PDFParser run
-        std::cout << "Calling PDFParser run" << std::endl;
-        PDFParser parser;
+        // Call PDFTranslator run
+        std::cout << "Calling PDFTranslator run" << std::endl;
+        PDFTranslator parser;
         parser.run();
     }
 

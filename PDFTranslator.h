@@ -20,7 +20,7 @@
 #include <cairo.h>
 #include <cairo-pdf.h>
 
-class PDFParser {
+class PDFTranslator {
 public:
     int run();
 private:

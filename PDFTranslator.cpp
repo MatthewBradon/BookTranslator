@@ -3,9 +3,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-#include "PDFParser.h"
+#include "PDFTranslator.h"
 
-int PDFParser::run() {
+int PDFTranslator::run() {
     // Check if the main temp files exist and delete them
     std::string rawTextFilePath = "pdftext.txt";
     const std::string extractedTextPath = "extractedPDFtext.txt";
@@ -24,8 +24,8 @@ int PDFParser::run() {
         std::filesystem::remove("encodedTags.txt");
     }
 
-    if (std::filesystem::exists("translatedText.txt")) {
-        std::filesystem::remove("translatedText.txt");
+    if (std::filesystem::exists("translatedTags.txt")) {
+        std::filesystem::remove("translatedTags.txt");
     }
 
     // Ensure the images directory exists
@@ -41,7 +41,7 @@ int PDFParser::run() {
     }
 
     std::filesystem::path currentDirPath = std::filesystem::current_path();
-    std::cout << "Hello from PDFParser!\n";
+    std::cout << "Hello from PDFTranslator!\n";
 
     std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 1 [JP].pdf";
     // std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
@@ -218,7 +218,7 @@ int PDFParser::run() {
     return 0;
 }
 
-std::string PDFParser::removeWhitespace(const std::string &input) {
+std::string PDFTranslator::removeWhitespace(const std::string &input) {
     std::string result;
     result.reserve(input.size());
     
@@ -232,7 +232,7 @@ std::string PDFParser::removeWhitespace(const std::string &input) {
     return result;
 }
 
-void PDFParser::extractTextFromPDF(const std::string& pdfFilePath, const std::string& outputFilePath) {
+void PDFTranslator::extractTextFromPDF(const std::string& pdfFilePath, const std::string& outputFilePath) {
 
     std::cout << "Extracting text from PDF..." << std::endl;
     std::cout << "PDF file: " << pdfFilePath << std::endl;
@@ -344,7 +344,7 @@ void PDFParser::extractTextFromPDF(const std::string& pdfFilePath, const std::st
 }
 
 // Helper function to determine the number of bytes in a UTF-8 character
-size_t PDFParser::getUtf8CharLength(unsigned char firstByte) {
+size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
     if ((firstByte & 0b10000000) == 0) {
         return 1; // 1-byte character (0xxxxxxx)
     } else if ((firstByte & 0b11100000) == 0b11000000) {
@@ -359,7 +359,7 @@ size_t PDFParser::getUtf8CharLength(unsigned char firstByte) {
 }
 
 // Function to split long sentences into smaller chunks based on logical breakpoints
-std::vector<std::string> PDFParser::splitLongSentences(const std::string& sentence, size_t maxLength) {
+std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength) {
     std::vector<std::string> breakpoints = {"、", "。", "しかし", "そして", "だから", "そのため"};
     std::vector<std::string> sentences;
     std::string currentChunk;
@@ -401,7 +401,7 @@ std::vector<std::string> PDFParser::splitLongSentences(const std::string& senten
 }
 
 // Function to intelligently split Japanese text into sentences
-std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, size_t maxLength) {
+std::vector<std::string> PDFTranslator::splitJapaneseText(const std::string& text, size_t maxLength) {
     std::vector<std::string> sentences;
     std::string currentSentence;
     bool inQuote = false;
@@ -456,7 +456,7 @@ std::vector<std::string> PDFParser::splitJapaneseText(const std::string& text, s
     return sentences;
 }
 
-void PDFParser::processAndSplitText(const std::string& inputFilePath, const std::string& outputFilePath, size_t maxLength) {
+void PDFTranslator::processAndSplitText(const std::string& inputFilePath, const std::string& outputFilePath, size_t maxLength) {
     // Open the input file
     std::ifstream inputFile(inputFilePath);
     if (!inputFile.is_open()) {
@@ -484,7 +484,7 @@ void PDFParser::processAndSplitText(const std::string& inputFilePath, const std:
     outputFile.close();
 }
 
-void PDFParser::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
+void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
     fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
     if (!ctx) {
         std::cerr << "Failed to create MuPDF context" << std::endl;
@@ -535,7 +535,7 @@ void PDFParser::convertPdfToImages(const std::string &pdfPath, const std::string
     fz_drop_context(ctx);
 }
 
-bool PDFParser::isImageAboveThreshold(const std::string &imagePath, float threshold) {
+bool PDFTranslator::isImageAboveThreshold(const std::string &imagePath, float threshold) {
     int width, height, channels;
     unsigned char* data = stbi_load(imagePath.c_str(), &width, &height, &channels, 1); // Load as grayscale
     if (!data) {
@@ -563,7 +563,7 @@ bool PDFParser::isImageAboveThreshold(const std::string &imagePath, float thresh
     return stddev > threshold;
 }
 
-void PDFParser::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
+void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
     // Page dimensions in points (A4 size: 612x792 points)
     const int page_width = 612;
     const int page_height = 792;
