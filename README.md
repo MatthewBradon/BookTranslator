@@ -1,14 +1,19 @@
 # Book Translator
 A Japanese to English Book Translator application using local AI models. 
 
+All the packages except MUPDF are installed and managed by VCPKG
+
+MUPDF is included as a submodule for this repository so when cloning run this command:
+```
+git clone --recurse-submodules https://github.com/MatthewBradon/EpubTranslator.git
+```
+
 
 I built this using cmake and the Visaul Studio Community 2022 Build Tools
 
 ```
 cmake --build build --config Release
 ```
-
-All the packages except MUPDF are installed and managed by VCPKG
 
 If using VSCode make sure to include in your settings
 ```
