@@ -1,5 +1,5 @@
 #include "GUI.h"
-#include "main.h"
+#include "EpubTranslator.h"
 #include "PDFTranslator.h"
 
 void GUI::init(GLFWwindow *window, const char *glsl_version) {
@@ -85,7 +85,8 @@ void GUI::update(std::ostringstream& logStream) {
                 std::string outputPathStr(outputPath);
 
                 logStream << "Starting conversion...\n"; // Log start message
-                result = run(epubToConvertStr, outputPathStr); // Simulated long-running function
+                EpubTranslator translator;
+                result = translator.run(epubToConvertStr, outputPathStr); // Simulated long-running function
             }
 
             finished = true;  // Mark as finished
