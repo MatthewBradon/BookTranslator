@@ -7,7 +7,6 @@ build/*
 *.onnx
 rawEpub/*
 !rawEpub/template.epub
-/external/
 /__pycache__/
 output.epub
 imgui.ini
@@ -27,4 +26,3 @@ multiprocessTranslation
 tokenizeRawTags
 main
 main.pdb
-external/*
