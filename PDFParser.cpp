@@ -24,9 +24,9 @@ int PDFParser::run() {
         std::filesystem::remove("encodedTags.txt");
     }
 
-    // if (std::filesystem::exists("translatedText.txt")) {
-    //     std::filesystem::remove("translatedText.txt");
-    // }
+    if (std::filesystem::exists("translatedText.txt")) {
+        std::filesystem::remove("translatedText.txt");
+    }
 
     // Ensure the images directory exists
     if (!std::filesystem::exists(imagesDir)) {
@@ -155,52 +155,52 @@ int PDFParser::run() {
         return 1;
     }
 
-    // std::string multiprocessExePath = multiprocessExe.string();
+    std::string multiprocessExePath = multiprocessExe.string();
     
 
-    // std::cout << "Before call to multiprocessTranslation.py" << '\n';
+    std::cout << "Before call to multiprocessTranslation.py" << '\n';
 
-    // boost::process::ipstream pipe_stdout, pipe_stderr;
+    boost::process::ipstream pipe_stdout, pipe_stderr;
 
-    // try {
+    try {
 
-    //     boost::process::child c(
-    //         multiprocessExePath,
-    //         chapterNumberMode,
-    //         boost::process::std_out > pipe_stdout, 
-    //         boost::process::std_err > pipe_stderr
-    //     );
+        boost::process::child c(
+            multiprocessExePath,
+            chapterNumberMode,
+            boost::process::std_out > pipe_stdout, 
+            boost::process::std_err > pipe_stderr
+        );
 
-    //     // Threads to handle asynchronous reading
-    //     std::thread stdout_thread([&pipe_stdout]() {
-    //         std::string line;
-    //         while (std::getline(pipe_stdout, line)) {
-    //             std::cout << "Python stdout: " << line << "\n";
-    //         }
-    //     });
+        // Threads to handle asynchronous reading
+        std::thread stdout_thread([&pipe_stdout]() {
+            std::string line;
+            while (std::getline(pipe_stdout, line)) {
+                std::cout << "Python stdout: " << line << "\n";
+            }
+        });
 
-    //     std::thread stderr_thread([&pipe_stderr]() {
-    //         std::string line;
-    //         while (std::getline(pipe_stderr, line)) {
-    //             std::cerr << "Python stderr: " << line << "\n";
-    //         }
-    //     });
+        std::thread stderr_thread([&pipe_stderr]() {
+            std::string line;
+            while (std::getline(pipe_stderr, line)) {
+                std::cerr << "Python stderr: " << line << "\n";
+            }
+        });
 
-    //     c.wait(); // Wait for process completion
+        c.wait(); // Wait for process completion
 
-    //     stdout_thread.join();
-    //     stderr_thread.join();
+        stdout_thread.join();
+        stderr_thread.join();
 
-    //     if (c.exit_code() == 0) {
-    //         std::cout << "Translation Python script executed successfully." << "\n";
-    //     } else {
-    //         std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
-    //     }
-    // } catch (const std::exception& ex) {
-    //     std::cerr << "Exception: " << ex.what() << "\n";
-    // }
+        if (c.exit_code() == 0) {
+            std::cout << "Translation Python script executed successfully." << "\n";
+        } else {
+            std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
+    }
 
-    // std::cout << "After call to multiprocessTranslation.py" << '\n';
+    std::cout << "After call to multiprocessTranslation.py" << '\n';
 
     // Create the final PDF
     std::string outputPdfPath = "output.pdf";
@@ -485,20 +485,14 @@ void PDFParser::processAndSplitText(const std::string& inputFilePath, const std:
 }
 
 void PDFParser::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
-    // Create MuPDF context
     fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
     if (!ctx) {
         std::cerr << "Failed to create MuPDF context" << std::endl;
         return;
     }
 
-    // Enable anti-aliasing for better rendering quality
-    fz_set_aa_level(ctx, 8);
-
-    // Register document handlers
     fz_register_document_handlers(ctx);
 
-    // Open the PDF document
     fz_document* doc = fz_open_document(ctx, pdfPath.c_str());
     if (!doc) {
         std::cerr << "Failed to open PDF document: " << pdfPath << std::endl;
@@ -506,68 +500,40 @@ void PDFParser::convertPdfToImages(const std::string &pdfPath, const std::string
         return;
     }
 
-    // Create output directory
     std::filesystem::create_directory(outputFolder);
-
-    // Get the number of pages in the document
     int pageCount = fz_count_pages(ctx, doc);
 
     for (int pageNum = 0; pageNum < pageCount; pageNum++) {
-        // Load the page
         fz_page* page = fz_load_page(ctx, doc, pageNum);
-
-        // Extract page bounds
         fz_rect bounds = fz_bound_page(ctx, page);
 
-        // Render page to pixmap at default resolution (72 DPI)
         fz_pixmap* pixmap = fz_new_pixmap_with_bbox(ctx, fz_device_rgb(ctx), fz_round_rect(bounds), nullptr, 0);
-        fz_clear_pixmap_with_value(ctx, pixmap, 255); // Set background to white
-
         fz_device* dev = fz_new_draw_device(ctx, fz_identity, pixmap);
         fz_run_page(ctx, page, dev, fz_identity, nullptr);
 
-        // Save the rendered image temporarily
+        // Save the image temporarily
         char tempPath[1024];
         snprintf(tempPath, sizeof(tempPath), "%s/temp_page_%03d.png", outputFolder.c_str(), pageNum + 1);
         fz_save_pixmap_as_png(ctx, pixmap, tempPath);
 
-        // Filter the image based on standard deviation
+        // Check if the image passes the threshold
         if (isImageAboveThreshold(tempPath, stdDevThreshold)) {
-            // Rescale the image to high resolution (300 DPI)
-            fz_matrix transform = fz_scale(300.0 / 72.0, 300.0 / 72.0); // Scale to 300 DPI
-            fz_transform_rect(bounds, transform);
-
-            fz_pixmap* highResPixmap = fz_new_pixmap_with_bbox(ctx, fz_device_rgb(ctx), fz_round_rect(bounds), nullptr, 0);
-            fz_clear_pixmap_with_value(ctx, highResPixmap, 255); // Set background to white
-
-            fz_device* highResDev = fz_new_draw_device(ctx, transform, highResPixmap);
-            fz_run_page(ctx, page, highResDev, transform, nullptr);
-
-            // Save the high-resolution image
             char outputPath[1024];
             snprintf(outputPath, sizeof(outputPath), "%s/page_%03d.png", outputFolder.c_str(), pageNum + 1);
-            fz_save_pixmap_as_png(ctx, highResPixmap, outputPath);
-            std::cout << "Saved high-resolution image: " << outputPath << std::endl;
-
-            // Clean up high-resolution resources
-            fz_drop_device(ctx, highResDev);
-            fz_drop_pixmap(ctx, highResPixmap);
+            std::filesystem::rename(tempPath, outputPath); // Save with final name
+            std::cout << "Saved: " << outputPath << std::endl;
         } else {
-            // Delete the temporary image if it doesn't pass the filter
-            std::filesystem::remove(tempPath);
+            std::filesystem::remove(tempPath); // Delete temporary image
         }
 
-        // Clean up resources for the current page
         fz_drop_device(ctx, dev);
         fz_drop_pixmap(ctx, pixmap);
         fz_drop_page(ctx, page);
     }
 
-    // Clean up MuPDF resources
     fz_drop_document(ctx, doc);
     fz_drop_context(ctx);
 }
-
 
 bool PDFParser::isImageAboveThreshold(const std::string &imagePath, float threshold) {
     int width, height, channels;
@@ -609,13 +575,12 @@ void PDFParser::createPDF(const std::string &output_file, const std::string &inp
     // Line spacing multiplier
     const double line_spacing = 2.0; // Adjust this value to increase or decrease spacing
 
-
     // Create a Cairo surface for the PDF
     cairo_surface_t *surface = cairo_pdf_surface_create(output_file.c_str(), page_width, page_height);
     cairo_t *cr = cairo_create(surface);
 
     // Add images to the PDF
-    bool is_first_page = true; // Track whether we're on the first page
+    bool has_images = false; // Track if any images were added
     for (const auto &entry : std::filesystem::directory_iterator(images_dir)) {
         if (entry.is_regular_file()) {
             // Load the image
@@ -629,37 +594,28 @@ void PDFParser::createPDF(const std::string &output_file, const std::string &inp
             int image_width = cairo_image_surface_get_width(image);
             int image_height = cairo_image_surface_get_height(image);
 
-            // Scale the image to fit the page
-            double scale_x = static_cast<double>(page_width) / image_width;
-            double scale_y = static_cast<double>(page_height) / image_height;
-            double scale = std::min(scale_x, scale_y);
+            // Set the page size to match the image size
+            cairo_pdf_surface_set_size(surface, image_width, image_height);
 
-            // Center the image
-            double offset_x = (page_width - image_width * scale) / 2;
-            double offset_y = (page_height - image_height * scale) / 2;
-
-            // If it's not the first page, explicitly start a new page
-            if (!is_first_page) {
-                cairo_show_page(cr);
-            } else {
-                is_first_page = false; // First page is now used
-            }
-
-            // Draw the image
+            // Draw the image at (0, 0) since the page size matches the image size
             cairo_save(cr);
-            cairo_translate(cr, offset_x, offset_y);
-            cairo_scale(cr, scale, scale);
             cairo_set_source_surface(cr, image, 0, 0);
             cairo_paint(cr);
             cairo_restore(cr);
+
+            // Start a new page for the next image
+            cairo_show_page(cr);
+            has_images = true; // Mark that at least one image was added
 
             // Clean up
             cairo_surface_destroy(image);
         }
     }
 
-    // Start a new page after the images to prevent overlap with text
-    cairo_show_page(cr);
+    // Reset the page size to A4 for text pages only if images were added
+    if (has_images) {
+        cairo_pdf_surface_set_size(surface, page_width, page_height);
+    }
 
     // Set the font and size for text
     cairo_select_font_face(cr, "Helvetica", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
@@ -732,9 +688,6 @@ void PDFParser::createPDF(const std::string &output_file, const std::string &inp
             }
         }
     }
-
-    // Finalize the drawing
-    cairo_show_page(cr);
 
     // Clean up
     cairo_destroy(cr);
