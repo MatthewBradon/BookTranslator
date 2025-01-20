@@ -5,7 +5,7 @@
 
 #include "PDFTranslator.h"
 
-int PDFTranslator::run() {
+int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath) {
     // Check if the main temp files exist and delete them
     std::string rawTextFilePath = "pdftext.txt";
     const std::string extractedTextPath = "extractedPDFtext.txt";
@@ -43,17 +43,17 @@ int PDFTranslator::run() {
     std::filesystem::path currentDirPath = std::filesystem::current_path();
     std::cout << "Hello from PDFTranslator!\n";
 
-    std::string pdfFilePath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 1 [JP].pdf";
-    // std::string pdfFilePath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
+    // std::string inputPath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 1 [JP].pdf";
+    // std::string inputPath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
 
 
     // Convert the PDF to images
-    convertPdfToImages(pdfFilePath, imagesDir, 50.0f);
+    convertPdfToImages(inputPath, imagesDir, 50.0f);
 
     std::cout << "Finished converting PDF to images" << '\n';
 
     // Extracts text from the PDF and writes it to extractedPDFtext.txt
-    extractTextFromPDF(pdfFilePath, extractedTextPath);
+    extractTextFromPDF(inputPath, extractedTextPath);
 
     // Splits the merged japanese into sentence and writes it to pdftext.txt
     try {
@@ -203,8 +203,7 @@ int PDFTranslator::run() {
     std::cout << "After call to multiprocessTranslation.py" << '\n';
 
     // Create the final PDF
-    std::string outputPdfPath = "output.pdf";
-    
+    std::string outputPdfPath = outputPath + "/output.pdf";
 
     try {
         createPDF(outputPdfPath, "translatedTags.txt", imagesDir);
@@ -232,18 +231,18 @@ std::string PDFTranslator::removeWhitespace(const std::string &input) {
     return result;
 }
 
-void PDFTranslator::extractTextFromPDF(const std::string& pdfFilePath, const std::string& outputFilePath) {
+void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
 
     std::cout << "Extracting text from PDF..." << std::endl;
-    std::cout << "PDF file: " << pdfFilePath << std::endl;
+    std::cout << "PDF file: " << inputPath << std::endl;
     std::cout << "Output file: " << outputFilePath << std::endl;
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
 
     // Check if the file exists
-    if (!std::filesystem::exists(pdfFilePath)) {
-        throw std::runtime_error("PDF file does not exist: " + pdfFilePath);
+    if (!std::filesystem::exists(inputPath)) {
+        throw std::runtime_error("PDF file does not exist: " + inputPath);
     }
 
     // Create a MuPDF context
@@ -262,9 +261,9 @@ void PDFTranslator::extractTextFromPDF(const std::string& pdfFilePath, const std
 
     fz_try(ctx) {
         // Open the PDF document
-        fz_document *doc = fz_open_document(ctx, pdfFilePath.c_str());
+        fz_document *doc = fz_open_document(ctx, inputPath.c_str());
         if (!doc) {
-            throw std::runtime_error("Failed to open PDF file: " + pdfFilePath);
+            throw std::runtime_error("Failed to open PDF file: " + inputPath);
         }
 
         int pageCount = fz_count_pages(ctx, doc);

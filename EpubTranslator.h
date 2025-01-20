@@ -19,6 +19,8 @@
 #include <boost/filesystem.hpp>
 #include <sstream>
 #include <iostream>
+#include "Translator.h"
+
 
 #define P_TAG 0
 #define IMG_TAG 1
@@ -38,7 +40,7 @@ struct decodedData {
     int position;
 };
 
-class EpubTranslator {
+class EpubTranslator : public Translator {
 public:
     int run(const std::string& epubToConvert, const std::string& outputEpubPath);
 private:

@@ -214,7 +214,6 @@ bool EpubTranslator::make_directory(const std::filesystem::path& path) {
     }
 }
 
-// Function to unzip a file using libzip
 bool EpubTranslator::unzip_file(const std::string& zipPath, const std::string& outputDir) {
     int err = 0;
     zip* archive = zip_open(zipPath.c_str(), ZIP_RDONLY, &err);
@@ -708,7 +707,6 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
     return bookTags;
 }
 
-
 int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath) {
     
     std::filesystem::path currentDirPath = std::filesystem::current_path();
@@ -720,6 +718,19 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     std::string unzippedPath = "unzipped";
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
+
+    // Check if the unzipped directory already exists
+    if (std::filesystem::exists(unzippedPath)) {
+        std::cout << "Unzipped directory already exists. Deleting it..." << "\n";
+        std::filesystem::remove_all(unzippedPath);
+    }
+
+    // Check if the export directory already exists
+    if (std::filesystem::exists(templatePath)) {
+        std::cout << "Export directory already exists. Deleting it..." << "\n";
+        std::filesystem::remove_all(templatePath);
+    }
+
 
     // Start the timer
     auto start = std::chrono::high_resolution_clock::now();

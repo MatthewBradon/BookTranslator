@@ -17,7 +17,7 @@ public:
     void shutdown();
     void newFrame();
 private:
-    char epubToConvert[256] = "";
+    char inputFile[256] = "";
     char outputPath[256] = "";
 
     std::thread workerThread;

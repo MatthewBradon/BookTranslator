@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 project(main)
 
 # Add the executable
-add_executable(${PROJECT_NAME} main.cpp main.h GUI.cpp GUI.h PDFTranslator.cpp PDFTranslator.h EpubTranslator.cpp EpubTranslator.h)
+add_executable(${PROJECT_NAME} main.cpp main.h GUI.cpp GUI.h PDFTranslator.cpp PDFTranslator.h EpubTranslator.cpp EpubTranslator.h Translator.h TranslatorFactory.h)
 
 # Find the required packages
 find_package(libzip CONFIG REQUIRED)

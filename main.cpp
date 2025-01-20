@@ -5,7 +5,7 @@ int main() {
     std::streambuf* originalBuffer = std::cout.rdbuf();
     std::ostringstream captureOutput;
     // DEBUG: Comment out this line if you want the couts to be in the terminal for debugging purposes
-    // std::cout.rdbuf(captureOutput.rdbuf());
+    std::cout.rdbuf(captureOutput.rdbuf());
 	
     // Setup window
 	if (!glfwInit())
@@ -29,7 +29,7 @@ int main() {
 #endif
 
 	// Create window with graphics context
-	GLFWwindow *window = glfwCreateWindow(720, 360, "Dear ImGui - Example", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(720, 360, "Book Translator", NULL, NULL);
 	if (window == NULL)
 		return 1;
 	glfwMakeContextCurrent(window);
