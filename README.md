@@ -18,7 +18,7 @@ cmake --build build --config Release
 If using VSCode make sure to include in your settings
 ```
     "cmake.configureArgs": ["-DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake"],
-``
+```
 
 
 The following commands need to be ran as they are runtime dependencies for the application:
