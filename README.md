@@ -3,11 +3,10 @@ A Japanese to English Book Translator application using local AI models.
 
 All the packages except MUPDF are installed and managed by VCPKG
 
-MUPDF is included as a submodule for this repository so when cloning run this command:
+MUPDF is included as a submodule for this repository after cloning run this command to have all of the submodules so you can build MUPDF
 ```
-git clone --recurse-submodules https://github.com/MatthewBradon/EpubTranslator.git
+git submodule update --init --recursive
 ```
-
 
 I built this using cmake and the Visaul Studio Community 2022 Build Tools
 
@@ -36,3 +35,5 @@ To create the AI model use optimum-cli to export the model to the ONNX format an
 optimum-cli export onnx --model Helsinki-NLP/opus-mt-ja-en ./onnx-model-dir
 ```
 
+
+When running pyinstaller either have all the python modules installed already or run it while in a venv

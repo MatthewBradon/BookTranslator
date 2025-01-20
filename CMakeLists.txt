@@ -22,24 +22,36 @@ pkg_check_modules(cairo REQUIRED IMPORTED_TARGET cairo)
 pkg_check_modules(cairo-script-interpreter REQUIRED IMPORTED_TARGET cairo-script-interpreter)
 
 
+
+
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+# Include the MuPDF headers
+set(MUPDF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/macBuild/include")
+set(MUPDF_LIB_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/macBuild/lib")
+file(GLOB MUPDF_LIBS "${MUPDF_LIB_DIR}/*.a")
+
+elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
 # MuPDF configuration
 set(MUPDF_LIB_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/platform/win32/x64/Release")
 set(MUPDF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/include")
+include_directories("${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include")
+file(GLOB MUPDF_LIBS "${MUPDF_LIB_DIR}/*.lib")
+endif()
 
 # Include the MuPDF headers
 include_directories(${MUPDF_INCLUDE_DIR})
 
-include_directories("${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include")
-
 # Dynamically collect all .lib files in the MuPDF library directory
-file(GLOB MUPDF_LIBS "${MUPDF_LIB_DIR}/*.lib")
+
 
 # Link libraries
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(${PROJECT_NAME} PRIVATE
+        PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 
         libzip::zip LibXml2::LibXml2
+        ${MUPDF_LIBS} # Include all MuPDF libraries
     )
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(${PROJECT_NAME} PRIVATE

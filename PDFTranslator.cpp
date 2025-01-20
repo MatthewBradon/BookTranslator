@@ -7,9 +7,9 @@
 
 int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath) {
     // Check if the main temp files exist and delete them
-    std::string rawTextFilePath = "pdftext.txt";
+    const std::string rawTextFilePath = "pdftext.txt";
     const std::string extractedTextPath = "extractedPDFtext.txt";
-    std::string imagesDir = "FilteredImages";
+    const std::string imagesDir = "FilteredImages";
 
     // Check if the temp files exist and delete them
     if (std::filesystem::exists(rawTextFilePath)) {
@@ -42,9 +42,6 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
 
     std::filesystem::path currentDirPath = std::filesystem::current_path();
     std::cout << "Hello from PDFTranslator!\n";
-
-    // std::string inputPath = "C:/Users/matth/Desktop/Kono Subarashii Sekai ni Shukufuku wo! [JP]/Konosuba Volume 1 [JP].pdf";
-    // std::string inputPath = "/Users/xsmoked/Downloads/Konosuba Volume 1 [JP].pdf";
 
 
     // Convert the PDF to images
@@ -578,37 +575,45 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
     cairo_surface_t *surface = cairo_pdf_surface_create(output_file.c_str(), page_width, page_height);
     cairo_t *cr = cairo_create(surface);
 
-    // Add images to the PDF
-    bool has_images = false; // Track if any images were added
+    // Get all the file names in the images directory
+    std::vector<std::string> image_files;
     for (const auto &entry : std::filesystem::directory_iterator(images_dir)) {
         if (entry.is_regular_file()) {
-            // Load the image
-            cairo_surface_t *image = cairo_image_surface_create_from_png(entry.path().string().c_str());
-            if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
-                std::cerr << "Failed to load image: " << entry.path() << std::endl;
-                continue;
-            }
-
-            // Get image dimensions
-            int image_width = cairo_image_surface_get_width(image);
-            int image_height = cairo_image_surface_get_height(image);
-
-            // Set the page size to match the image size
-            cairo_pdf_surface_set_size(surface, image_width, image_height);
-
-            // Draw the image at (0, 0) since the page size matches the image size
-            cairo_save(cr);
-            cairo_set_source_surface(cr, image, 0, 0);
-            cairo_paint(cr);
-            cairo_restore(cr);
-
-            // Start a new page for the next image
-            cairo_show_page(cr);
-            has_images = true; // Mark that at least one image was added
-
-            // Clean up
-            cairo_surface_destroy(image);
+            image_files.push_back(entry.path().string());
         }
+    }
+    // Sort the image files to ensure they are added in order 
+    std::sort(image_files.begin(), image_files.end());
+
+    // Add images to the PDF
+    bool has_images = false; // Track if any images were added
+    for (const auto &image_file : image_files) {
+        // Load the image
+        cairo_surface_t *image = cairo_image_surface_create_from_png(image_file.c_str());
+        if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
+            std::cerr << "Failed to load image: " << image_file << std::endl;
+            continue;
+        }
+
+        // Get image dimensions
+        int image_width = cairo_image_surface_get_width(image);
+        int image_height = cairo_image_surface_get_height(image);
+
+        // Set the page size to match the image size
+        cairo_pdf_surface_set_size(surface, image_width, image_height);
+
+        // Draw the image at (0, 0) since the page size matches the image size
+        cairo_save(cr);
+        cairo_set_source_surface(cr, image, 0, 0);
+        cairo_paint(cr);
+        cairo_restore(cr);
+
+        // Start a new page for the next image
+        cairo_show_page(cr);
+        has_images = true; // Mark that at least one image was added
+
+        // Clean up
+        cairo_surface_destroy(image);
     }
 
     // Reset the page size to A4 for text pages only if images were added
