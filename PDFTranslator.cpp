@@ -363,13 +363,16 @@ std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& se
 
     for (size_t i = 0; i < sentence.size();) {
         size_t charLength = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
+        if (i + charLength > sentence.size()) break; // Safety check
+
         currentChunk += sentence.substr(i, charLength);
         ++tokenCount;
 
         // Check if the current substring matches any breakpoint
         for (const auto& breakpoint : breakpoints) {
-            if (sentence.substr(i, breakpoint.size()) == breakpoint) {
-                if (currentChunk.size() > maxLength) {
+            if (i + breakpoint.size() <= sentence.size() &&
+                sentence.substr(i, breakpoint.size()) == breakpoint) {
+                if (!currentChunk.empty()) {
                     sentences.push_back(currentChunk);
                     currentChunk.clear();
                     tokenCount = 0;
@@ -404,6 +407,8 @@ std::vector<std::string> PDFTranslator::splitJapaneseText(const std::string& tex
 
     for (size_t i = 0; i < text.size();) {
         size_t charLength = getUtf8CharLength(static_cast<unsigned char>(text[i]));
+        if (i + charLength > text.size()) break; // Safety check
+
         std::string currentChar = text.substr(i, charLength);
         currentSentence += currentChar;
 
@@ -416,17 +421,6 @@ std::vector<std::string> PDFTranslator::splitJapaneseText(const std::string& tex
 
         // Check for sentence-ending punctuation
         if ((currentChar == "。" || currentChar == "！" || currentChar == "？") && !inQuote) {
-            if (currentSentence.size() > maxLength) {
-                auto splitChunks = splitLongSentences(currentSentence, maxLength);
-                sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
-            } else {
-                sentences.push_back(currentSentence);
-            }
-            currentSentence.clear();
-        }
-
-        // Handle sentence-ending punctuation inside quotes
-        if (i > 0 && text.substr(i - charLength, charLength) == "」" && currentChar == "。" && !inQuote) {
             if (currentSentence.size() > maxLength) {
                 auto splitChunks = splitLongSentences(currentSentence, maxLength);
                 sentences.insert(sentences.end(), splitChunks.begin(), splitChunks.end());
@@ -479,7 +473,6 @@ void PDFTranslator::processAndSplitText(const std::string& inputFilePath, const 
 
     outputFile.close();
 }
-
 void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
     fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
     if (!ctx) {
