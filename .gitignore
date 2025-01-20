@@ -7,7 +7,6 @@ build/*
 *.onnx
 rawEpub/*
 !rawEpub/template.epub
-/external/
 /__pycache__/
 output.epub
 imgui.ini
@@ -16,3 +15,15 @@ encodedTags.txt
 translatedTags.txt
 pip_install.log
 pip_show.log
+FilteredImages/
+*.pkl
+*.pdf
+*.txt
+*.exe
+*.spec
+onnx-runtime-dir/*
+multiprocessTranslation
+tokenizeRawTags
+main
+main.pdb
+.DS_Store

@@ -1,40 +1,40 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, Subset
 from transformers import AutoTokenizer
-import os
 from lion_pytorch import Lion
 from torch.cuda.amp import autocast, GradScaler
-from sklearn.model_selection import KFold
+import os
+import numpy as np
+import time
 
 # Define device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 print("Device: ", device)
-torch.cuda.empty_cache()
-# Paths to data files
-EN_FILE = "D:/JapaneseToEnglishDataset/CCMatrix/CCMatrix.en-ja.en"
-JA_FILE = "D:/JapaneseToEnglishDataset/CCMatrix/CCMatrix.en-ja.ja"
 
-# Define gradient accumulation steps
-GRADIENT_ACCUMULATION_STEPS = 4
+# Clear cache
+torch.cuda.empty_cache()
+
+# Paths to data files
+EN_FILE = "CCMatrix.en-ja.en"
+JA_FILE = "CCMatrix.en-ja.ja"
+
+# Gradient accumulation steps
+GRADIENT_ACCUMULATION_STEPS = 8
 scaler = GradScaler()
 
-# Step 1: Tokenization and Vocabulary
-# Use Hugging Face tokenizer
+# Tokenization and Vocabulary
 tokenizer_src = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
 tokenizer_tgt = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
 
 en_vocab_size = tokenizer_src.vocab_size
 ja_vocab_size = tokenizer_tgt.vocab_size
 
-# Special tokens
 PAD_IDX = tokenizer_src.pad_token_id
 BOS_IDX = tokenizer_src.bos_token_id or tokenizer_src.cls_token_id
 EOS_IDX = tokenizer_src.eos_token_id or tokenizer_src.sep_token_id
 
-# Step 2: Dataset Definition
+# Dataset Definition
 class TranslationDataset(Dataset):
     def __init__(self, src_file, tgt_file, src_tokenizer, tgt_tokenizer):
         with open(src_file, encoding="utf-8") as f:
@@ -63,18 +63,18 @@ def collate_fn(batch):
 
 data = TranslationDataset(EN_FILE, JA_FILE, tokenizer_src, tokenizer_tgt)
 
-# Step 3: Define Transformer Model
+# Transformer Model
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, embed_size=512, num_heads=8, num_layers=6, ffn_hidden=2048):
+    def __init__(self, src_vocab_size, tgt_vocab_size, embed_size=256, num_heads=4, num_layers=4, ffn_hidden=512):
         super().__init__()
         self.src_embed = nn.Embedding(src_vocab_size, embed_size, padding_idx=PAD_IDX)
         self.tgt_embed = nn.Embedding(tgt_vocab_size, embed_size, padding_idx=PAD_IDX)
         self.pos_encoder = nn.Transformer(
-            d_model=embed_size, 
-            nhead=num_heads, 
-            num_encoder_layers=num_layers, 
-            num_decoder_layers=num_layers, 
-            dim_feedforward=ffn_hidden, 
+            d_model=embed_size,
+            nhead=num_heads,
+            num_encoder_layers=num_layers,
+            num_decoder_layers=num_layers,
+            dim_feedforward=ffn_hidden,
             batch_first=True
         )
         self.fc_out = nn.Linear(embed_size, tgt_vocab_size)
@@ -86,16 +86,16 @@ class Transformer(nn.Module):
         output = self.fc_out(output)
         return output
 
-# Step 4: Checkpointing
-def save_checkpoint(model, optimizer, epoch, data_split, path="checkpoint.pth"):
+# Checkpointing
+def save_checkpoint(model, optimizer, epoch, current_split, path="checkpoint.pth"):
     checkpoint = {
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "epoch": epoch,
-        "data_split": data_split
+        "current_split": current_split
     }
     torch.save(checkpoint, path)
-    print(f"Checkpoint saved at epoch {epoch}")
+    print(f"Checkpoint saved at epoch {epoch}, split {current_split}")
 
 def load_checkpoint(model, optimizer, path="checkpoint.pth"):
     if os.path.exists(path):
@@ -103,33 +103,37 @@ def load_checkpoint(model, optimizer, path="checkpoint.pth"):
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         epoch = checkpoint["epoch"] + 1
-        data_split = checkpoint["data_split"]
-        print(f"Checkpoint loaded. Resuming from epoch {epoch}")
-        return epoch, data_split
+        current_split = checkpoint["current_split"]
+        print(f"Checkpoint loaded. Resuming from epoch {epoch}, split {current_split}")
+        return epoch, current_split
     print("No checkpoint found. Starting from scratch.")
-    return 1, None
+    return 1, 0
 
-# Step 5: Epoch-wise Data Splitting
-def split_dataset(dataset, num_splits, current_split=None):
-    kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
-    splits = list(kf.split(range(len(dataset))))
-    if current_split is None:
-        return splits
-    train_indices, _ = splits[current_split]
-    return Subset(dataset, train_indices)
+# Non-overlapping Subset Splitting
+def split_dataset_nonoverlapping(dataset, num_splits, current_split, seed=42):
+    total_size = len(dataset)
+    indices = np.arange(total_size)
+    rng = np.random.default_rng(seed)
+    rng.shuffle(indices)
+    subset_size = total_size // num_splits
+    start_idx = current_split * subset_size
+    end_idx = total_size if current_split == num_splits - 1 else start_idx + subset_size
+    subset_indices = indices[start_idx:end_idx]
+    return Subset(dataset, subset_indices)
 
-# Step 6: Training Loop
+# Training Loop
 def train_epoch(model, dataloader, optimizer, criterion, device):
     model.train()
     total_loss = 0
     optimizer.zero_grad()
+    start_time = time.time()
 
     for batch_idx, (src, tgt) in enumerate(dataloader):
         src, tgt = src.to(device), tgt.to(device)
         tgt_input = tgt[:, :-1]
         tgt_output = tgt[:, 1:]
 
-        with autocast():
+        with autocast(device.type):
             output = model(src, tgt_input)
             loss = criterion(output.view(-1, output.shape[-1]), tgt_output.contiguous().view(-1))
             loss = loss / GRADIENT_ACCUMULATION_STEPS
@@ -143,27 +147,36 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
 
         total_loss += loss.item() * GRADIENT_ACCUMULATION_STEPS
 
+        if (batch_idx + 1) % 10 == 0:
+            progress = (batch_idx + 1) / len(dataloader) * 100
+            elapsed_time = time.time() - start_time
+            print(f"Progress: {progress:.2f}% (Batch {batch_idx + 1}/{len(dataloader)}), Elapsed Time: {elapsed_time:.2f}s")
+
     return total_loss / len(dataloader)
 
-# Step 7: Training Setup
+# Training Setup
+EPOCHS = 10
+SUBSET_SPLITS = 10  # Number of splits per epoch
+BATCH_SIZE = 4
+
 model = Transformer(en_vocab_size, ja_vocab_size).to(device)
 optimizer = Lion(model.parameters(), lr=1e-4, weight_decay=1e-2)
 criterion = nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
-# Load checkpoint
-EPOCHS = 10
-splits = split_dataset(data, num_splits=EPOCHS)
-start_epoch, data_split = load_checkpoint(model, optimizer)
+start_epoch, start_split = load_checkpoint(model, optimizer)
 
 for epoch in range(start_epoch, EPOCHS + 1):
-    data_subset = split_dataset(data, num_splits=EPOCHS, current_split=epoch - 1)
-    dataloader = DataLoader(data_subset, batch_size=8, shuffle=False, collate_fn=collate_fn)
-    
-    train_loss = train_epoch(model, dataloader, optimizer, criterion, device)
-    print(f"Epoch {epoch}, Loss: {train_loss:.4f}")
-    
-    save_checkpoint(model, optimizer, epoch, splits[epoch - 1])
+    for split_idx in range(start_split, SUBSET_SPLITS):
+        data_subset = split_dataset_nonoverlapping(data, num_splits=SUBSET_SPLITS, current_split=split_idx)
+        dataloader = DataLoader(data_subset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+        
+        print(f"Epoch {epoch}, Split {split_idx + 1}/{SUBSET_SPLITS}: Subset contains {len(data_subset)} samples.")
+        train_loss = train_epoch(model, dataloader, optimizer, criterion, device)
+        print(f"Epoch {epoch}, Split {split_idx + 1}, Loss: {train_loss:.4f}")
 
-# Save the final model
+        save_checkpoint(model, optimizer, epoch, split_idx)
+
+    start_split = 0  # Reset split index for the next epoch
+
 torch.save(model.state_dict(), "transformer_translation.pt")
 print("Final model saved!")

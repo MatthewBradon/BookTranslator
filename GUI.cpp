@@ -1,5 +1,5 @@
 #include "GUI.h"
-#include "main.h"
+#include "TranslatorFactory.h"
 
 void GUI::init(GLFWwindow *window, const char *glsl_version) {
     IMGUI_CHECKVERSION();
@@ -17,7 +17,7 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsLight();
 
     running = false;   // Initialize flags
     finished = false;
@@ -33,23 +33,23 @@ void GUI::update(std::ostringstream& logStream) {
     ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
 
     // Input fields for directories
-    ImGui::InputText("Epub To Convert", epubToConvert, sizeof(epubToConvert));
+    ImGui::InputText("Original Book", inputFile, sizeof(inputFile));
     // Browse button for the epub to convert
     ImGui::PushID("epub_browse_button"); // Unique ID for the first button
     if (ImGui::Button("Browse")) {
         nfdchar_t* outPath = nullptr;
         // Set up filter for EPUB files
-        nfdfilteritem_t filterItem[1] = { { "EPUB Files", "epub" } };
+        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF Files", "epub,pdf" } };
         nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
         if (result == NFD_OKAY) {
-            strcpy(epubToConvert, outPath);
+            strcpy(inputFile, outPath);
             free(outPath);
         }
     }
     ImGui::PopID(); // End unique ID for the first button
 
     // Output path input
-    ImGui::InputText("Output Path", outputPath, sizeof(outputPath));
+    ImGui::InputText("Translated Output Location", outputPath, sizeof(outputPath));
 
     // Output folder browse button
     ImGui::PushID("output_browse_button"); // Unique ID for the second button
@@ -64,7 +64,7 @@ void GUI::update(std::ostringstream& logStream) {
     ImGui::PopID(); // End unique ID for the second button
 
     // Check if both fields are filled
-    bool enableButton = strlen(epubToConvert) > 0 && strlen(outputPath) > 0;
+    bool enableButton = strlen(inputFile) > 0 && strlen(outputPath) > 0;
 
     // Disable button if fields are empty
     if (!enableButton || running) {
@@ -72,7 +72,7 @@ void GUI::update(std::ostringstream& logStream) {
     }
 
     // Button to trigger the run function
-    if (ImGui::Button("Run Conversion") && enableButton && !running) {
+    if (ImGui::Button("Start Translation") && enableButton && !running) {
         running = true;      // Set the running flag
         finished = false;    // Reset the finished flag
 
@@ -80,11 +80,31 @@ void GUI::update(std::ostringstream& logStream) {
         workerThread = std::thread([this, &logStream]() {
             {
                 std::lock_guard<std::mutex> lock(resultMutex); // Protect shared resources
-                std::string epubToConvertStr(epubToConvert);
+                std::string inputFileStr(inputFile);
                 std::string outputPathStr(outputPath);
 
-                logStream << "Starting conversion...\n"; // Log start message
-                result = run(epubToConvertStr, outputPathStr); // Simulated long-running function
+                logStream << "Starting Translation...\n"; // Log start message
+
+                // Determine file extension
+                std::string fileExtension = inputFileStr.substr(inputFileStr.find_last_of(".") + 1);
+                std::shared_ptr<Translator> translator;
+
+                try {
+                    if (fileExtension == "epub") {
+                        translator = TranslatorFactory::createTranslator("epub");
+                    } else if (fileExtension == "pdf") {
+                        translator = TranslatorFactory::createTranslator("pdf");
+                    } else {
+                        throw std::runtime_error("Unsupported file type: " + fileExtension);
+                    }
+
+                    // Run the translator
+                    result = translator->run(inputFile, outputPath);
+                } catch (const std::exception& e) {
+                    logStream << "Error: " << e.what() << "\n";
+                    result = -1;
+                }
+
             }
 
             finished = true;  // Mark as finished
@@ -118,6 +138,14 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::SetScrollHereY(1.0f); // Auto-scroll to bottom
     }
     ImGui::EndChild();
+
+    // // Test button
+    // if (ImGui::Button("PDF Test")) {
+    //     // Call PDFTranslator run
+    //     std::cout << "Calling PDFTranslator run" << std::endl;
+    //     PDFTranslator parser;
+    //     parser.run();
+    // }
 
     ImGui::End();
 }
