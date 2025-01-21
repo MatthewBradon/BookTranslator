@@ -28,3 +28,4 @@ main
 main.pdb
 .DS_Store
 Testing/
+!test_files/*

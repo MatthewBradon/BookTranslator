@@ -92,7 +92,7 @@ enable_testing()
 
 # Add the test executable
 add_executable(BookTranslatorTest
-    tests/EpubTranslatorTests.cpp
+    tests/BookTranslatorTests.cpp
     src/EpubTranslator.cpp
     src/GUI.cpp
     src/PDFTranslator.cpp

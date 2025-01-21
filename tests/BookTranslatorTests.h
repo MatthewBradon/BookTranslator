@@ -24,3 +24,16 @@ public:
     using GUI::statusMessage;
     using GUI::result;
 };
+
+class TestablePDFTranslator : public PDFTranslator {
+public:
+    using PDFTranslator::removeWhitespace;
+    using PDFTranslator::extractTextFromPDF;
+    using PDFTranslator::processAndSplitText;
+    using PDFTranslator::splitLongSentences;
+    using PDFTranslator::splitJapaneseText;
+    using PDFTranslator::getUtf8CharLength;
+    using PDFTranslator::convertPdfToImages;
+    using PDFTranslator::isImageAboveThreshold;
+    using PDFTranslator::createPDF;
+};
