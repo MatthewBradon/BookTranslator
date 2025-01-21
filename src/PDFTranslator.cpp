@@ -581,6 +581,15 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
     // Add images to the PDF
     bool has_images = false; // Track if any images were added
     for (const auto &image_file : image_files) {
+        
+        // If the file extentsion is not an image, skip it
+        std::string extension = std::filesystem::path(image_file).extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // Convert to lowercase for consistency
+        if (extension != ".png" && extension != ".jpg" && extension != ".jpeg" && extension != ".bmp" && extension != ".tiff") {
+            std::cout << "Skipping non-image file: " << image_file << std::endl;
+            continue; // Skip files that are not supported image types
+        }
+        
         // Load the image
         cairo_surface_t *image = cairo_image_surface_create_from_png(image_file.c_str());
         if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {

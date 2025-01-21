@@ -1,6 +1,8 @@
 {
   "dependencies": [
     "boost-process",
+    "cairo",
+    "catch2",
     "glad",
     "glfw3",
     {
@@ -13,7 +15,6 @@
     "libxml2",
     "libzip",
     "nativefiledialog-extended",
-    "stb",
-    "cairo"
+    "stb"
   ]
 }

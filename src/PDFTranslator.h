@@ -26,7 +26,7 @@ public:
     // Implement the run method from the Translator interface
     int run(const std::string& inputPath, const std::string& outputPath);
 
-private:
+protected:
     // Private helper methods
     std::string removeWhitespace(const std::string& input);
     void extractTextFromPDF(const std::string& pdfFilePath, const std::string& outputFilePath);
