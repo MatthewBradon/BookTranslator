@@ -43,7 +43,8 @@ struct decodedData {
 class EpubTranslator : public Translator {
 public:
     int run(const std::string& epubToConvert, const std::string& outputEpubPath);
-private:
+
+protected:
     std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory);
     std::vector<std::string> getSpineOrder(const std::filesystem::path& directory);
     std::vector<std::filesystem::path> getAllXHTMLFiles(const std::filesystem::path& directory);
@@ -60,6 +61,4 @@ private:
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
     std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
-
-
 };

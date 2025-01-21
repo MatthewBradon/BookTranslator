@@ -427,7 +427,6 @@ void EpubTranslator::replaceFullWidthSpaces(xmlNodePtr node) {
         textContent.replace(pos, fullWidthSpace.length(), normalSpace);
         pos += normalSpace.length();
     }
-
     // Update the node's content with the modified text
     xmlNodeSetContent(node, reinterpret_cast<const xmlChar*>(textContent.c_str()));
 }
