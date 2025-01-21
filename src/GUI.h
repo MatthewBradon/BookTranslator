@@ -16,7 +16,7 @@ public:
     void update(std::ostringstream& logStream);
     void shutdown();
     void newFrame();
-private:
+protected:
     char inputFile[256] = "";
     char outputPath[256] = "";
 

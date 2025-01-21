@@ -179,3 +179,20 @@ TEST_CASE("cleanChapter works correctly") {
         std::filesystem::remove(testFile); // Cleanup
     }
 }
+
+TEST_CASE("Font Loading", "[GUI]") {
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
+    ImFont* font = io.Fonts->AddFontFromFileTTF("../fonts/NotoSansCJKjp-Regular.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    REQUIRE(font != nullptr);
+    ImGui::DestroyContext();
+}
+
+TEST_CASE("Input Field Updates", "[GUI]") {
+    TestableGUI gui;
+    strcpy(gui.inputFile, "test.epub");
+    strcpy(gui.outputPath, "output/");
+    REQUIRE(strcmp(gui.inputFile, "test.epub") == 0);
+    REQUIRE(strcmp(gui.outputPath, "output/") == 0);
+}
