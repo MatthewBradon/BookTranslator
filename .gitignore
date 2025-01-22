@@ -30,3 +30,4 @@ main.pdb
 Testing/
 !test_files/*
 BookTranslatorTest
+tokenized_data/
