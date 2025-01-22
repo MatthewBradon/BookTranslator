@@ -87,7 +87,7 @@ void GUI::update(std::ostringstream& logStream) {
 
                 // Determine file extension
                 std::string fileExtension = inputFileStr.substr(inputFileStr.find_last_of(".") + 1);
-                std::shared_ptr<Translator> translator;
+                std::unique_ptr<Translator> translator;
 
                 try {
                     if (fileExtension == "epub") {
