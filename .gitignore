@@ -31,3 +31,5 @@ Testing/
 !test_files/*
 BookTranslatorTest
 tokenized_data/
+results/
+fine_tuned_model/
