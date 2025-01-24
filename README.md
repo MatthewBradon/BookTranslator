@@ -37,3 +37,57 @@ optimum-cli export onnx --model Helsinki-NLP/opus-mt-ja-en ./onnx-model-dir
 
 
 When running pyinstaller either have all the python modules installed already or run it while in a venv
+
+
+
+
+# Evaluation Notes
+
+For notes the fine-tuned model was trained on NilanE/ParallelFiction-Ja_En-100k for 3 epochs
+
+Evaluation data was sampled from the test split
+```
+test_data = test_data.shuffle(seed=42).select(range(100))
+```
+
+
+The Meteor score ranges from 0 to 1
+The BLEU Score ranges from 0 to 100
+
+Both model are evaluated on unseen parts of NilanE/ParallelFiction-Ja_En-100k
+
+1. Num beams 4
+    - Helsinki-NLP/opus-mt-ja-en
+        - BLEU Score: 0.37
+        - METEOR Score: 0.02
+
+    - Fined tuned model
+        - BLEU Score: 54.29
+        - METEOR Score: 0.13
+
+2. No beams but with length_penalty=1.2 and no_repeat_ngram_size=3 to stop repition
+    - Helsinki-NLP/opus-mt-ja-en
+        - BLEU Score: 0.36
+        - METEOR Score: 0.03
+
+    - Fined tuned model
+        - BLEU Score: 44.86
+        - METEOR Score: 0.13
+
+3. Num beams = 4 with length_penalty=0.6 and no_repeat_ngram_size=3 to stop repition and early stopping
+    - Helsinki-NLP/opus-mt-ja-en
+        - BLEU Score: 0.34
+        - METEOR Score: 0.02
+
+    - Fined tuned model
+        - BLEU Score: 53.63
+        - METEOR Score: 0.14
+
+4. Num beams = 4 with length_penalty=1.2 and no_repeat_ngram_size=3 to stop repition and early stopping
+    - Helsinki-NLP/opus-mt-ja-en
+        - BLEU Score: 0.34
+        - METEOR Score: 0.02
+
+    - Fined tuned model
+        - BLEU Score: 53.63
+        - METEOR Score: 0.14
