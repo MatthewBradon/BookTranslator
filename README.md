@@ -34,6 +34,11 @@ To create the AI model use optimum-cli to export the model to the ONNX format an
 ```
 optimum-cli export onnx --model Helsinki-NLP/opus-mt-ja-en ./onnx-model-dir
 ```
+To export the fine tuned model with past key values use this command
+```
+optimum-cli export onnx --model ./fine_tuned_model ./onnx-model-dir --task text2text-generation-with-past
+```
+
 
 
 When running pyinstaller either have all the python modules installed already or run it while in a venv

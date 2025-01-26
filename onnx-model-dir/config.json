@@ -1,5 +1,5 @@
 {
-  "_name_or_path": "Helsinki-NLP/opus-mt-ja-en",
+  "_name_or_path": "./fine_tuned_model",
   "_num_labels": 3,
   "activation_dropout": 0.0,
   "activation_function": "swish",
@@ -9,11 +9,6 @@
     "MarianMTModel"
   ],
   "attention_dropout": 0.0,
-  "bad_words_ids": [
-    [
-      60715
-    ]
-  ],
   "bos_token_id": 0,
   "classif_dropout": 0.0,
   "classifier_dropout": 0.0,
@@ -43,12 +38,12 @@
     "LABEL_1": 1,
     "LABEL_2": 2
   },
-  "max_length": 512,
+  "max_length": null,
   "max_position_embeddings": 512,
   "model_type": "marian",
   "normalize_before": false,
   "normalize_embedding": false,
-  "num_beams": 6,
+  "num_beams": null,
   "num_hidden_layers": 6,
   "pad_token_id": 60715,
   "scale_embedding": true,

@@ -25,8 +25,9 @@
       "special": true
     }
   },
-  "clean_up_tokenization_spaces": true,
+  "clean_up_tokenization_spaces": false,
   "eos_token": "</s>",
+  "extra_special_tokens": {},
   "model_max_length": 512,
   "pad_token": "<pad>",
   "separate_vocabs": false,

@@ -40,7 +40,11 @@ def process_task(task):
         generated = model.generate(
             **encoded_data,
             no_repeat_ngram_size=3,   # Prevent repeating trigrams
-            repetition_penalty=1.5,   # Penalize token repetition
+            repetition_penalty=0.6,   # Penalize token repetition
+            num_beams=4,
+            max_length=512,
+            early_stopping=True,
+            temperature=0,
         )
 
         # Detokenize the output
