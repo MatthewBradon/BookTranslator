@@ -706,7 +706,12 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
     return bookTags;
 }
 
-int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath) {
+void handleDeepLRequest(const std::vector<std::string>& rawTags) {
+
+}
+
+
+int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey) {
     
     std::filesystem::path currentDirPath = std::filesystem::current_path();
 

@@ -15,6 +15,7 @@
     "libxml2",
     "libzip",
     "nativefiledialog-extended",
-    "stb"
+    "stb",
+    "curl"
   ]
 }

@@ -19,7 +19,9 @@
 #include <boost/filesystem.hpp>
 #include <sstream>
 #include <iostream>
+#include <curl/curl.h>
 #include "Translator.h"
+
 
 
 #define P_TAG 0
@@ -42,7 +44,7 @@ struct decodedData {
 
 class EpubTranslator : public Translator {
 public:
-    int run(const std::string& epubToConvert, const std::string& outputEpubPath);
+    int run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey);
 
 protected:
     std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory);
@@ -61,4 +63,5 @@ protected:
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
     std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
+    std::vector<std::string> handleDeepLRequest(const std::vector<std::string>& rawTags);
 };

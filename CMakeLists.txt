@@ -25,6 +25,7 @@ find_package(Boost REQUIRED COMPONENTS process filesystem system)
 find_package(Stb REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
+find_package(CURL REQUIRED)
 
 
 # Cairo configuration
@@ -61,6 +62,7 @@ include_directories(${MUPDF_INCLUDE_DIR})
 # Link libraries
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        CURL::libcurl
         PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 
@@ -69,6 +71,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     )
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(${PROJECT_NAME} PRIVATE
+        CURL::libcurl
         PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 

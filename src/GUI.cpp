@@ -32,6 +32,18 @@ void GUI::update(std::ostringstream& logStream) {
     // The GUI code
     ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
 
+    // Begin Combo box for selecting the local model
+    ImGui::Text("Select Translator:");
+    const char* items[] = { "Application's Translator", "DeepL Translator" };
+    ImGui::Combo("##combo", &localModel, items, IM_ARRAYSIZE(items));
+
+    std::string localModelStr = items[localModel];
+
+    if (localModelStr == "DeepL Translator") {
+        ImGui::Text("Note: DeepL Translator is higher quality but requires a DeepL API key");
+        ImGui::InputText("DeepL API Key", deepLKey, sizeof(deepLKey));
+    }
+
     // Input fields for directories
     ImGui::InputText("Original Book", inputFile, sizeof(inputFile));
     // Browse button for the epub to convert
@@ -99,7 +111,7 @@ void GUI::update(std::ostringstream& logStream) {
                     }
 
                     // Run the translator
-                    result = translator->run(inputFile, outputPath);
+                    result = translator->run(inputFile, outputPath, localModel, deepLKey);
                 } catch (const std::exception& e) {
                     logStream << "Error: " << e.what() << "\n";
                     result = -1;

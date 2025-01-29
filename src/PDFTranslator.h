@@ -24,7 +24,7 @@
 class PDFTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface
-    int run(const std::string& inputPath, const std::string& outputPath);
+    int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey);
 
 protected:
     // Private helper methods
