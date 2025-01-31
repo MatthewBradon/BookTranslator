@@ -706,13 +706,288 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
     return bookTags;
 }
 
-void handleDeepLRequest(const std::vector<std::string>& rawTags) {
 
+std::string formatHTML(const std::string& input) {
+
+
+    htmlDocPtr doc = htmlReadMemory(input.c_str(), input.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+
+    if (doc == nullptr) {
+        std::cerr << "Error: unable to parse HTML." << std::endl;
+        return "";
+    }
+
+    xmlChar* output = nullptr;
+    int size = 0;
+
+    xmlDocDumpFormatMemory(doc, &output, &size, 1);
+
+    std::string formattedHtml;
+    if (output != nullptr) {
+        formattedHtml.assign(reinterpret_cast<const char*>(output), size);
+        xmlFree(output);
+    }
+
+    xmlFreeDoc(doc);
+
+    return formattedHtml;
 }
+
+std::string escapeJsonString(const std::string& input) {
+    std::string output;
+    for (char c : input) {
+        switch (c) {
+            case '\"': output += "'"; break;  // Swap to single quotes
+            case '\\': output += "\\\\"; break;  // Escape backslashes
+            case '\n': output += "\\n"; break;   // Escape newlines
+            case '\r': output += "\\r"; break;   // Escape carriage returns
+            case '\t': output += "\\t"; break;   // Escape tabs
+            default:
+                output += c;
+        }
+    }
+    return output;
+}
+
+std::string removeWhitespace(const std::string& input) {
+    std::string output;
+    for (char c : input) {
+        if (c != '\n' && c != '\t' && c != '\r') {
+            output += c;
+        }
+    }
+    return output;
+}
+
+size_t EpubTranslator::writeCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    size_t totalSize = size * nmemb;
+    output->append((char*)contents, totalSize);
+    return totalSize;
+}
+
+
+int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey) {
+    
+    std::vector<std::string> htmlStringVector;
+
+    std::vector<std::vector<tagData>> chapterTags;
+    // Divide bookTags into chapters chapterNum is the chapter number
+    for(auto& tag : bookTags) {
+        if (tag.chapterNum >= chapterTags.size()) {
+            chapterTags.resize(tag.chapterNum + 1);
+        }
+        chapterTags[tag.chapterNum].push_back(tag);
+    }
+
+    // Build the position map for each chapter and position
+    std::unordered_map<int, std::unordered_map<int, tagData*>> positionMap;
+
+    for (size_t chapterNum = 0; chapterNum < chapterTags.size(); ++chapterNum) {
+        for (auto& tag : chapterTags[chapterNum]) {
+            positionMap[chapterNum][tag.position] = &tag;
+        }
+    }
+
+    // Update chapterTags using bookTags
+    for (const auto& tag : bookTags) {
+        auto chapterIt = positionMap.find(tag.chapterNum);
+        if (chapterIt != positionMap.end()) {
+            auto& positionTags = chapterIt->second;
+            auto tagIt = positionTags.find(tag.position);
+            if (tagIt != positionTags.end()) {
+                tagIt->second->text = tag.text;
+            }
+        }
+    }
+
+    // Write out to the template EPUB
+    std::string htmlHeader = R"(
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>)";
+
+    std::string htmlFooter = R"(</body>
+</html>)";
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::string htmlString;
+        htmlString += htmlHeader + spineOrderXHTMLFiles[i].filename().string() + "</title>\n</head>\n<body>\n";
+        std::cout << "Chapter: " << i << "\n";
+        // Write content-specific parts
+        for (const auto& tag : chapterTags[i]) {
+            if (tag.tagId == P_TAG) {
+                htmlString += "\t<p>" + tag.text + "</p>\n";
+            } else if (tag.tagId == IMG_TAG) {
+                htmlString += "\t<img src=\"../Images/" + tag.text + "\" alt=\"\"/>\n";
+            }
+        }
+
+        // Append footer
+        htmlString += htmlFooter;
+        htmlStringVector.push_back(htmlString);
+    }
+
+    std::cout << "HTML strings generated successfully." << "\n";
+
+    // Create testHTML directory if it doesn't exist
+    if (!make_directory("testHTML")) {
+        std::cerr << "Failed to create testHTML directory." << "\n";
+        return 1;
+    }
+
+    // Write the updated content to the XHTML files in directory testHTML
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+        
+        std::ofstream outFile("testHTML/" + std::to_string(i) + ".xhtml");
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
+            return 1;
+        }
+        outFile << htmlStringVector[i];
+        outFile.close();
+    }
+
+    // Make boolean array size of items in htmlStringVector
+    std::vector<bool> htmlContainsPTagsVector(htmlStringVector.size(), false);
+
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+        if (htmlStringVector[i].find("<p>") != std::string::npos) {
+            htmlContainsPTagsVector[i] = true;
+            std::cout << "Chapter " << i << " contains <p> tags." << "\n";
+        }
+    }
+
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+
+    std::string api_url = "https://api-free.deepl.com/v2/translate";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+        std::cout << "Inside for loop" << "\n";
+        if (!htmlContainsPTagsVector[i]) {
+            continue;
+        }
+
+        std::cout << "Passed if statement" << "\n";
+        std::string escapedHTML = escapeJsonString(removeWhitespace(htmlStringVector[i]));
+        std::string post_fields = "{ \"text\": [\"" + escapedHTML + "\"], \"target_lang\": \"EN\", \"tag_handling\": \"html\" }";
+
+        // Write the jsonPayload to a file
+        std::ofstream jsonFile("testHTML/jsonPayload.json");
+        if (!jsonFile.is_open()) {
+            std::cerr << "Failed to open file for writing: jsonPayload.json" << "\n";
+            return 1;
+        }
+
+        jsonFile << post_fields;
+        jsonFile.close();
+
+        curl_global_init(CURL_GLOBAL_ALL);
+        curl = curl_easy_init();
+
+        if (curl) {
+            struct curl_slist* headers = nullptr;
+            headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+            headers = curl_slist_append(headers, "Content-Type: application/json");
+
+            curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+            curl_easy_setopt(curl, CURLOPT_POST, 1);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+            // Clear the previous response before making the request
+            response_string.clear();
+
+            // Perform the request
+            res = curl_easy_perform(curl);
+
+            if (res != CURLE_OK) {
+                std::cerr << "Curl request failed: " << curl_easy_strerror(res) << std::endl;
+            } else {
+                std::cout << "Translated HTML Response:\n" << response_string << std::endl;
+            }
+
+            // Write the translated HTML to a file
+            std::ofstream outFile("testHTML/translated.json");
+
+            if (!outFile.is_open()) {
+                std::cerr << "Failed to open file for writing: translated.json" << "\n";
+                return 1;
+            }
+
+            outFile << response_string;
+            outFile.close();
+
+            std::cout << "Translated HTML written to file: translated.xhtml" << "\n";
+
+            // Extract the value in the text key from the JSON response
+            std::string translatedText;
+            
+            try {
+                nlohmann::json jsonResponse = nlohmann::json::parse(response_string);
+                translatedText = jsonResponse["translations"][0]["text"];
+            } catch (const nlohmann::json::exception& e) {
+                std::cerr << "Error parsing JSON response: " << e.what() << "\n";
+                return 1;
+            }
+
+            // Set htmlStringVector[i] to the translated text
+            htmlStringVector[i] = formatHTML(translatedText);
+
+            // Cleanup
+            curl_easy_cleanup(curl);
+            curl_slist_free_all(headers);
+        }
+
+        curl_global_cleanup();
+    }
+
+    // Create testHTML directory if it doesn't exist
+    if (!make_directory("translatedHTML")) {
+        std::cerr << "Failed to create testHTML directory." << "\n";
+        return 1;
+    }
+
+    // Write the updated content to the XHTML files in directory testHTML
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+        
+        std::ofstream outFile("translatedHTML/" + std::to_string(i) + ".xhtml");
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
+            return 1;
+        }
+        outFile << htmlStringVector[i];
+        outFile.close();
+    }
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+        std::ofstream outFile(outputPath);
+        std::cout << "Writing to: " << outputPath << "\n";
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << outputPath << "\n";
+            return 1;
+        }
+
+        outFile << htmlStringVector[i];
+
+        outFile.close();
+    }
+
+    return 0;
+}
+
 
 
 int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey) {
     
+    std::cout << "localModel: " << localModel << "\n";
+
     std::filesystem::path currentDirPath = std::filesystem::current_path();
 
     std::cout << "Running the EPUB conversion process..." << "\n";
@@ -851,6 +1126,40 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
     //Extract all of the relevant tags
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
+
+    if(bookTags.empty()) {
+        std::cerr << "No tags extracted from the book." << "\n";
+        return 1;
+    }
+
+    if (localModel == 1){
+        if(deepLKey.empty()) {
+            std::cerr << "No DeepL API key provided." << "\n";
+            return 1;
+        }
+
+        int result = handleDeepLRequest(bookTags, spineOrderXHTMLFiles, deepLKey);
+
+        if (result != 0) {
+            std::cerr << "Failed to handle DeepL request." << "\n";
+            return 1;
+        }
+
+
+
+        exportEpub(templatePath, outputEpubPath);
+        
+        // // Remove the unzipped and export directories
+        std::filesystem::remove_all(unzippedPath);
+        std::filesystem::remove_all(templatePath);
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
+
+        return 0;
+    }
+
 
 
     std::string rawTagsPathString = "rawTags.txt";

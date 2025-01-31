@@ -9,6 +9,7 @@
 #include <libxml/xpath.h>
 #include <libxml/uri.h>
 #include <libxml/xmlstring.h>
+#include <libxml/encoding.h>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -21,7 +22,7 @@
 #include <iostream>
 #include <curl/curl.h>
 #include "Translator.h"
-
+#include <nlohmann/json.hpp>
 
 
 #define P_TAG 0
@@ -45,6 +46,7 @@ struct decodedData {
 class EpubTranslator : public Translator {
 public:
     int run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey);
+    static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 protected:
     std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory);
@@ -63,5 +65,7 @@ protected:
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
     std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
-    std::vector<std::string> handleDeepLRequest(const std::vector<std::string>& rawTags);
+    int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
+
+
 };

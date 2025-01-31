@@ -19,8 +19,8 @@ public:
 protected:
     char inputFile[256] = "";
     char outputPath[256] = "";
-    int localModel;
-    char deepLKey[256] = "";
+    int localModel = 0;
+    char deepLKey[256] = "";  // Ensure it is zero-initialized
     std::thread workerThread;
     std::atomic<bool> running;
     std::atomic<bool> finished;
