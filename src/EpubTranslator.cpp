@@ -1038,9 +1038,9 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
         htmlStringVector[i] = responseHTMLString;
         // Limit the number of translations for testing
-        // if(i == 9 ) {
-        //     break;
-        // }
+        if(i == 9 ) {
+            break;
+        }
     }
 
     // Create testHTML directory if it doesn't exist

@@ -75,10 +75,14 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
             }
 
             // Write each sentence to the file with a corresponding number
-            for (size_t i = 0; i < sentences.size(); ++i) {
+            // for (size_t i = 0; i < sentences.size(); ++i) {
+            //     outputFile << sentences[i] << "\n";
+            // }
+
+            // Test writing to the file limit the number of sentences
+            for (size_t i = 0; i < 5; ++i) {
                 outputFile << sentences[i] << "\n";
             }
-
             
 
             outputFile.close();
