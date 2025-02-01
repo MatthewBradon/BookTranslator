@@ -33,3 +33,5 @@ BookTranslatorTest
 tokenized_data/
 results/
 fine_tuned_model/
+testHTML/*
+translatedHTML/*

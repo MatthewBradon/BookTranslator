@@ -25,6 +25,8 @@ find_package(Boost REQUIRED COMPONENTS process filesystem system)
 find_package(Stb REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
+find_package(CURL REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 
 # Cairo configuration
@@ -61,6 +63,7 @@ include_directories(${MUPDF_INCLUDE_DIR})
 # Link libraries
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        CURL::libcurl nlohmann_json::nlohmann_json
         PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 
@@ -69,12 +72,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     )
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(${PROJECT_NAME} PRIVATE
+        CURL::libcurl 
         PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 
         libzip::zip LibXml2::LibXml2
         ${MUPDF_LIBS} # Include all MuPDF libraries
     )
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include)
 endif()
 
 # Set output directory for the executable
@@ -103,6 +108,7 @@ target_include_directories(BookTranslatorTest PRIVATE src)
 
 # Link test executable with required libraries
 target_link_libraries(BookTranslatorTest PRIVATE
+    CURL::libcurl nlohmann_json::nlohmann_json
     Catch2::Catch2 Catch2::Catch2WithMain
     PkgConfig::cairo PkgConfig::cairo-script-interpreter
     Boost::process Boost::filesystem Boost::system 

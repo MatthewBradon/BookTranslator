@@ -5,11 +5,12 @@
 
 #include "PDFTranslator.h"
 
-int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath) {
+int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
     // Check if the main temp files exist and delete them
     const std::string rawTextFilePath = "pdftext.txt";
     const std::string extractedTextPath = "extractedPDFtext.txt";
     const std::string imagesDir = "FilteredImages";
+    std::string outputPdfPath = outputPath + "/output.pdf";
 
     // Check if the temp files exist and delete them
     if (std::filesystem::exists(rawTextFilePath)) {
@@ -52,13 +53,110 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
     // Extracts text from the PDF and writes it to extractedPDFtext.txt
     extractTextFromPDF(inputPath, extractedTextPath);
 
-    // Splits the merged japanese into sentence and writes it to pdftext.txt
+    
+
+
+
     try {
-        processAndSplitText(extractedTextPath, rawTextFilePath, 300);
+        // Splits the merged japanese into sentence and writes it to pdftext.txt
+        std::vector<std::string> sentences = processAndSplitText(extractedTextPath, 300);
+
+        // Open the output file
+        std::ofstream outputFile(rawTextFilePath);
+        if (!outputFile.is_open()) {
+            throw std::runtime_error("Failed to open output file: " + rawTextFilePath);
+        }
+
+        // Handle DeepL request
+        if (localModel == 1) {
+            if (deepLKey.empty()) {
+                std::cerr << "No DeepL API key provided." << std::endl;
+                return 1;
+            }
+
+            // Write each sentence to the file with a corresponding number
+            // for (size_t i = 0; i < sentences.size(); ++i) {
+            //     outputFile << sentences[i] << "\n";
+            // }
+
+            // Test writing to the file limit the number of sentences
+            for (size_t i = 0; i < 5; ++i) {
+                outputFile << sentences[i] << "\n";
+            }
+            
+
+            outputFile.close();
+
+            const std::string translatedTextPath = "translatedDeepL.txt";
+
+
+            int result = handleDeepLRequest(rawTextFilePath, translatedTextPath, deepLKey);
+
+            if (result != 0) {
+                std::cerr << "Failed to handle DeepL request." << std::endl;
+                return 1;
+            }
+
+            // Check if the translated text file exists
+            if (!std::filesystem::exists(translatedTextPath)) {
+                std::cerr << "Translated text file not found: " << translatedTextPath << std::endl;
+                return 1;
+            }
+
+            // Open the translated text file and read in each line as a sentence but skip lines that are just \n
+            std::ifstream translatedFile(translatedTextPath);
+
+            if (!translatedFile.is_open()) {
+                std::cerr << "Failed to open translated text file: " << translatedTextPath << std::endl;
+                return 1;
+            }
+
+            std::vector<std::string> translatedSentences;
+            std::string line;
+
+            while (std::getline(translatedFile, line)) {
+                if (!line.empty() && line.find_first_not_of(" \t\r\n") != std::string::npos) {
+                    translatedSentences.push_back(line);
+                }
+            }
+
+            translatedFile.close();
+
+            // Write the translated sentence back to translatedTextPath
+            std::ofstream translatedOutputFile(translatedTextPath);
+
+            if (!translatedOutputFile.is_open()) {
+                std::cerr << "Failed to open translated text file for writing: " << translatedTextPath << std::endl;
+                return 1;
+            }
+
+            for (const auto& sentence : translatedSentences) {
+                translatedOutputFile << sentence << "\n";
+            }
+
+            translatedOutputFile.close();
+
+            
+            createPDF(outputPdfPath, translatedTextPath, imagesDir);
+            
+
+            return 0;
+
+        }
+
+
+        // Write each sentence to the file with a corresponding number
+        for (size_t i = 0; i < sentences.size(); ++i) {
+            outputFile << (i + 1) << "," << sentences[i] << "\n";
+        }
+
+        outputFile.close();
+
     } catch (const std::exception& ex) {
         std::cerr << "Exception: " << ex.what() << std::endl;
         return 1;
     }
+
     std::cout << "Finished splitting text" << '\n';
 
     std::cout << "Before call to tokenizeRawTags.exe" << '\n';
@@ -199,8 +297,7 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
 
     std::cout << "After call to multiprocessTranslation.py" << '\n';
 
-    // Create the final PDF
-    std::string outputPdfPath = outputPath + "/output.pdf";
+    
 
     try {
         createPDF(outputPdfPath, "translatedTags.txt", imagesDir);
@@ -341,6 +438,7 @@ void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::
 
 // Helper function to determine the number of bytes in a UTF-8 character
 size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
+    // First byte of a UTF-8 character determines the number of bytes
     if ((firstByte & 0b10000000) == 0) {
         return 1; // 1-byte character (0xxxxxxx)
     } else if ((firstByte & 0b11100000) == 0b11000000) {
@@ -446,7 +544,7 @@ std::vector<std::string> PDFTranslator::splitJapaneseText(const std::string& tex
     return sentences;
 }
 
-void PDFTranslator::processAndSplitText(const std::string& inputFilePath, const std::string& outputFilePath, size_t maxLength) {
+std::vector<std::string> PDFTranslator::processAndSplitText(const std::string& inputFilePath, size_t maxLength) {
     // Open the input file
     std::ifstream inputFile(inputFilePath);
     if (!inputFile.is_open()) {
@@ -458,21 +556,9 @@ void PDFTranslator::processAndSplitText(const std::string& inputFilePath, const 
     inputFile.close();
 
     // Process and split the text into sentences
-    std::vector<std::string> sentences = splitJapaneseText(text, maxLength);
-
-    // Open the output file
-    std::ofstream outputFile(outputFilePath);
-    if (!outputFile.is_open()) {
-        throw std::runtime_error("Failed to open output file: " + outputFilePath);
-    }
-
-    // Write each sentence to the file with a corresponding number
-    for (size_t i = 0; i < sentences.size(); ++i) {
-        outputFile << (i + 1) << "," << sentences[i] << "\n";
-    }
-
-    outputFile.close();
+    return splitJapaneseText(text, maxLength);
 }
+
 void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
     fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
     if (!ctx) {
@@ -700,4 +786,201 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
     cairo_surface_destroy(surface);
 
     std::cout << "PDF created with images first: " << output_file << std::endl;
+}
+
+size_t PDFTranslator::writeCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    size_t totalSize = size * nmemb;
+    output->append((char*)contents, totalSize);
+    return totalSize;
+}
+
+std::string PDFTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+
+        // Prepare the multipart form data
+        curl_mime* form = curl_mime_init(curl);
+        curl_mimepart* field = curl_mime_addpart(form);
+        curl_mime_name(field, "target_lang");
+        curl_mime_data(field, "EN", CURL_ZERO_TERMINATED); // Change to desired target language
+        field = curl_mime_addpart(form);
+        curl_mime_name(field, "file");
+        curl_mime_filedata(field, filePath.c_str());  // Path to the file you want to upload
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl upload request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_mime_free(form);
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    // Assuming the response contains document_id and document_key, extract them
+    try {
+        std::cout << "Document upload response: " << response_string << std::endl;
+        nlohmann::json jsonResponse = nlohmann::json::parse(response_string);
+        std::string document_id = jsonResponse["document_id"];
+        std::string document_key = jsonResponse["document_key"];
+        return document_id + "|" + document_key;
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing document upload response: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+std::string PDFTranslator::checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id;
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // Create JSON payload
+        nlohmann::json jsonPayload;
+        jsonPayload["document_key"] = document_key;
+        std::string json_data = jsonPayload.dump();
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl status check request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        std::cout << "Document status response: " << response_string << std::endl;
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    return response_string;  // You can parse this response to check if status == "done"
+}
+
+std::string PDFTranslator::downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id + "/result";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // Create JSON payload
+        nlohmann::json jsonPayload;
+        jsonPayload["document_key"] = document_key;
+        std::string json_data = jsonPayload.dump();
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl download request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    return response_string;
+}
+
+
+int PDFTranslator::handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey) {
+    // Upload the document to DeepL
+    std::string document_info = uploadDocumentToDeepL(inputPath, deepLKey);
+    if (document_info.empty()) {
+        std::cerr << "Failed to upload document to DeepL." << std::endl;
+        return 1;
+    }
+
+    // Extract the document_id and document_key
+    size_t separator_pos = document_info.find('|');
+    std::string document_id = document_info.substr(0, separator_pos);
+    std::string document_key = document_info.substr(separator_pos + 1);
+
+
+    std::string status;
+    bool isTranslationComplete = false;
+
+    while (!isTranslationComplete) {
+        status = checkDocumentStatus(document_id, document_key, deepLKey);
+        // Parse the JSON response to check if status == "done"
+        nlohmann::json jsonResponse = nlohmann::json::parse(status);
+        if (jsonResponse["status"] == "done") {
+            isTranslationComplete = true;
+        } else {
+            std::cout << "Translation in progress..." << "\n";
+            std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
+        }
+    }
+
+    // Download the translated document
+    std::string download_response = downloadTranslatedDocument(document_id, document_key, deepLKey);
+    if (download_response.empty()) {
+        std::cerr << "Failed to download translated document." << std::endl;
+        return 1;
+    }
+
+    // Save the translated document to the output path
+    std::ofstream output_file(outputPath);
+    if (!output_file.is_open()) {
+        std::cerr << "Failed to open output file: " << outputPath << std::endl;
+        return 1;
+    }
+
+    output_file << download_response;
+    output_file.close();
+
+    return 0;
 }

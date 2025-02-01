@@ -3,6 +3,7 @@
     "boost-process",
     "cairo",
     "catch2",
+    "curl",
     "glad",
     "glfw3",
     {
@@ -15,6 +16,7 @@
     "libxml2",
     "libzip",
     "nativefiledialog-extended",
-    "stb"
+    "stb",
+    "nlohmann-json"
   ]
 }

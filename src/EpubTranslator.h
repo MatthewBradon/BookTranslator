@@ -9,6 +9,7 @@
 #include <libxml/xpath.h>
 #include <libxml/uri.h>
 #include <libxml/xmlstring.h>
+#include <libxml/encoding.h>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -19,7 +20,9 @@
 #include <boost/filesystem.hpp>
 #include <sstream>
 #include <iostream>
+#include <curl/curl.h>
 #include "Translator.h"
+#include <nlohmann/json.hpp>
 
 
 #define P_TAG 0
@@ -42,7 +45,8 @@ struct decodedData {
 
 class EpubTranslator : public Translator {
 public:
-    int run(const std::string& epubToConvert, const std::string& outputEpubPath);
+    int run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey);
+    static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 protected:
     std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory);
@@ -61,4 +65,10 @@ protected:
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
     std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
+    std::string uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
+    std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
+    std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
+    int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
+
+
 };
