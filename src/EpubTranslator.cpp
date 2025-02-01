@@ -766,6 +766,148 @@ size_t EpubTranslator::writeCallback(void* contents, size_t size, size_t nmemb, 
 }
 
 
+std::string EpubTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+
+        // Prepare the multipart form data
+        curl_mime* form = curl_mime_init(curl);
+        curl_mimepart* field = curl_mime_addpart(form);
+        curl_mime_name(field, "target_lang");
+        curl_mime_data(field, "EN", CURL_ZERO_TERMINATED); // Change to desired target language
+        field = curl_mime_addpart(form);
+        curl_mime_name(field, "file");
+        curl_mime_filedata(field, filePath.c_str());  // Path to the file you want to upload
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl upload request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_mime_free(form);
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    // Assuming the response contains document_id and document_key, extract them
+    try {
+        std::cout << "Document upload response: " << response_string << std::endl;
+        nlohmann::json jsonResponse = nlohmann::json::parse(response_string);
+        std::string document_id = jsonResponse["document_id"];
+        std::string document_key = jsonResponse["document_key"];
+        return document_id + "|" + document_key;
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing document upload response: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+std::string EpubTranslator::checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id;
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // Create JSON payload
+        nlohmann::json jsonPayload;
+        jsonPayload["document_key"] = document_key;
+        std::string json_data = jsonPayload.dump();
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl status check request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        std::cout << "Document status response: " << response_string << std::endl;
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    return response_string;  // You can parse this response to check if status == "done"
+}
+
+std::string EpubTranslator::downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey) {
+    CURL* curl;
+    CURLcode res;
+    std::string response_string;
+    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id + "/result";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // Create JSON payload
+        nlohmann::json jsonPayload;
+        jsonPayload["document_key"] = document_key;
+        std::string json_data = jsonPayload.dump();
+
+        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            std::cerr << "Curl download request failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+    curl_global_cleanup();
+
+    return response_string;
+}
+
+
 int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey) {
     
     std::vector<std::string> htmlStringVector;
@@ -830,25 +972,22 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
     std::cout << "HTML strings generated successfully." << "\n";
 
-    // Create testHTML directory if it doesn't exist
     if (!make_directory("testHTML")) {
         std::cerr << "Failed to create testHTML directory." << "\n";
         return 1;
     }
 
-    // Write the updated content to the XHTML files in directory testHTML
     for (size_t i = 0; i < htmlStringVector.size(); ++i) {
         
-        std::ofstream outFile("testHTML/" + std::to_string(i) + ".xhtml");
+        std::ofstream outFile("testHTML/" + std::to_string(i) + ".html");
         if (!outFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
+            std::cerr << "Failed to open file for writing: " << i << ".html" << "\n";
             return 1;
         }
         outFile << htmlStringVector[i];
         outFile.close();
     }
 
-    // Make boolean array size of items in htmlStringVector
     std::vector<bool> htmlContainsPTagsVector(htmlStringVector.size(), false);
 
     for (size_t i = 0; i < htmlStringVector.size(); ++i) {
@@ -858,93 +997,50 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
         }
     }
 
-    CURL* curl;
-    CURLcode res;
-    std::string response_string;
-
-    std::string api_url = "https://api-free.deepl.com/v2/translate";
-    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
-
     for (size_t i = 0; i < htmlStringVector.size(); ++i) {
         std::cout << "Inside for loop" << "\n";
         if (!htmlContainsPTagsVector[i]) {
             continue;
         }
 
-        std::cout << "Passed if statement" << "\n";
-        std::string escapedHTML = escapeJsonString(removeWhitespace(htmlStringVector[i]));
-        std::string post_fields = "{ \"text\": [\"" + escapedHTML + "\"], \"target_lang\": \"EN\", \"tag_handling\": \"html\" }";
+        std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
 
-        // Write the jsonPayload to a file
-        std::ofstream jsonFile("testHTML/jsonPayload.json");
-        if (!jsonFile.is_open()) {
-            std::cerr << "Failed to open file for writing: jsonPayload.json" << "\n";
+        std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
+
+        if (uploadResult.empty()) {
+            std::cerr << "Failed to upload document to DeepL." << "\n";
             return 1;
         }
 
-        jsonFile << post_fields;
-        jsonFile.close();
+        std::string document_id = uploadResult.substr(0, uploadResult.find('|'));
+        std::string document_key = uploadResult.substr(uploadResult.find('|') + 1);
 
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl = curl_easy_init();
+        std::cout << "Uploaded document. Document ID: " << document_id << ", Document Key: " << document_key << "\n";
 
-        if (curl) {
-            struct curl_slist* headers = nullptr;
-            headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
-            headers = curl_slist_append(headers, "Content-Type: application/json");
+        std::string status;
+        bool isTranslationComplete = false;
 
-            curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-            curl_easy_setopt(curl, CURLOPT_POST, 1);
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-
-            // Clear the previous response before making the request
-            response_string.clear();
-
-            // Perform the request
-            res = curl_easy_perform(curl);
-
-            if (res != CURLE_OK) {
-                std::cerr << "Curl request failed: " << curl_easy_strerror(res) << std::endl;
+        while (!isTranslationComplete) {
+            status = checkDocumentStatus(document_id, document_key, deepLKey);
+            // Parse the JSON response to check if status == "done"
+            nlohmann::json jsonResponse = nlohmann::json::parse(status);
+            if (jsonResponse["status"] == "done") {
+                isTranslationComplete = true;
             } else {
-                std::cout << "Translated HTML Response:\n" << response_string << std::endl;
+                std::cout << "Translation in progress..." << "\n";
+                std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
             }
-
-            // Write the translated HTML to a file
-            std::ofstream outFile("testHTML/translated.json");
-
-            if (!outFile.is_open()) {
-                std::cerr << "Failed to open file for writing: translated.json" << "\n";
-                return 1;
-            }
-
-            outFile << response_string;
-            outFile.close();
-
-            std::cout << "Translated HTML written to file: translated.xhtml" << "\n";
-
-            // Extract the value in the text key from the JSON response
-            std::string translatedText;
-            
-            try {
-                nlohmann::json jsonResponse = nlohmann::json::parse(response_string);
-                translatedText = jsonResponse["translations"][0]["text"];
-            } catch (const nlohmann::json::exception& e) {
-                std::cerr << "Error parsing JSON response: " << e.what() << "\n";
-                return 1;
-            }
-
-            // Set htmlStringVector[i] to the translated text
-            htmlStringVector[i] = formatHTML(translatedText);
-
-            // Cleanup
-            curl_easy_cleanup(curl);
-            curl_slist_free_all(headers);
         }
 
-        curl_global_cleanup();
+        std::string responseHTMLString = downloadTranslatedDocument(document_id, document_key, deepLKey);
+
+        std::cout << responseHTMLString << "\n";
+
+        htmlStringVector[i] = responseHTMLString;
+        // Limit the number of translations for testing
+        // if(i == 9 ) {
+        //     break;
+        // }
     }
 
     // Create testHTML directory if it doesn't exist
@@ -966,20 +1062,25 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     }
 
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
-        std::ofstream outFile(outputPath);
-        std::cout << "Writing to: " << outputPath << "\n";
-        if (!outFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << outputPath << "\n";
+        // Copy the contents of each of the xhtml  files in the translatedHTML directory to the corresponding xhtml files in the export directory
+        std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
+
+        if (!std::filesystem::exists(translatedFilePath)) {
+            std::cerr << "Translated file not found: " << translatedFilePath << "\n";
             return 1;
         }
 
-        outFile << htmlStringVector[i];
+        std::filesystem::path exportFilePath = std::filesystem::path("export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string());
+        if (!std::filesystem::exists(exportFilePath)) {
+            std::cerr << "Export file not found: " << exportFilePath << "\n";
+            return 1;
+        }
+        std::filesystem::copy(translatedFilePath, exportFilePath, std::filesystem::copy_options::overwrite_existing);
+        std::cout << "Translated file copied successfully: " << translatedFilePath << "\n";
 
-        outFile.close();
     }
 
-    return 0;
+    return 0; 
 }
 
 
@@ -1100,9 +1201,6 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     //Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
 
-
-
-
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
     updateContentOpf(spineOrder, templateContentOpfPath);
@@ -1150,8 +1248,8 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         exportEpub(templatePath, outputEpubPath);
         
         // // Remove the unzipped and export directories
-        std::filesystem::remove_all(unzippedPath);
-        std::filesystem::remove_all(templatePath);
+        // std::filesystem::remove_all(unzippedPath);
+        // std::filesystem::remove_all(templatePath);
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
@@ -1428,9 +1526,9 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Zip export directory to create the final EPUB file
     exportEpub(templatePath, outputEpubPath);
 
-    // Remove the unzipped and export directories
-    std::filesystem::remove_all(unzippedPath);
-    std::filesystem::remove_all(templatePath);
+    // // Remove the unzipped and export directories
+    // std::filesystem::remove_all(unzippedPath);
+    // std::filesystem::remove_all(templatePath);
 
 
     // Remove the temp text files

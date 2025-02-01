@@ -65,6 +65,9 @@ protected:
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
     std::vector<tagData> extractTags(const std::vector<std::filesystem::path>& chapterPaths);
+    std::string uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
+    std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
+    std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
 
 
