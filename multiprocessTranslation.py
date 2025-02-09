@@ -1,8 +1,11 @@
+import sys
+import transformers.generation as generation
+sys.modules['transformers.generation_utils'] = generation
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
 from functools import partial
-import sys
+
 from readEncodedData import readEncodedData
 
 # Global variable to store the model in each worker
