@@ -50,9 +50,14 @@ public:
 
 protected:
     std::filesystem::path searchForOPFFiles(const std::filesystem::path& directory);
+    std::string extractSpineContent(const std::string& content);
+    std::vector<std::string> extractIdrefs(const std::string& spineContent);
     std::vector<std::string> getSpineOrder(const std::filesystem::path& directory);
     std::vector<std::filesystem::path> getAllXHTMLFiles(const std::filesystem::path& directory);
     std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder);
+    std::pair<std::vector<std::string>, std::vector<std::string>> parseManifestAndSpine(const std::vector<std::string>& content);
+    std::vector<std::string> updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters);
+    std::vector<std::string> updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters);
     void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath);
     bool make_directory(const std::filesystem::path& path);
     bool unzip_file(const std::string& zipPath, const std::string& outputDir);
@@ -69,6 +74,7 @@ protected:
     std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
+    void removeSection0001Tags(const std::filesystem::path& contentOpfPath);
 
 
 };

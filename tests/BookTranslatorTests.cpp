@@ -29,6 +29,118 @@ TEST_CASE("searchForOPFFiles works correctly") {
     }
 }
 
+TEST_CASE("extractSpineContent works correctly") {
+    TestableEpubTranslator translator;
+
+    SECTION("Extracts content from a valid <spine> tag") {
+        std::string content = R"(
+            <package>
+                <spine toc="ncx">
+                    <itemref idref="chapter1" />
+                    <itemref idref="chapter2" />
+                </spine>
+            </package>
+        )";
+
+        std::string expected = R"(
+                    <itemref idref="chapter1" />
+                    <itemref idref="chapter2" />
+                )";
+
+        REQUIRE(translator.extractSpineContent(content) == expected);
+    }
+
+    SECTION("Handles <spine> with no itemrefs") {
+        std::string content = R"(<spine></spine>)";
+        REQUIRE(translator.extractSpineContent(content).empty());
+    }
+
+    SECTION("Throws error when <spine> tag is missing") {
+        std::string content = R"(<package><metadata></metadata></package>)";
+
+        try {
+            translator.extractSpineContent(content);
+            FAIL("Expected std::runtime_error not thrown");
+        } catch (const std::runtime_error& e) {
+            REQUIRE(std::string(e.what()) == "No <spine> tag found in the OPF file.");
+        } catch (...) {
+            FAIL("Unexpected exception type thrown");
+        }
+    }
+
+    SECTION("Handles attributes inside the <spine> tag") {
+        std::string content = R"(<spine toc="ncx" linear="yes"><itemref idref="chapter1" /></spine>)";
+        std::string expected = R"(<itemref idref="chapter1" />)";
+        REQUIRE(translator.extractSpineContent(content) == expected);
+    }
+
+    SECTION("Handles newline characters in <spine> content") {
+        std::string content = R"(
+            <spine>
+                <itemref idref="chapter1" />
+                <itemref idref="chapter2" />
+            </spine>
+        )";
+
+        std::string expected = R"(
+                <itemref idref="chapter1" />
+                <itemref idref="chapter2" />
+            )";
+
+        REQUIRE(translator.extractSpineContent(content) == expected);
+    }
+}
+
+TEST_CASE("extractIdrefs works correctly") {
+    TestableEpubTranslator translator;
+
+    SECTION("Extracts idrefs from valid spine content") {
+        std::string spineContent = R"(
+            <itemref idref="chapter1" />
+            <itemref idref="chapter2" />
+        )";
+
+        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        REQUIRE(translator.extractIdrefs(spineContent) == expected);
+    }
+
+    SECTION("Handles idrefs that already have .xhtml extension") {
+        std::string spineContent = R"(
+            <itemref idref="chapter1.xhtml" />
+            <itemref idref="chapter2.xhtml" />
+        )";
+
+        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        REQUIRE(translator.extractIdrefs(spineContent) == expected);
+    }
+
+    SECTION("Returns empty vector when no idref attributes are present") {
+        std::string spineContent = R"(<itemref />)";
+        REQUIRE(translator.extractIdrefs(spineContent).empty());
+    }
+
+    SECTION("Handles mixed content with and without .xhtml extensions") {
+        std::string spineContent = R"(
+            <itemref idref="chapter1" />
+            <itemref idref="chapter2.xhtml" />
+        )";
+
+        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        REQUIRE(translator.extractIdrefs(spineContent) == expected);
+    }
+
+    SECTION("Ignores malformed idref attributes") {
+        std::string spineContent = R"(
+            <itemref idref="chapter1" />
+            <itemref idref=chapter2 /> <!-- Missing quotes -->
+        )";
+
+        std::vector<std::string> expected = {"chapter1.xhtml"};
+        REQUIRE(translator.extractIdrefs(spineContent) == expected);
+    }
+}
+
+
 TEST_CASE("getSpineOrder works correctly") {
     TestableEpubTranslator translator;
 
@@ -111,6 +223,149 @@ TEST_CASE("sortXHTMLFilesBySpineOrder works correctly") {
         auto result = translator.sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
         REQUIRE(result == std::vector<std::filesystem::path>{"chapter1.xhtml", "chapter3.xhtml"});
     }
+}
+
+TEST_CASE("parseManifestAndSpine") {
+    TestableEpubTranslator translator;
+
+    SECTION("Parses valid manifest and spine correctly") {
+        std::vector<std::string> content = {
+            "<package>", 
+            "<manifest>", 
+            "<item id=\"old\" href=\"old.xhtml\" />", 
+            "</manifest>",
+            "<spine>", 
+            "<itemref idref=\"old\" />", 
+            "</spine>",
+            "</package>"
+        };
+
+        auto [manifest, spine] = translator.parseManifestAndSpine(content);
+
+        REQUIRE(manifest.size() == 3); // <manifest>, item, </manifest>
+        REQUIRE(spine.size() == 3);    // <spine>, itemref, </spine>
+    }
+
+    SECTION("Handles empty manifest and spine sections") {
+        std::vector<std::string> content = {
+            "<package>", 
+            "<manifest></manifest>",
+            "<spine></spine>", 
+            "</package>"
+        };
+
+        auto [manifest, spine] = translator.parseManifestAndSpine(content);
+
+        for (const auto& line : manifest) {
+            std::cout << line << std::endl;
+        }
+        std::cout << "SPINE TEST" << std::endl;
+        for (const auto& line : spine) {
+            std::cout << line << std::endl;
+        }
+
+        REQUIRE(manifest.size() == 2); // <manifest>, </manifest>
+        REQUIRE(spine.size() == 2);    // <spine>, </spine>
+        // Print out the manifest and spine
+        
+    }
+
+    SECTION("Returns empty manifest and spine when tags are missing") {
+        std::vector<std::string> content = {
+            "<package>", 
+            "<metadata>Some metadata here</metadata>",
+            "</package>"
+        };
+
+        auto [manifest, spine] = translator.parseManifestAndSpine(content);
+        REQUIRE(manifest.empty());
+        REQUIRE(spine.empty());
+    }
+}
+
+
+
+TEST_CASE("updateManifest") {
+    TestableEpubTranslator translator;
+
+    SECTION("Adds new chapters correctly to manifest") {
+        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
+        std::vector<std::string> chapters = { "chapter1.xhtml", "chapter2.xhtml" };
+
+        auto updatedManifest = translator.updateManifest(manifest, chapters);
+
+        REQUIRE(updatedManifest.size() == 4); // <manifest>, 2 items, </manifest>
+        REQUIRE(updatedManifest[1].find("chapter1.xhtml") != std::string::npos);
+        REQUIRE(updatedManifest[2].find("chapter2.xhtml") != std::string::npos);
+    }
+
+    SECTION("Handles empty chapter list gracefully") {
+        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
+        std::vector<std::string> chapters = {};  // No chapters to add
+
+        auto updatedManifest = translator.updateManifest(manifest, chapters);
+        REQUIRE(updatedManifest.size() == 2); // No change
+    }
+
+    SECTION("Returns the original manifest if chapters are invalid (empty strings)") {
+        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
+        std::vector<std::string> chapters = { "", "" };  // Invalid chapter names
+
+        auto updatedManifest = translator.updateManifest(manifest, chapters);
+        REQUIRE(updatedManifest.size() == 4);  // Technically added empty items
+        REQUIRE(updatedManifest[1].find("href=\"Text/\"") != std::string::npos);
+    }
+
+    SECTION("Does not crash on malformed manifest (missing closing tag)") {
+        std::vector<std::string> manifest = { "<manifest>" };  // Missing </manifest>
+        std::vector<std::string> chapters = { "chapter1.xhtml" };
+
+        auto updatedManifest = translator.updateManifest(manifest, chapters);
+        REQUIRE(updatedManifest.size() == 2); // Only <manifest> and added item
+    }
+}
+
+
+
+TEST_CASE("updateSpine") {
+    TestableEpubTranslator translator;
+
+    SECTION("Adds new chapters correctly to spine") {
+        std::vector<std::string> spine = { "<spine>", "</spine>" };
+        std::vector<std::string> chapters = { "chapter1.xhtml", "chapter2.xhtml" };
+
+        auto updatedSpine = translator.updateSpine(spine, chapters);
+
+        REQUIRE(updatedSpine.size() == 4); // <spine>, 2 itemrefs, </spine>
+        REQUIRE(updatedSpine[1].find("idref=\"chapter1\"") != std::string::npos);
+        REQUIRE(updatedSpine[2].find("idref=\"chapter2\"") != std::string::npos);
+    }
+
+    SECTION("Handles empty chapter list gracefully") {
+        std::vector<std::string> spine = { "<spine>", "</spine>" };
+        std::vector<std::string> chapters = {};  // No chapters
+
+        auto updatedSpine = translator.updateSpine(spine, chapters);
+        REQUIRE(updatedSpine.size() == 2); // No change
+    }
+
+    SECTION("Handles invalid chapter names (empty strings)") {
+        std::vector<std::string> spine = { "<spine>", "</spine>" };
+        std::vector<std::string> chapters = { "", "" };  // Invalid names
+
+        auto updatedSpine = translator.updateSpine(spine, chapters);
+        REQUIRE(updatedSpine.size() == 4); // Added empty idrefs
+        REQUIRE(updatedSpine[1].find("idref=\"chapter1\"") != std::string::npos);
+    }
+
+    SECTION("Handles malformed spine (missing closing tag)") {
+        std::vector<std::string> spine = { "<spine>" };  // Missing </spine>
+        std::vector<std::string> chapters = { "chapter1.xhtml" };
+
+        auto updatedSpine = translator.updateSpine(spine, chapters);
+        REQUIRE(updatedSpine.size() == 2); // <spine> and added itemref
+    }
+
 }
 
 TEST_CASE("updateContentOpf works correctly") {

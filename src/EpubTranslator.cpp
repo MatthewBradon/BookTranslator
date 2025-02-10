@@ -20,6 +20,31 @@ std::filesystem::path EpubTranslator::searchForOPFFiles(const std::filesystem::p
     return std::filesystem::path();
 }
 
+std::string EpubTranslator::extractSpineContent(const std::string& content) {
+    std::regex spinePattern(R"(<spine\b[^>]*>([\s\S]*?)<\/spine>)");
+    std::smatch match;
+    if (std::regex_search(content, match, spinePattern)) {
+        return match[1].str();
+    }
+    throw std::runtime_error("No <spine> tag found in the OPF file.");
+}
+
+std::vector<std::string> EpubTranslator::extractIdrefs(const std::string& spineContent) {
+    std::vector<std::string> idrefs;
+    std::regex idrefPattern(R"(idref\s*=\s*"([^\"]*)\")");
+    auto begin = std::sregex_iterator(spineContent.begin(), spineContent.end(), idrefPattern);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::string idref = (*it)[1].str();
+        if (idref.find(".xhtml") == std::string::npos) {
+            idref += ".xhtml";
+        }
+        idrefs.push_back(idref);
+    }
+    return idrefs;
+}
+
 std::vector<std::string> EpubTranslator::getSpineOrder(const std::filesystem::path& directory) {
     std::vector<std::string> spineOrder;
 
@@ -34,38 +59,9 @@ std::vector<std::string> EpubTranslator::getSpineOrder(const std::filesystem::pa
         std::string content((std::istreambuf_iterator<char>(opfFile)), std::istreambuf_iterator<char>());
         opfFile.close();
 
-        // Regex patterns to match <spine>, idref attributes, and </spine>
-        std::regex spineStartPattern(R"(<spine\b[^>]*>)");
-        std::regex spineEndPattern(R"(<\/spine>)");
-        std::regex idrefPattern(R"(idref\s*=\s*"([^\"]*)\")");
+        std::string spineContent = extractSpineContent(content);
+        spineOrder = extractIdrefs(spineContent);
 
-        auto spineStartIt = std::sregex_iterator(content.begin(), content.end(), spineStartPattern);
-        auto spineEndIt = std::sregex_iterator(content.begin(), content.end(), spineEndPattern);
-
-        if (spineStartIt == spineEndIt) {
-            std::cerr << "No <spine> tag found in the OPF file." << "\n";
-            return spineOrder;  // No <spine> tag found
-        }
-
-        // Search for idrefs between <spine> and </spine>
-        auto spineEndPos = spineEndIt->position();
-        auto contentUpToEnd = content.substr(0, spineEndPos);
-        
-        std::smatch idrefMatch;
-        auto idrefStartIt = std::sregex_iterator(contentUpToEnd.begin(), contentUpToEnd.end(), idrefPattern);
-
-        for (auto it = idrefStartIt; it != std::sregex_iterator(); ++it) {
-            idrefMatch = *it;
-            // Check if it if it doesnt have .xhtml extension
-            if (idrefMatch[1].str().find(".xhtml") == std::string::npos) {
-                std::string idref = idrefMatch[1].str() + ".xhtml";  // Append .xhtml extension
-                spineOrder.push_back(idref);
-            } else {
-                std::string idref = idrefMatch[1].str();
-                spineOrder.push_back(idref);
-            }
-            
-        }
 
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Filesystem error: " << e.what() << "\n";
@@ -110,6 +106,110 @@ std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(co
     return sortedXHTMLFiles;
 }
 
+std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) {
+    std::vector<std::string> manifest, spine;
+
+    // Step 1: Concatenate the content into a single line
+    std::string combinedContent;
+    for (const auto& line : content) {
+        combinedContent += line;  // Remove newlines
+    }
+
+    // Step 2: Regex patterns to extract the entire <manifest>...</manifest> and <spine>...</spine> blocks
+    std::regex manifestBlockPattern(R"(<manifest\b[^>]*>(.*?)</manifest>)");
+    std::regex spineBlockPattern(R"(<spine\b[^>]*>(.*?)</spine>)");
+    std::regex tagPattern(R"(<[^>]+>)");  // Matches any XML/HTML tag
+
+    std::smatch match;
+
+    // Step 3: Extract and parse the <manifest> block
+    if (std::regex_search(combinedContent, match, manifestBlockPattern)) {
+        manifest.push_back("<manifest>");  // Add opening tag
+
+        std::string manifestContent = match[1].str();  // Content between <manifest> and </manifest>
+        auto tagBegin = std::sregex_iterator(manifestContent.begin(), manifestContent.end(), tagPattern);
+        auto tagEnd = std::sregex_iterator();
+
+        for (auto it = tagBegin; it != tagEnd; ++it) {
+            manifest.push_back(it->str());  // Add each tag within <manifest>
+        }
+
+        manifest.push_back("</manifest>");  // Add closing tag
+    }
+
+    // Step 4: Extract and parse the <spine> block
+    if (std::regex_search(combinedContent, match, spineBlockPattern)) {
+        spine.push_back("<spine>");  // Add opening tag
+
+        std::string spineContent = match[1].str();  // Content between <spine> and </spine>
+        auto tagBegin = std::sregex_iterator(spineContent.begin(), spineContent.end(), tagPattern);
+        auto tagEnd = std::sregex_iterator();
+
+        for (auto it = tagBegin; it != tagEnd; ++it) {
+            spine.push_back(it->str());  // Add each tag within <spine>
+        }
+
+        spine.push_back("</spine>");  // Add closing tag
+    }
+
+    return {manifest, spine};
+}
+
+
+// Update manifest section with new chapters
+std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
+    std::vector<std::string> updatedManifest = manifest;
+    for (size_t i = 0; i < chapters.size(); ++i) {
+        updatedManifest.insert(updatedManifest.end() - 1,
+            "    <item id=\"chapter" + std::to_string(i + 1) + 
+            "\" href=\"Text/" + chapters[i] + 
+            "\" media-type=\"application/xhtml+xml\"/>\n"
+        );
+    }
+    return updatedManifest;
+}
+
+// Update spine section with new chapters
+std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters) {
+    std::vector<std::string> updatedSpine = spine;
+    for (size_t i = 0; i < chapters.size(); ++i) {
+        updatedSpine.insert(updatedSpine.end() - 1,
+            "    <itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
+        );
+    }
+    return updatedSpine;
+}
+
+void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentOpfPath) {
+    // Step 1: Read the entire file into a single string
+    std::ifstream inputFile(contentOpfPath);
+    if (!inputFile.is_open()) {
+        std::cerr << "Failed to open content.opf file!" << "\n";
+        return;
+    }
+
+    std::stringstream buffer;
+    buffer << inputFile.rdbuf();  // Read the entire file content
+    std::string content = buffer.str();
+    inputFile.close();
+
+    // Step 2: Regex to match tags containing "Section0001.xhtml"
+    std::regex sectionRegex(R"(<[^>]*Section0001\.xhtml[^>]*>)");
+
+    // Step 3: Remove all matching tags
+    content = std::regex_replace(content, sectionRegex, "");
+
+    // Step 4: Write the modified content back to the file
+    std::ofstream outputFile(contentOpfPath);
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open content.opf file for writing!" << "\n";
+        return;
+    }
+
+    outputFile << content;
+    outputFile.close();
+}
+
 void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath) {
     std::ifstream inputFile(contentOpfPath);
     if (!inputFile.is_open()) {
@@ -117,85 +217,60 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
         return;
     }
 
-    std::vector<std::string> fileContent;  // Store the entire file content
-    std::vector<std::string> manifest;
-    std::vector<std::string> spine;
+    std::vector<std::string> fileContent;
     std::string line;
-    bool insideManifest = false;
-    bool insideSpine = false;
-    bool packageClosed = false;
 
     while (std::getline(inputFile, line)) {
-        if (line.find("</package>") != std::string::npos) {
-            packageClosed = true;
-        }
-
-        if (line.find("<manifest>") != std::string::npos) {
-            manifest.push_back(line);
-            insideManifest = true;
-        } else if (line.find("</manifest>") != std::string::npos) {
-            insideManifest = false;
-            for (size_t i = 0; i < epubChapterList.size(); ++i) {
-                std::string chapterId = "chapter" + std::to_string(i + 1);
-                manifest.push_back("    <item id=\"" + chapterId + "\" href=\"Text/" + epubChapterList[i] + "\" media-type=\"application/xhtml+xml\"/>\n");
-            }
-            manifest.push_back(line);
-        } else if (line.find("<spine>") != std::string::npos) {
-            spine.push_back(line);
-            insideSpine = true;
-        } else if (line.find("</spine>") != std::string::npos) {
-            insideSpine = false;
-            for (size_t i = 0; i < epubChapterList.size(); ++i) {
-                std::string chapterId = "chapter" + std::to_string(i + 1);
-                spine.push_back("    <itemref idref=\"" + chapterId + "\" />\n");
-            }
-            spine.push_back(line);
-        } else if (insideManifest) {
-            if (line.find("Section0001.xhtml") == std::string::npos) { // Skip Section0001.xhtml
-                manifest.push_back(line);
-            }
-        } else if (insideSpine) {
-            if (line.find("Section0001.xhtml") == std::string::npos) { // Skip Section0001.xhtml
-                spine.push_back(line);
-            }
-        } else {
-            fileContent.push_back(line);  // Add everything else to fileContent
-        }
+        fileContent.push_back(line);
     }
 
     inputFile.close();
 
-    // Write the updated content back to the file
-    std::ofstream outputFile(contentOpfPath);
-    if (!outputFile.is_open()) {
-        std::cerr << "Failed to open content.opf file for writing!" << "\n";
-        return;
-    }
 
-    // Output everything before </package>
-    for (const auto& fileLine : fileContent) {
-        if (fileLine.find("</metadata>") != std::string::npos) {
-            outputFile << fileLine << "\n";
-            // Write manifest after metadata
-            for (const auto& manifestLine : manifest) {
-                outputFile << manifestLine;
-            }
-            // Write spine after manifest
-            for (const auto& spineLine : spine) {
-                outputFile << spineLine;
-            }
-        } else if (fileLine.find("</package>") != std::string::npos) {
-            // Skip writing </package> for now; it will be written later
-            continue;
-        } else {
-            outputFile << fileLine << "\n";
+
+    try {
+        std::pair<std::vector<std::string>, std::vector<std::string>> manifestAndSpine = parseManifestAndSpine(fileContent);
+
+        std::vector<std::string> manifest = manifestAndSpine.first;
+        std::vector<std::string> spine = manifestAndSpine.second;
+    
+        std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
+        std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
+
+        // Write the updated content back to the file
+        std::ofstream outputFile(contentOpfPath);
+
+        if (!outputFile.is_open()) {
+            std::cerr << "Failed to open content.opf file for writing!" << "\n";
+            return;
         }
+
+        // Output everything before </package>
+        for (const auto& fileLine : fileContent) {
+            if (fileLine.find("</metadata>") != std::string::npos) {
+                outputFile << fileLine << "\n";
+                // Write manifest after metadata
+                for (const auto& manifestLine : updatedManifest) {
+                    outputFile << manifestLine;
+                }
+                // Write spine after manifest
+                for (const auto& spineLine : updatedSpine) {
+                    outputFile << spineLine;
+                }
+            } else if (fileLine.find("</package>") != std::string::npos) {
+                // Skip writing </package> for now; it will be written later
+                continue;
+            } else {
+                outputFile << fileLine << "\n";
+            }
+        }
+        outputFile.close();
+
+        removeSection0001Tags(contentOpfPath);
+
+    } catch (const std::exception& e){
+        std::cerr << "Error: " << e.what() << "\n";
     }
-
-    // Finally, close the package
-    outputFile << "</package>" << "\n";
-
-    outputFile.close();
 }
 
 bool EpubTranslator::make_directory(const std::filesystem::path& path) {

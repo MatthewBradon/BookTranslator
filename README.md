@@ -44,6 +44,11 @@ optimum-cli export onnx --model ./fine_tuned_model ./onnx-model-dir --task text2
 When running pyinstaller either have all the python modules installed already or run it while in a venv
 
 
+For testing run
+```
+ctest -V -C Release --test-dir build
+```
+
 
 
 # Evaluation Notes

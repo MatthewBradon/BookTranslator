@@ -11,6 +11,11 @@ public:
     using EpubTranslator::sortXHTMLFilesBySpineOrder;
     using EpubTranslator::updateContentOpf;
     using EpubTranslator::cleanChapter;
+    using EpubTranslator::extractSpineContent;
+    using EpubTranslator::extractIdrefs;
+    using EpubTranslator::parseManifestAndSpine;
+    using EpubTranslator::updateManifest;
+    using EpubTranslator::updateSpine;
 };
 
 class TestableGUI : public GUI {
