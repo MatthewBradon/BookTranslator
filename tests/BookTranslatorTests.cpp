@@ -537,6 +537,67 @@ TEST_CASE("updateContentOpf works correctly") {
     }
 }
 
+TEST_CASE("stripHtmlTags correctly removes HTML tags from strings") {
+    TestableEpubTranslator translator;
+
+    SECTION("Removes simple HTML tags") {
+        std::string input = "<p>Hello World</p>";
+        std::string expected = "Hello World";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles nested HTML tags") {
+        std::string input = "<div><strong>Bold Text</strong> with <em>italic</em> text.</div>";
+        std::string expected = "Bold Text with italic text.";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles self-closing tags") {
+        std::string input = "Line break here<br/>and continue.";
+        std::string expected = "Line break hereand continue.";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles attributes inside tags") {
+        std::string input = "<a href='https://example.com'>Click Here</a>";
+        std::string expected = "Click Here";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles text without any HTML tags") {
+        std::string input = "without tags.";
+        std::string expected = "without tags.";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles empty input string") {
+        std::string input = "";
+        std::string expected = "";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Handles malformed HTML tags gracefully") {
+        std::string input = "<div><b>Unclosed tags";
+        std::string expected = "Unclosed tags";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+
+    SECTION("Removes multiple consecutive tags") {
+        std::string input = "<p><br/><br/>Multiple breaks</p>";
+        std::string expected = "Multiple breaks";
+
+        REQUIRE(translator.stripHtmlTags(input) == expected);
+    }
+}
+
+
 TEST_CASE("cleanChapter works correctly") {
     TestableEpubTranslator translator;
 

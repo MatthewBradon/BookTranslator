@@ -19,6 +19,7 @@ public:
     using EpubTranslator::updateNavXHTML;
     using EpubTranslator::copyImages;
     using EpubTranslator::replaceFullWidthSpaces;
+    using EpubTranslator::stripHtmlTags;
 };
 
 class TestableGUI : public GUI {
