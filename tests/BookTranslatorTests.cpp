@@ -368,6 +368,140 @@ TEST_CASE("updateSpine") {
 
 }
 
+TEST_CASE("updateNavXHTML correctly updates the TOC") {
+    TestableEpubTranslator translator;
+
+    // Create a temporary nav.xhtml file for testing
+    std::filesystem::path tempNavPath = "temp_nav.xhtml";
+    std::ofstream navFile(tempNavPath);
+    navFile << R"(
+        <nav epub:type="toc">
+            <ol>
+                <li><a href="existing.xhtml">Existing Chapter</a></li>
+            </ol>
+        </nav>
+    )";
+    navFile.close();
+
+    std::vector<std::string> newChapters = {"chapter1.xhtml", "chapter2.xhtml"};
+
+    translator.updateNavXHTML(tempNavPath, newChapters);
+
+    // Read back the file to verify changes
+    std::ifstream updatedNav(tempNavPath);
+    std::string content((std::istreambuf_iterator<char>(updatedNav)),
+                        std::istreambuf_iterator<char>());
+    updatedNav.close();
+
+    REQUIRE(content.find("chapter1.xhtml") != std::string::npos);
+    REQUIRE(content.find("chapter2.xhtml") != std::string::npos);
+    REQUIRE(content.find("Existing Chapter") != std::string::npos);
+
+    // Cleanup
+    std::filesystem::remove(tempNavPath);
+}
+
+TEST_CASE("copyImages correctly copies image files") {
+    TestableEpubTranslator translator;
+
+    // Setup: Create temp source and destination directories
+    std::filesystem::path sourceDir = "temp_source";
+    std::filesystem::path destDir = "temp_dest";
+    std::filesystem::create_directory(sourceDir);
+    std::filesystem::create_directory(destDir);
+
+    // Create dummy image files
+    std::ofstream(sourceDir / "image1.jpg").put('a');
+    std::ofstream(sourceDir / "image2.png").put('b');
+    std::ofstream(sourceDir / "text.txt").put('c');  // Should NOT be copied
+
+    translator.copyImages(sourceDir, destDir);
+
+    REQUIRE(std::filesystem::exists(destDir / "image1.jpg"));
+    REQUIRE(std::filesystem::exists(destDir / "image2.png"));
+    REQUIRE_FALSE(std::filesystem::exists(destDir / "text.txt"));  // Should not exist
+
+    // Cleanup
+    std::filesystem::remove_all(sourceDir);
+    std::filesystem::remove_all(destDir);
+}
+
+TEST_CASE("replaceFullWidthSpaces correctly handles full-width spaces") {
+    TestableEpubTranslator translator;
+
+    SECTION("Replaces a single full-width space with a normal space") {
+        xmlNodePtr parent = xmlNewNode(nullptr, BAD_CAST "test");
+        xmlNodePtr node = xmlNewText(BAD_CAST "Hello　World");  // Full-width space (U+3000)
+        xmlAddChild(parent, node);
+
+        translator.replaceFullWidthSpaces(node);
+
+        std::string result = reinterpret_cast<const char*>(node->content);
+        REQUIRE(result == "Hello World");
+
+        xmlFreeNode(parent);  // Cleanup
+    }
+
+    SECTION("Replaces multiple full-width spaces in the text") {
+        xmlNodePtr parent = xmlNewNode(nullptr, BAD_CAST "test");
+        xmlNodePtr node = xmlNewText(BAD_CAST "Hello　World　Test　Case");  // Multiple U+3000 spaces
+        xmlAddChild(parent, node);
+
+        translator.replaceFullWidthSpaces(node);
+
+        std::string result = reinterpret_cast<const char*>(node->content);
+        REQUIRE(result == "Hello World Test Case");
+
+        xmlFreeNode(parent);  // Cleanup
+    }
+
+    SECTION("Handles text without any full-width spaces") {
+        xmlNodePtr parent = xmlNewNode(nullptr, BAD_CAST "test");
+        xmlNodePtr node = xmlNewText(BAD_CAST "Hello World");  // No full-width spaces
+        xmlAddChild(parent, node);
+
+        translator.replaceFullWidthSpaces(node);
+
+        std::string result = reinterpret_cast<const char*>(node->content);
+        REQUIRE(result == "Hello World");  // Should remain unchanged
+
+        xmlFreeNode(parent);  // Cleanup
+    }
+
+    SECTION("Handles an empty text node gracefully") {
+        xmlNodePtr parent = xmlNewNode(nullptr, BAD_CAST "test");
+        xmlNodePtr node = xmlNewText(BAD_CAST "");  // Empty content
+        xmlAddChild(parent, node);
+
+        translator.replaceFullWidthSpaces(node);
+
+        std::string result = reinterpret_cast<const char*>(node->content);
+        REQUIRE(result == "");  // Should remain unchanged
+
+        xmlFreeNode(parent);  // Cleanup
+    }
+
+    SECTION("Handles null node gracefully without crashing") {
+        xmlNodePtr nullNode = nullptr;
+
+        // Should not crash
+        REQUIRE_NOTHROW(translator.replaceFullWidthSpaces(nullNode));
+    }
+
+    SECTION("Handles node with null content gracefully") {
+        xmlNodePtr parent = xmlNewNode(nullptr, BAD_CAST "test");
+        xmlNodePtr node = xmlNewNode(nullptr, BAD_CAST "child");  // No content
+        xmlAddChild(parent, node);
+
+        // Should not crash
+        REQUIRE_NOTHROW(translator.replaceFullWidthSpaces(node));
+
+        xmlFreeNode(parent);  // Cleanup
+    }
+}
+
+
+
 TEST_CASE("updateContentOpf works correctly") {
     TestableEpubTranslator translator;
 

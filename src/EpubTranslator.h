@@ -65,7 +65,6 @@ protected:
     void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList);
     void copyImages(const std::filesystem::path& sourceDir, const std::filesystem::path& destinationDir);
     void replaceFullWidthSpaces(xmlNodePtr node);
-    void removeAngleBrackets(xmlNodePtr node);
     void removeUnwantedTags(xmlNodePtr node);
     void cleanChapter(const std::filesystem::path& chapterPath);
     std::string stripHtmlTags(const std::string& input);
@@ -75,6 +74,7 @@ protected:
     std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
     void removeSection0001Tags(const std::filesystem::path& contentOpfPath);
+    std::string formatHTML(const std::string& input);
 
 
 };

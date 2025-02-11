@@ -16,6 +16,9 @@ public:
     using EpubTranslator::parseManifestAndSpine;
     using EpubTranslator::updateManifest;
     using EpubTranslator::updateSpine;
+    using EpubTranslator::updateNavXHTML;
+    using EpubTranslator::copyImages;
+    using EpubTranslator::replaceFullWidthSpaces;
 };
 
 class TestableGUI : public GUI {

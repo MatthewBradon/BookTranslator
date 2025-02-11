@@ -106,6 +106,32 @@ std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(co
     return sortedXHTMLFiles;
 }
 
+std::string EpubTranslator::formatHTML(const std::string& input) {
+
+
+    htmlDocPtr doc = htmlReadMemory(input.c_str(), input.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+
+    if (doc == nullptr) {
+        std::cerr << "Error: unable to parse HTML." << std::endl;
+        return "";
+    }
+
+    xmlChar* output = nullptr;
+    int size = 0;
+
+    xmlDocDumpFormatMemory(doc, &output, &size, 1);
+
+    std::string formattedHtml;
+    if (output != nullptr) {
+        formattedHtml.assign(reinterpret_cast<const char*>(output), size);
+        xmlFree(output);
+    }
+
+    xmlFreeDoc(doc);
+
+    return formattedHtml;
+}
+
 std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) {
     std::vector<std::string> manifest, spine;
 
@@ -124,32 +150,41 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 
     // Step 3: Extract and parse the <manifest> block
     if (std::regex_search(combinedContent, match, manifestBlockPattern)) {
-        manifest.push_back("<manifest>");  // Add opening tag
+        manifest.push_back("\n<manifest>\n");  // Add opening tag
 
         std::string manifestContent = match[1].str();  // Content between <manifest> and </manifest>
         auto tagBegin = std::sregex_iterator(manifestContent.begin(), manifestContent.end(), tagPattern);
         auto tagEnd = std::sregex_iterator();
 
         for (auto it = tagBegin; it != tagEnd; ++it) {
-            manifest.push_back(it->str());  // Add each tag within <manifest>
+            manifest.push_back(it->str() + "\n");  // Add each tag within <manifest>
         }
 
-        manifest.push_back("</manifest>");  // Add closing tag
+        manifest.push_back("\n</manifest>\n");  // Add closing tag
     }
 
     // Step 4: Extract and parse the <spine> block
     if (std::regex_search(combinedContent, match, spineBlockPattern)) {
-        spine.push_back("<spine>");  // Add opening tag
+        spine.push_back("\n<spine>\n");  // Add opening tag
 
         std::string spineContent = match[1].str();  // Content between <spine> and </spine>
         auto tagBegin = std::sregex_iterator(spineContent.begin(), spineContent.end(), tagPattern);
         auto tagEnd = std::sregex_iterator();
 
         for (auto it = tagBegin; it != tagEnd; ++it) {
-            spine.push_back(it->str());  // Add each tag within <spine>
+            spine.push_back(it->str() + "\n");  // Add each tag within <spine>
         }
 
-        spine.push_back("</spine>");  // Add closing tag
+        spine.push_back("\n</spine>\n");  // Add closing tag
+    }
+
+    // Print out the manifest and spine
+    for (const auto& line : manifest) {
+        std::cout << line << std::endl;
+    }
+    std::cout << "SPINE TEST" << std::endl;
+    for (const auto& line : spine) {
+        std::cout << line << std::endl;
     }
 
     return {manifest, spine};
@@ -161,11 +196,16 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::s
     std::vector<std::string> updatedManifest = manifest;
     for (size_t i = 0; i < chapters.size(); ++i) {
         updatedManifest.insert(updatedManifest.end() - 1,
-            "    <item id=\"chapter" + std::to_string(i + 1) + 
+            "<item id=\"chapter" + std::to_string(i + 1) + 
             "\" href=\"Text/" + chapters[i] + 
             "\" media-type=\"application/xhtml+xml\"/>\n"
         );
     }
+    std::cout << "Updated manifest:\n" << std::endl;
+    for (const auto& line : updatedManifest) {
+        std::cout << line << std::endl;
+    }
+
     return updatedManifest;
 }
 
@@ -174,7 +214,7 @@ std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::stri
     std::vector<std::string> updatedSpine = spine;
     for (size_t i = 0; i < chapters.size(); ++i) {
         updatedSpine.insert(updatedSpine.end() - 1,
-            "    <itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
+            "<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
         );
     }
     return updatedSpine;
@@ -223,52 +263,69 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
     while (std::getline(inputFile, line)) {
         fileContent.push_back(line);
     }
-
     inputFile.close();
 
-
-
     try {
-        std::pair<std::vector<std::string>, std::vector<std::string>> manifestAndSpine = parseManifestAndSpine(fileContent);
-
+        auto manifestAndSpine = parseManifestAndSpine(fileContent);
         std::vector<std::string> manifest = manifestAndSpine.first;
         std::vector<std::string> spine = manifestAndSpine.second;
-    
+
         std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
         std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
 
-        // Write the updated content back to the file
-        std::ofstream outputFile(contentOpfPath);
+        std::ostringstream updatedContentStream;
+        bool insideManifest = false, insideSpine = false;
 
+        for (const auto& fileLine : fileContent) {
+            // Skip original manifest and spine sections
+            if (fileLine.find("<manifest") != std::string::npos) {
+                insideManifest = true;
+                continue;
+            }
+            if (fileLine.find("</manifest>") != std::string::npos) {
+                insideManifest = false;
+                continue;
+            }
+            if (fileLine.find("<spine") != std::string::npos) {
+                insideSpine = true;
+                continue;
+            }
+            if (fileLine.find("</spine>") != std::string::npos) {
+                insideSpine = false;
+                continue;
+            }
+            if (insideManifest || insideSpine) {
+                continue;  // Skip lines inside the manifest and spine blocks
+            }
+
+            // Insert updated manifest and spine after </metadata>
+            if (fileLine.find("</metadata>") != std::string::npos) {
+                updatedContentStream << fileLine << "\n";
+                for (const auto& manifestLine : updatedManifest) {
+                    updatedContentStream << manifestLine;
+                }
+                for (const auto& spineLine : updatedSpine) {
+                    updatedContentStream << spineLine;
+                }
+            } else {
+                updatedContentStream << fileLine << "\n";
+            }
+        }
+
+        std::string formattedContent = formatHTML(updatedContentStream.str());
+
+        std::ofstream outputFile(contentOpfPath);
         if (!outputFile.is_open()) {
             std::cerr << "Failed to open content.opf file for writing!" << "\n";
             return;
         }
 
-        // Output everything before </package>
-        for (const auto& fileLine : fileContent) {
-            if (fileLine.find("</metadata>") != std::string::npos) {
-                outputFile << fileLine << "\n";
-                // Write manifest after metadata
-                for (const auto& manifestLine : updatedManifest) {
-                    outputFile << manifestLine;
-                }
-                // Write spine after manifest
-                for (const auto& spineLine : updatedSpine) {
-                    outputFile << spineLine;
-                }
-            } else if (fileLine.find("</package>") != std::string::npos) {
-                // Skip writing </package> for now; it will be written later
-                continue;
-            } else {
-                outputFile << fileLine << "\n";
-            }
-        }
+        outputFile << formattedContent;
         outputFile.close();
 
         removeSection0001Tags(contentOpfPath);
 
-    } catch (const std::exception& e){
+    } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
     }
 }
@@ -489,7 +546,7 @@ void EpubTranslator::copyImages(const std::filesystem::path& sourceDir, const st
 }
 
 void EpubTranslator::replaceFullWidthSpaces(xmlNodePtr node) {
-    if (node->type != XML_TEXT_NODE && node->content == nullptr) {
+    if (node == nullptr || node->content == nullptr || node->type != XML_TEXT_NODE) {
         return;
     }
 
@@ -506,30 +563,6 @@ void EpubTranslator::replaceFullWidthSpaces(xmlNodePtr node) {
     xmlNodeSetContent(node, reinterpret_cast<const xmlChar*>(textContent.c_str()));
 }
 
-void EpubTranslator::removeAngleBrackets(xmlNodePtr node) {
-    if (node->type != XML_TEXT_NODE || node->content == nullptr) {
-        return;
-    }
-
-    std::string textContent = reinterpret_cast<const char*>(node->content);
-    std::string cleanedText;
-    cleanedText.reserve(textContent.size());  // Reserve memory for performance
-
-    // Iterate through the text once, appending characters except for `《` and `》`
-    for (size_t i = 0; i < textContent.size(); ++i) {
-        if (textContent[i] == '\xE3' && i + 2 < textContent.size() &&
-            textContent[i + 1] == '\x80' &&
-            (textContent[i + 2] == '\x8A' || textContent[i + 2] == '\x8B')) {
-            // Skip both `《` and `》`, as their UTF-8 encoding is 3 bytes: \xE3\x80\x8A and \xE3\x80\x8B
-            i += 2;
-        } else {
-            cleanedText += textContent[i];
-        }
-    }
-
-    // Update the node's content with the cleaned text
-    xmlNodeSetContent(node, reinterpret_cast<const xmlChar*>(cleanedText.c_str()));
-}
 
 void EpubTranslator::removeUnwantedTags(xmlNodePtr node) {
     xmlNodePtr current = node;
@@ -562,7 +595,6 @@ void EpubTranslator::removeUnwantedTags(xmlNodePtr node) {
 
         // Replace full-width spaces in text nodes
         replaceFullWidthSpaces(current);
-        removeAngleBrackets(current);
 
         // Recursively check child nodes
         if (current->children) {
@@ -779,59 +811,6 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
     }
 
     return bookTags;
-}
-
-
-std::string formatHTML(const std::string& input) {
-
-
-    htmlDocPtr doc = htmlReadMemory(input.c_str(), input.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
-
-    if (doc == nullptr) {
-        std::cerr << "Error: unable to parse HTML." << std::endl;
-        return "";
-    }
-
-    xmlChar* output = nullptr;
-    int size = 0;
-
-    xmlDocDumpFormatMemory(doc, &output, &size, 1);
-
-    std::string formattedHtml;
-    if (output != nullptr) {
-        formattedHtml.assign(reinterpret_cast<const char*>(output), size);
-        xmlFree(output);
-    }
-
-    xmlFreeDoc(doc);
-
-    return formattedHtml;
-}
-
-std::string escapeJsonString(const std::string& input) {
-    std::string output;
-    for (char c : input) {
-        switch (c) {
-            case '\"': output += "'"; break;  // Swap to single quotes
-            case '\\': output += "\\\\"; break;  // Escape backslashes
-            case '\n': output += "\\n"; break;   // Escape newlines
-            case '\r': output += "\\r"; break;   // Escape carriage returns
-            case '\t': output += "\\t"; break;   // Escape tabs
-            default:
-                output += c;
-        }
-    }
-    return output;
-}
-
-std::string removeWhitespace(const std::string& input) {
-    std::string output;
-    for (char c : input) {
-        if (c != '\n' && c != '\t' && c != '\r') {
-            output += c;
-        }
-    }
-    return output;
 }
 
 size_t EpubTranslator::writeCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
@@ -1157,7 +1136,6 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
     return 0; 
 }
-
 
 
 int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey) {
