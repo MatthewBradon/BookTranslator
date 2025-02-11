@@ -75,6 +75,15 @@ protected:
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
     void removeSection0001Tags(const std::filesystem::path& contentOpfPath);
     std::string formatHTML(const std::string& input);
+    std::string readFileUtf8(const std::filesystem::path& filePath);
+    htmlDocPtr parseHtmlDocument(const std::string& data);
+    xmlNodeSetPtr extractNodesFromDoc(htmlDocPtr doc);
+    tagData processImgTag(xmlNodePtr node, int position, int chapterNum);
+    tagData processPTag(xmlNodePtr node, int position, int chapterNum);
+    void cleanNodes(xmlNodeSetPtr nodes);
+    std::string serializeDocument(htmlDocPtr doc);
+    std::string readChapterFile(const std::filesystem::path& chapterPath);
+    void writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content);
 
 
 };

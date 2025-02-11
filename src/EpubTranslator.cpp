@@ -604,90 +604,88 @@ void EpubTranslator::removeUnwantedTags(xmlNodePtr node) {
     }
 }
 
-void EpubTranslator::cleanChapter(const std::filesystem::path& chapterPath) {
+std::string EpubTranslator::readChapterFile(const std::filesystem::path& chapterPath) {
     std::ifstream file(chapterPath);
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << chapterPath << "\n";
-        return;
+        throw std::runtime_error("Failed to open file: " + chapterPath.string());
     }
+    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
 
-    // Read the entire content of the chapter file
-    std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-
-    // Parse the content using libxml2
-    htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+htmlDocPtr EpubTranslator::parseHtmlDocument(const std::string& content) {
+    htmlDocPtr doc = htmlReadMemory(content.c_str(), content.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
     if (!doc) {
-        std::cerr << "Failed to parse HTML content." << "\n";
-        return;
+        throw std::runtime_error("Failed to parse HTML content.");
     }
+    return doc;
+}
 
-    // Create an XPath context
-    xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
-    if (!xpathCtx) {
-        std::cerr << "Failed to create XPath context." << "\n";
-        xmlFreeDoc(doc);
-        return;
+void EpubTranslator::cleanNodes(xmlNodeSetPtr nodes) {
+    if (nodes) {
+        for (int i = 0; i < nodes->nodeNr; ++i) {
+            xmlNodePtr node = nodes->nodeTab[i];
+            removeUnwantedTags(node);
+        }
     }
+}
 
-    // Extract all <p> and <img> tags
-    xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
-    if (!xpathObj) {
-        std::cerr << "Failed to evaluate XPath expression." << "\n";
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-        return;
-    }
-
-    xmlNodeSetPtr nodes = xpathObj->nodesetval;
-    int nodeCount = (nodes) ? nodes->nodeNr : 0;
-
-    // Remove unwanted tags and replace full-width spaces
-    for (int i = 0; i < nodeCount; ++i) {
-        xmlNodePtr node = nodes->nodeTab[i];
-        removeUnwantedTags(node);
-    }
-
-    // Create a buffer to hold the serialized XML content
+std::string EpubTranslator::serializeDocument(htmlDocPtr doc) {
     xmlBufferPtr buffer = xmlBufferCreate();
-    if (buffer == nullptr) {
-        std::cerr << "Failed to create XML buffer." << "\n";
-        xmlXPathFreeObject(xpathObj);
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-        return;
+    if (!buffer) {
+        throw std::runtime_error("Failed to create XML buffer.");
     }
 
-    // Dump the document into the buffer
     int result = xmlNodeDump(buffer, doc, xmlDocGetRootElement(doc), 0, 1);
     if (result == -1) {
-        std::cerr << "Failed to serialize XML document." << "\n";
         xmlBufferFree(buffer);
-        xmlXPathFreeObject(xpathObj);
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-        return;
+        throw std::runtime_error("Failed to serialize XML document.");
     }
 
-    // Write the updated content back to the original file
+    std::string output(reinterpret_cast<const char*>(xmlBufferContent(buffer)), xmlBufferLength(buffer));
+    xmlBufferFree(buffer);
+    return output;
+}
+
+void EpubTranslator::writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content) {
     std::ofstream outFile(chapterPath);
     if (!outFile.is_open()) {
-        std::cerr << "Failed to open file for writing: " << chapterPath << "\n";
-        xmlBufferFree(buffer);
-        xmlXPathFreeObject(xpathObj);
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-        return;
+        throw std::runtime_error("Failed to open file for writing: " + chapterPath.string());
     }
-    outFile.write(reinterpret_cast<const char*>(xmlBufferContent(buffer)), xmlBufferLength(buffer));
-    outFile.close();
-
-    // Clean up
-    xmlBufferFree(buffer);
-    xmlXPathFreeObject(xpathObj);
-    xmlXPathFreeContext(xpathCtx);
-    xmlFreeDoc(doc);
+    outFile << content;
 }
+
+xmlNodeSetPtr EpubTranslator::extractNodesFromDoc(htmlDocPtr doc) {
+    xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
+    if (!xpathCtx) return nullptr;
+
+    xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
+    xmlXPathFreeContext(xpathCtx);
+
+    return (xpathObj) ? xpathObj->nodesetval : nullptr;
+}
+
+void EpubTranslator::cleanChapter(const std::filesystem::path& chapterPath) {
+    try {
+        std::string content = readChapterFile(chapterPath);
+
+        htmlDocPtr doc = parseHtmlDocument(content);
+
+        xmlNodeSetPtr nodes = extractNodesFromDoc(doc);
+
+        cleanNodes(nodes);
+
+        std::string cleanedContent = serializeDocument(doc);
+
+        writeChapterFile(chapterPath, cleanedContent);
+
+        // Cleanup
+        xmlFreeDoc(doc);
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error cleaning chapter: " << e.what() << "\n";
+    }
+}
+
 
 std::string EpubTranslator::stripHtmlTags(const std::string& input) {
     // Regular expression to match HTML tags
@@ -696,122 +694,86 @@ std::string EpubTranslator::stripHtmlTags(const std::string& input) {
     return std::regex_replace(input, tagRegex, "");
 }
 
+
+
+
+tagData EpubTranslator::processImgTag(xmlNodePtr node, int position, int chapterNum) {
+    tagData tag;
+    tag.tagId = IMG_TAG;
+    tag.position = position;
+    tag.chapterNum = chapterNum;
+
+    xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
+    if (src) {
+        tag.text = std::filesystem::path(reinterpret_cast<char*>(src)).filename().string();
+        xmlFree(src);
+    }
+    return tag;
+}
+
+
+tagData EpubTranslator::processPTag(xmlNodePtr node, int position, int chapterNum) {
+    tagData tag;
+    tag.tagId = P_TAG;
+    tag.position = position;
+    tag.chapterNum = chapterNum;
+
+    xmlChar* textContent = xmlNodeGetContent(node);
+    if (textContent) {
+        tag.text = stripHtmlTags(reinterpret_cast<char*>(textContent));
+        xmlFree(textContent);
+    }
+    return tag;
+}
+
+std::string EpubTranslator::readFileUtf8(const std::filesystem::path& filePath) {
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + filePath.string());
+    }
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
 std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesystem::path>& chapterPaths) {
-    // Helper function to read file content as UTF-8
-
-    auto readFileUtf8 = [](const std::filesystem::path& filePath) -> std::string {
-        std::ifstream file(filePath, std::ios::binary); // Open as binary
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open file: " + filePath.string());
-        }
-        std::ostringstream buffer;
-        buffer << file.rdbuf(); // Read the entire file
-        file.close();
-
-        return buffer.str(); // Return the UTF-8 string
-    };
-
-    std::vector<tagData> bookTags; // This will hold tag data for the entire book
+    std::vector<tagData> bookTags;
     int chapterNum = 0;
 
-    for (const std::filesystem::path& chapterPath : chapterPaths) {
-        std::string data;
-
+    for (const auto& chapterPath : chapterPaths) {
         try {
-            data = readFileUtf8(chapterPath); // Read file as UTF-8
-        } catch (const std::exception& e) {
-            std::cerr << "Error reading file: " << e.what() << "\n";
-            continue; // Continue with the next chapter
-        }
+            std::string data = readFileUtf8(chapterPath);
+            htmlDocPtr doc = parseHtmlDocument(data);
+            if (!doc) continue;
 
-        // Parse the content using libxml2
-        htmlDocPtr doc = htmlReadMemory(data.c_str(), data.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
-        if (!doc) {
-            std::cerr << "Failed to parse HTML content.\n";
-            continue; // Continue with the next chapter
-        }
+            xmlNodeSetPtr nodes = extractNodesFromDoc(doc);
+            if (!nodes) {
+                xmlFreeDoc(doc);
+                continue;
+            }
 
-        // Create an XPath context
-        xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
-        if (!xpathCtx) {
-            std::cerr << "Failed to create XPath context.\n";
-            xmlFreeDoc(doc);
-            continue; // Continue with the next chapter
-        }
-
-        // Extract all <p> and <img> tags
-        xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//p | //img"), xpathCtx);
-        if (!xpathObj) {
-            std::cerr << "Failed to evaluate XPath expression.\n";
-            xmlXPathFreeContext(xpathCtx);
-            xmlFreeDoc(doc);
-            continue; // Continue with the next chapter
-        }
-
-        xmlNodeSetPtr nodes = xpathObj->nodesetval;
-        int nodeCount = (nodes) ? nodes->nodeNr : 0;
-
-        for (int i = 0; i < nodeCount; ++i) {
-            xmlNodePtr node = nodes->nodeTab[i];
-            if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
-                // Extract text content of <p> tag
-                xmlChar* textContent = xmlNodeGetContent(node);
-                if (textContent) {
-                    try {
-                        std::string pText(reinterpret_cast<char*>(textContent));
-
-                        if (!pText.empty()) {
-                            // Strip HTML tags and prepare the text
-                            std::string strippedText = stripHtmlTags(pText);
-
-                            // Create tagData struct
-                            tagData tag;
-                            tag.tagId = P_TAG;
-                            tag.text = strippedText;
-                            tag.position = i;
-                            tag.chapterNum = chapterNum;
-
-                            // Append the tag to bookTags
-                            bookTags.push_back(tag);
-                        }
-                    } catch (const std::exception& e) {
-                        std::cerr << "Error: " << e.what() << "\n";
+            for (int i = 0; i < nodes->nodeNr; ++i) {
+                xmlNodePtr node = nodes->nodeTab[i];
+                if (node->type == XML_ELEMENT_NODE) {
+                    if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
+                        tagData tag = processPTag(node, i, chapterNum);
+                        if (!tag.text.empty()) bookTags.push_back(tag);
+                    } else if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
+                        tagData tag = processImgTag(node, i, chapterNum);
+                        if (!tag.text.empty()) bookTags.push_back(tag);
                     }
-                    xmlFree(textContent);
-                }
-            } else if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
-                // Extract src attribute of <img> tag
-                xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
-                if (src) {
-                    std::string imgSrc(reinterpret_cast<char*>(src));
-                    std::string imgFilename = std::filesystem::path(imgSrc).filename().string();
-
-                    // Create tagData struct for the image
-                    tagData tag;
-                    tag.tagId = IMG_TAG;
-                    tag.text = imgFilename;  // Store the image filename
-                    tag.position = i;
-                    tag.chapterNum = chapterNum;
-
-                    // Append the tag to bookTags
-                    bookTags.push_back(tag);
-
-                    xmlFree(src);
                 }
             }
+
+            xmlFreeDoc(doc);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
         }
-
-        // Free resources for the current chapter
-        xmlXPathFreeObject(xpathObj);
-        xmlXPathFreeContext(xpathCtx);
-        xmlFreeDoc(doc);
-
-        std::cout << "Extracted Tags for: " << chapterPath.filename().string() << "\n";
         chapterNum++;
     }
-
     return bookTags;
 }
+
 
 size_t EpubTranslator::writeCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     size_t totalSize = size * nmemb;
@@ -960,7 +922,6 @@ std::string EpubTranslator::downloadTranslatedDocument(const std::string& docume
 
     return response_string;
 }
-
 
 int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey) {
     

@@ -20,6 +20,16 @@ public:
     using EpubTranslator::copyImages;
     using EpubTranslator::replaceFullWidthSpaces;
     using EpubTranslator::stripHtmlTags;
+    using EpubTranslator::readChapterFile;
+    using EpubTranslator::writeChapterFile;
+    using EpubTranslator::parseHtmlDocument;
+    using EpubTranslator::extractNodesFromDoc;
+    using EpubTranslator::cleanNodes;
+    using EpubTranslator::serializeDocument;
+    using EpubTranslator::processImgTag;
+    using EpubTranslator::processPTag;
+    using EpubTranslator::readFileUtf8;
+    using EpubTranslator::extractTags;
 };
 
 class TestableGUI : public GUI {
