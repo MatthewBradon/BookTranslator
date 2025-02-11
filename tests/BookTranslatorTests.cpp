@@ -363,6 +363,83 @@ TEST_CASE("updateSpine") {
 
 }
 
+TEST_CASE("removeSection0001Tags removes specific tags from content.opf") {
+    // Step 1: Create a temporary content.opf file
+    std::filesystem::path tempFile = "temp_content.opf";
+    std::ofstream tempOutput(tempFile);
+
+    // Sample content with Section0001.xhtml tags
+    std::string sampleContent = R"(
+        <manifest>
+            <item id="section1" href="Section0001.xhtml" media-type="application/xhtml+xml"/>
+            <item id="section2" href="Section0002.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+    )";
+
+    tempOutput << sampleContent;
+    tempOutput.close();
+
+    // Step 2: Call the function to remove Section0001.xhtml tags
+    TestableEpubTranslator translator;
+    translator.removeSection0001Tags(tempFile);
+
+    // Step 3: Read the modified file content
+    std::ifstream tempInput(tempFile);
+    std::stringstream buffer;
+    buffer << tempInput.rdbuf();
+    std::string modifiedContent = buffer.str();
+    tempInput.close();
+
+    // Step 4: Validate the output
+    REQUIRE(modifiedContent.find("Section0001.xhtml") == std::string::npos);
+    REQUIRE(modifiedContent.find("Section0002.xhtml") != std::string::npos);
+
+    // Cleanup
+    std::filesystem::remove(tempFile);
+}
+
+TEST_CASE("formatHTML handles various HTML inputs") {
+    TestableEpubTranslator translator;
+
+    SECTION("Formats simple valid HTML correctly") {
+        std::string unformattedHTML = R"(<html><body><p>Hello, world!</p><div><span>Test</span></div></body></html>)";
+        std::string formattedHTML = translator.formatHTML(unformattedHTML);
+
+        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<p>Hello, world!</p>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<div>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<span>Test</span>") != std::string::npos);
+        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
+        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
+    }
+
+    SECTION("Handles invalid HTML by auto-correcting structure") {
+        std::string invalidHTML = R"(<html><body><p>Unclosed paragraph)";
+        std::string formattedHTML = translator.formatHTML(invalidHTML);
+
+        REQUIRE(!formattedHTML.empty());
+        REQUIRE(formattedHTML.find("<p>Unclosed paragraph</p>") != std::string::npos); // Auto-closing expected
+        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
+        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
+    }
+    
+    SECTION("Handles completely invalid input gracefully") {
+        std::string invalidHTML = "%%% INVALID HTML $$$";
+        std::string formattedHTML = translator.formatHTML(invalidHTML);
+    
+        std::cout << "FORMATTED HTML" << std::endl;
+        std::cout << formattedHTML << std::endl;
+    
+        // Instead of expecting an empty string, verify the recovered structure
+        REQUIRE(!formattedHTML.empty());
+        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
+        REQUIRE(formattedHTML.find("<p>%%% INVALID HTML $$$</p>") != std::string::npos);
+    }
+
+}
+
 TEST_CASE("updateNavXHTML correctly updates the TOC") {
     TestableEpubTranslator translator;
 
@@ -590,7 +667,6 @@ TEST_CASE("stripHtmlTags correctly removes HTML tags from strings") {
     }
 }
 
-
 TEST_CASE("readChapterFile reads file content correctly") {
     TestableEpubTranslator translator;
 
@@ -697,7 +773,6 @@ TEST_CASE("extractNodesFromDoc extracts <p> and <img> tags correctly") {
     xmlFreeDoc(doc);
 }
 
-
 TEST_CASE("cleanChapter works correctly") {
     TestableEpubTranslator translator;
 
@@ -732,7 +807,7 @@ TEST_CASE("cleanChapter works correctly") {
         REQUIRE(content.find("\xE3\x80\x80") == std::string::npos);  // Full-width space
         REQUIRE(content.find("Helloworld!") != std::string::npos);  // Space normalized
 
-        std::filesystem::remove(testFile); // Cleanup
+        // std::filesystem::remove(testFile); // Cleanup
     }
 
     SECTION("Handles files with no unwanted tags gracefully") {
@@ -849,7 +924,6 @@ TEST_CASE("processPTag extracts and cleans text content from p tags") {
     }
 }
 
-
 TEST_CASE("readFileUtf8 reads UTF-8 encoded file content correctly") {
     TestableEpubTranslator translator;
 
@@ -916,7 +990,6 @@ TEST_CASE("readFileUtf8 reads UTF-8 encoded file content correctly") {
         std::filesystem::remove(largeFile);
     }
 }
-
 
 TEST_CASE("extractTags extracts <p> and <img> tags correctly from chapters") {
     TestableEpubTranslator translator;
@@ -1028,6 +1101,127 @@ TEST_CASE("extractTags extracts <p> and <img> tags correctly from chapters") {
     }
 }
 
+TEST_CASE("exportEpub creates a valid EPUB file", "[exportEpub]") {
+    std::string tempExportPath = "test_export";
+    std::string tempOutputDir = "test_output";
+    std::string epubPath = tempOutputDir + "/output.epub";
+
+    // Create test directories
+    std::filesystem::create_directories(tempExportPath);
+    std::filesystem::create_directories(tempOutputDir);
+
+    // Create sample files
+    std::string file1 = tempExportPath + "/test1.txt";
+    std::string file2 = tempExportPath + "/test2.txt";
+
+    std::ofstream(file1) << "Sample content 1";
+    std::ofstream(file2) << "Sample content 2";
+
+    // Call the function to generate the EPUB
+    TestableEpubTranslator translator;
+    translator.exportEpub(tempExportPath, tempOutputDir);
+
+    // Check if the EPUB file is created
+    REQUIRE(std::filesystem::exists(epubPath));
+
+    // Open the EPUB file as a ZIP archive
+    int err = 0;
+    zip_t* archive = zip_open(epubPath.c_str(), ZIP_RDONLY, &err);
+    REQUIRE(archive != nullptr);
+
+    // Check if the expected files exist inside the archive
+    REQUIRE(zip_name_locate(archive, "test1.txt", ZIP_FL_ENC_UTF_8) >= 0);
+    REQUIRE(zip_name_locate(archive, "test2.txt", ZIP_FL_ENC_UTF_8) >= 0);
+
+    // Close the ZIP archive
+    zip_close(archive);
+
+    // Cleanup test directories and files
+    std::filesystem::remove_all(tempExportPath);
+    std::filesystem::remove_all(tempOutputDir);
+}
+
+TEST_CASE("TestableEpubTranslator::removeUnwantedTags removes specific tags while preserving content", "[removeUnwantedTags]") {
+    TestableEpubTranslator translator;
+
+    SECTION("Removes <br>, <i>, <span>, <ruby>, and <rt> tags correctly") {
+        std::string inputHTML = R"(
+            <html>
+                <body>
+                    <p>This is<br/> a <i>test</i> with <span>unwanted</span> <ruby>tags<rt>note</rt></ruby>.</p>
+                </body>
+            </html>
+        )";
+
+        // Parse the input HTML
+        htmlDocPtr doc = htmlReadMemory(inputHTML.c_str(), inputHTML.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        REQUIRE(doc != nullptr);
+
+        // Get the root node and apply the function
+        xmlNodePtr root = xmlDocGetRootElement(doc);
+        translator.removeUnwantedTags(root);
+
+        // Convert the modified document back to a string
+        xmlChar* output = nullptr;
+        int size = 0;
+        xmlDocDumpMemory(doc, &output, &size);
+        std::string result;
+        if (output) {
+            result.assign(reinterpret_cast<const char*>(output), size);
+            xmlFree(output);
+        }
+
+        // Clean up
+        xmlFreeDoc(doc);
+
+        // Debug output for verification
+        std::cout << "Modified HTML:\n" << result << std::endl;
+
+        // Check that unwanted tags are removed
+        REQUIRE(result.find("<br") == std::string::npos);
+        REQUIRE(result.find("<i>") == std::string::npos);
+        REQUIRE(result.find("<span>") == std::string::npos);
+        REQUIRE(result.find("<ruby>") == std::string::npos);
+        REQUIRE(result.find("<rt>") == std::string::npos);
+
+        // Ensure content remains intact
+        REQUIRE(result.find("This is a test with unwanted tags.") != std::string::npos);
+    }
+
+    SECTION("Handles nested unwanted tags") {
+        std::string nestedHTML = R"(
+            <div>
+                <span><i>Nested</i> content</span> with <ruby>multiple<rt>tags</rt></ruby>
+            </div>
+        )";
+
+        htmlDocPtr doc = htmlReadMemory(nestedHTML.c_str(), nestedHTML.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        REQUIRE(doc != nullptr);
+
+        xmlNodePtr root = xmlDocGetRootElement(doc);
+        translator.removeUnwantedTags(root);
+
+        xmlChar* output = nullptr;
+        int size = 0;
+        xmlDocDumpMemory(doc, &output, &size);
+        std::string result;
+        if (output) {
+            result.assign(reinterpret_cast<const char*>(output), size);
+            xmlFree(output);
+        }
+
+        xmlFreeDoc(doc);
+
+        std::cout << "Modified Nested HTML:\n" << result << std::endl;
+
+        REQUIRE(result.find("<i>") == std::string::npos);
+        REQUIRE(result.find("<span>") == std::string::npos);
+        REQUIRE(result.find("<ruby>") == std::string::npos);
+        REQUIRE(result.find("<rt>") == std::string::npos);
+
+        REQUIRE(result.find("Nested content with multiple") != std::string::npos);
+    }
+}
 
 TEST_CASE("Font Loading", "[GUI]") {
     ImGui::CreateContext();

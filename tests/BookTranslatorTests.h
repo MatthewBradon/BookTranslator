@@ -30,6 +30,10 @@ public:
     using EpubTranslator::processPTag;
     using EpubTranslator::readFileUtf8;
     using EpubTranslator::extractTags;
+    using EpubTranslator::removeSection0001Tags;
+    using EpubTranslator::exportEpub;
+    using EpubTranslator::formatHTML;
+    using EpubTranslator::removeUnwantedTags;
 };
 
 class TestableGUI : public GUI {

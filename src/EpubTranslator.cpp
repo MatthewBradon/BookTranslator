@@ -109,7 +109,7 @@ std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(co
 std::string EpubTranslator::formatHTML(const std::string& input) {
 
 
-    htmlDocPtr doc = htmlReadMemory(input.c_str(), input.size(), NULL, "UTF-8", HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+    htmlDocPtr doc = parseHtmlDocument(input);
 
     if (doc == nullptr) {
         std::cerr << "Error: unable to parse HTML." << std::endl;
@@ -189,7 +189,6 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 
     return {manifest, spine};
 }
-
 
 // Update manifest section with new chapters
 std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
@@ -563,46 +562,60 @@ void EpubTranslator::replaceFullWidthSpaces(xmlNodePtr node) {
     xmlNodeSetContent(node, reinterpret_cast<const xmlChar*>(textContent.c_str()));
 }
 
-
 void EpubTranslator::removeUnwantedTags(xmlNodePtr node) {
+    if (!node) return;
+
     xmlNodePtr current = node;
     while (current != nullptr) {
+        xmlNodePtr nextNode = current->next;  // Save next node before potential modification
+
+        // Recursively process all child nodes first
+        if (current->children) {
+            removeUnwantedTags(current->children);
+        }
+
+        // Replace full-width spaces in text nodes
+        if (current->type == XML_TEXT_NODE) {
+            replaceFullWidthSpaces(current);
+        }
+
         if (current->type == XML_ELEMENT_NODE) {
-            // Check if it's an unwanted tag
             if (xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("br")) == 0 ||
                 xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("i")) == 0 || 
                 xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("span")) == 0 || 
                 xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("ruby")) == 0 ||
                 xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("rt")) == 0) {
-                
-                // Move the content of the unwanted tag to its parent node before removing it
-                xmlNodePtr child = current->children;
-                while (child) {
-                    xmlNodePtr nextChild = child->next;
-                    xmlUnlinkNode(child);  // Unlink child from current node
-                    xmlAddNextSibling(current, child);  // Insert it as a sibling to the unwanted tag
-                    child = nextChild;
-                }
 
-                // Remove the unwanted node
-                xmlNodePtr toRemove = current;
-                current = current->next;  // Move to the next node before removal
-                xmlUnlinkNode(toRemove);
-                xmlFreeNode(toRemove);
-                continue;  // Skip to the next node after removal
+                if (xmlStrcmp(current->name, reinterpret_cast<const xmlChar*>("rt")) == 0) {
+                    // For <rt> tags, delete both the tag and its content
+                    xmlUnlinkNode(current);
+                    xmlFreeNode(current);
+                } else {
+                    // For other unwanted tags, move their children before removal
+                    xmlNodePtr child = current->children;
+                    while (child) {
+                        xmlNodePtr nextChild = child->next;
+                        xmlUnlinkNode(child);
+
+                        // Move child directly without inserting extra spaces
+                        xmlAddPrevSibling(current, child);
+                        child = nextChild;
+                    }
+
+                    // Remove the unwanted tag itself
+                    xmlUnlinkNode(current);
+                    xmlFreeNode(current);
+                }
             }
         }
 
-        // Replace full-width spaces in text nodes
-        replaceFullWidthSpaces(current);
-
-        // Recursively check child nodes
-        if (current->children) {
-            removeUnwantedTags(current->children);
-        }
-        current = current->next;
+        current = nextNode;  // Move to the next sibling
     }
 }
+
+
+
+
 
 std::string EpubTranslator::readChapterFile(const std::filesystem::path& chapterPath) {
     std::ifstream file(chapterPath);
@@ -686,16 +699,12 @@ void EpubTranslator::cleanChapter(const std::filesystem::path& chapterPath) {
     }
 }
 
-
 std::string EpubTranslator::stripHtmlTags(const std::string& input) {
     // Regular expression to match HTML tags
     std::regex tagRegex("<[^>]*>");
     // Replace all occurrences of HTML tags with an empty string
     return std::regex_replace(input, tagRegex, "");
 }
-
-
-
 
 tagData EpubTranslator::processImgTag(xmlNodePtr node, int position, int chapterNum) {
     tagData tag;
@@ -710,7 +719,6 @@ tagData EpubTranslator::processImgTag(xmlNodePtr node, int position, int chapter
     }
     return tag;
 }
-
 
 tagData EpubTranslator::processPTag(xmlNodePtr node, int position, int chapterNum) {
     tagData tag;
