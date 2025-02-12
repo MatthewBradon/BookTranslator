@@ -178,15 +178,6 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
         spine.push_back("\n</spine>\n");  // Add closing tag
     }
 
-    // Print out the manifest and spine
-    for (const auto& line : manifest) {
-        std::cout << line << std::endl;
-    }
-    std::cout << "SPINE TEST" << std::endl;
-    for (const auto& line : spine) {
-        std::cout << line << std::endl;
-    }
-
     return {manifest, spine};
 }
 
@@ -194,15 +185,11 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
     std::vector<std::string> updatedManifest = manifest;
     for (size_t i = 0; i < chapters.size(); ++i) {
-        updatedManifest.insert(updatedManifest.end() - 1,
-            "<item id=\"chapter" + std::to_string(i + 1) + 
-            "\" href=\"Text/" + chapters[i] + 
-            "\" media-type=\"application/xhtml+xml\"/>\n"
+        updatedManifest.push_back(
+            "<item id=\"chapter" + std::to_string(i + 1) +
+            "\" href=\"Text/" + chapters[i] +
+            "\" media-type=\"application/xhtml+xml\"/>"
         );
-    }
-    std::cout << "Updated manifest:\n" << std::endl;
-    for (const auto& line : updatedManifest) {
-        std::cout << line << std::endl;
     }
 
     return updatedManifest;
@@ -212,7 +199,7 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::s
 std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters) {
     std::vector<std::string> updatedSpine = spine;
     for (size_t i = 0; i < chapters.size(); ++i) {
-        updatedSpine.insert(updatedSpine.end() - 1,
+        updatedSpine.push_back(
             "<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
         );
     }
@@ -265,12 +252,18 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
     inputFile.close();
 
     try {
+        std::cout << "Before parseManifestAndSpin" << std::endl;
         auto manifestAndSpine = parseManifestAndSpine(fileContent);
+        std::cout << "After parseManifestAndSpin" << std::endl;
         std::vector<std::string> manifest = manifestAndSpine.first;
         std::vector<std::string> spine = manifestAndSpine.second;
 
+        std::cout << "Before updateManifest" << std::endl;
         std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
+        std::cout << "After updateManifest" << std::endl;
+        std::cout << "Before updateSpine" << std::endl;
         std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
+        std::cout << "After updateSpine" << std::endl;
 
         std::ostringstream updatedContentStream;
         bool insideManifest = false, insideSpine = false;
@@ -1178,6 +1171,8 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
     std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
 
+    std::cout << "After getSpineOrder" << "\n";
+
     if (spineOrder.empty()) {
         std::cerr << "No spine order found in the OPF file." << "\n";
         return 1;
@@ -1190,6 +1185,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         return 1;
     }
 
+    std::cout << "After getAllXHTMLFiles" << "\n";
 
     // Sort the XHTML files based on the spine order
     std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
@@ -1198,6 +1194,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         return 1;
     }
 
+    std::cout << "After sortXHTMLFilesBySpineOrder" << "\n";
 
     // Duplicate Section001.xhtml for each xhtml file in spineOrderXHTMLFiles and rename it
     std::filesystem::path Section001Path = std::filesystem::path("export/OEBPS/Text/Section0001.xhtml");
@@ -1223,14 +1220,19 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     //Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
 
+    std::cout << "After duplicate Section001.xhtml" << "\n";
+
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
     updateContentOpf(spineOrder, templateContentOpfPath);
+
+    std::cout << "After updateContentOpf" << "\n";
 
     // Update the nav.xhtml file
     std::filesystem::path navXHTMLPath = "export/OEBPS/Text/nav.xhtml";
     updateNavXHTML(navXHTMLPath, spineOrder);
 
+    std::cout << "After updateNavXHTML" << "\n";
 
     // Copy images from the unzipped directory to the template directory
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
