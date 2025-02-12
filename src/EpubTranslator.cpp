@@ -183,7 +183,15 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 
 // Update manifest section with new chapters
 std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
-    std::vector<std::string> updatedManifest = manifest;
+    std::vector<std::string> updatedManifest;
+
+    // Find the position of </manifest>
+    auto it = std::find(manifest.begin(), manifest.end(), "</manifest>");
+
+    // Copy everything up to </manifest>
+    updatedManifest.insert(updatedManifest.end(), manifest.begin(), it);
+
+    // Append new chapters
     for (size_t i = 0; i < chapters.size(); ++i) {
         updatedManifest.push_back(
             "<item id=\"chapter" + std::to_string(i + 1) +
@@ -192,17 +200,36 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::s
         );
     }
 
+    // Append </manifest> if it exists
+    if (it != manifest.end()) {
+        updatedManifest.push_back(*it);
+    }
+
     return updatedManifest;
 }
 
+
 // Update spine section with new chapters
 std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters) {
-    std::vector<std::string> updatedSpine = spine;
+    std::vector<std::string> updatedSpine;
+
+    // Find the position of </spine>
+    auto it = std::find(spine.begin(), spine.end(), "</spine>");
+
+    // Copy everything up to </spine>
+    updatedSpine.insert(updatedSpine.end(), spine.begin(), it);
+
     for (size_t i = 0; i < chapters.size(); ++i) {
         updatedSpine.push_back(
             "<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
         );
     }
+
+    // Append </spine> if it exists
+    if (it != spine.end()) {
+        updatedSpine.push_back(*it);
+    }
+
     return updatedSpine;
 }
 

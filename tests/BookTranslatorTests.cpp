@@ -290,6 +290,10 @@ TEST_CASE("updateManifest") {
         std::vector<std::string> chapters = { "chapter1.xhtml", "chapter2.xhtml" };
 
         auto updatedManifest = translator.updateManifest(manifest, chapters);
+        std::cout << updatedManifest[0] << std::endl;
+        std::cout << updatedManifest[1] << std::endl;
+        std::cout << updatedManifest[2] << std::endl;
+
 
         REQUIRE(updatedManifest.size() == 4); // <manifest>, 2 items, </manifest>
         REQUIRE(updatedManifest[1].find("chapter1.xhtml") != std::string::npos);
