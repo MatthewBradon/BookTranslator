@@ -45,4 +45,11 @@ protected:
     std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey);
+    void processPDF(fz_context* ctx, const std::string& inputPath, std::ofstream& outputFile);
+    fz_context* createMuPDFContext();
+    void extractTextFromPage(fz_context* ctx, fz_document* doc, int pageIndex, std::ofstream& outputFile);
+    bool pageContainsText(fz_stext_page* textPage);
+    void extractTextFromBlocks(fz_stext_page* textPage, std::ofstream& outputFile);
+    void extractTextFromLines(fz_stext_block* block, std::ofstream& outputFile);
+    void extractTextFromChars(fz_stext_line* line, std::ofstream& outputFile);
 };

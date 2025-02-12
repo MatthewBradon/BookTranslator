@@ -2,7 +2,6 @@
 #include <stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
-
 #include "PDFTranslator.h"
 
 int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
@@ -325,37 +324,89 @@ std::string PDFTranslator::removeWhitespace(const std::string &input) {
     return result;
 }
 
-void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
-
-    std::cout << "Extracting text from PDF..." << std::endl;
-    std::cout << "PDF file: " << inputPath << std::endl;
-    std::cout << "Output file: " << outputFilePath << std::endl;
-
-    auto startTime = std::chrono::high_resolution_clock::now();
-
-
-    // Check if the file exists
-    if (!std::filesystem::exists(inputPath)) {
-        throw std::runtime_error("PDF file does not exist: " + inputPath);
-    }
-
-    // Create a MuPDF context
-    fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
+fz_context* PDFTranslator::createMuPDFContext() {
+    fz_context* ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
     if (!ctx) {
         throw std::runtime_error("Failed to create MuPDF context.");
     }
-
-    // Register document handlers
     fz_register_document_handlers(ctx);
+    return ctx;
+}
 
-    std::ofstream outputFile(outputFilePath, std::ios::out | std::ios::binary);
-    if (!outputFile) {
-        throw std::runtime_error("Failed to open output file: " + outputFilePath);
-    }
+
+void PDFTranslator::extractTextFromPage(fz_context* ctx, fz_document* doc, int pageIndex, std::ofstream& outputFile) {
+    fz_page* page = nullptr;
+    fz_stext_page* textPage = nullptr;
+    fz_device* textDevice = nullptr;
 
     fz_try(ctx) {
-        // Open the PDF document
-        fz_document *doc = fz_open_document(ctx, inputPath.c_str());
+        page = fz_load_page(ctx, doc, pageIndex);
+        if (!page) {
+            std::cerr << "Failed to load page " << pageIndex + 1 << "." << std::endl;
+            return;
+        }
+
+        fz_rect bounds = fz_bound_page(ctx, page);
+        textPage = fz_new_stext_page(ctx, bounds);
+        fz_stext_options options = { 0 };
+        textDevice = fz_new_stext_device(ctx, textPage, &options);
+
+        fz_run_page(ctx, page, textDevice, fz_identity, NULL);
+
+        if (!pageContainsText(textPage)) {
+            return;
+        }
+
+        extractTextFromBlocks(textPage, outputFile);
+
+    } fz_always(ctx) {
+        if (textDevice) fz_drop_device(ctx, textDevice);
+        if (textPage) fz_drop_stext_page(ctx, textPage);
+        if (page) fz_drop_page(ctx, page);
+    } fz_catch(ctx) {
+        std::cerr << "Error extracting text from page " << pageIndex + 1 << std::endl;
+    }
+}
+
+bool PDFTranslator::pageContainsText(fz_stext_page* textPage) {
+    for (fz_stext_block* block = textPage->first_block; block; block = block->next) {
+        if (block->type == FZ_STEXT_BLOCK_TEXT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void PDFTranslator::extractTextFromBlocks(fz_stext_page* textPage, std::ofstream& outputFile) {
+    for (fz_stext_block* block = textPage->first_block; block; block = block->next) {
+        if (block->type == FZ_STEXT_BLOCK_TEXT) {
+            extractTextFromLines(block, outputFile);
+        }
+    }
+}
+
+void PDFTranslator::extractTextFromLines(fz_stext_block* block, std::ofstream& outputFile) {
+    for (fz_stext_line* line = block->u.t.first_line; line; line = line->next) {
+        extractTextFromChars(line, outputFile);
+    }
+}
+
+
+void PDFTranslator::extractTextFromChars(fz_stext_line* line, std::ofstream& outputFile) {
+    for (fz_stext_char* ch = line->first_char; ch; ch = ch->next) {
+        char utf8[5] = { 0 };
+        int len = fz_runetochar(utf8, ch->c);
+        outputFile.write(utf8, len);
+    }
+}
+
+
+void PDFTranslator::processPDF(fz_context* ctx, const std::string& inputPath, std::ofstream& outputFile) {
+    fz_document* doc = nullptr;
+
+    fz_try(ctx) {
+        doc = fz_open_document(ctx, inputPath.c_str());
         if (!doc) {
             throw std::runtime_error("Failed to open PDF file: " + inputPath);
         }
@@ -364,77 +415,44 @@ void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::
         std::cout << "Total pages: " << pageCount << std::endl;
 
         for (int i = 0; i < pageCount; ++i) {
-            // Load the page
-            fz_page *page = fz_load_page(ctx, doc, i);
-            if (!page) {
-                std::cerr << "Failed to load page " << i + 1 << "." << std::endl;
-                continue;
-            }
-
-            // Get the page bounds
-            fz_rect bounds = fz_bound_page(ctx, page);
-
-            // Create a structured text page and device
-            fz_stext_page *textPage = fz_new_stext_page(ctx, bounds);
-            fz_stext_options options = { 0 };
-
-            fz_device *textDevice = fz_new_stext_device(ctx, textPage, &options);
-
-            fz_try(ctx) {
-                // Run the page through the text extraction device
-                fz_run_page(ctx, page, textDevice, fz_identity, NULL);
-
-                // Check if the page contains any text
-                bool hasText = false;
-                for (fz_stext_block *block = textPage->first_block; block; block = block->next) {
-                    if (block->type == FZ_STEXT_BLOCK_TEXT) {
-                        hasText = true;
-                        break;
-                    }
-                }
-
-                // Skip the page if no text is found
-                if (!hasText) {
-                    continue;
-                }
-
-                // Extract text from the structured text page
-                for (fz_stext_block *block = textPage->first_block; block; block = block->next) {
-                    if (block->type == FZ_STEXT_BLOCK_TEXT) {
-                        for (fz_stext_line *line = block->u.t.first_line; line; line = line->next) {
-                            for (fz_stext_char *ch = line->first_char; ch; ch = ch->next) {
-                                // Write the UTF-8 character to the file
-                                char utf8[5] = { 0 }; // Buffer for UTF-8 encoding
-                                int len = fz_runetochar(utf8, ch->c); // Convert to UTF-8
-                                outputFile.write(utf8, len);
-                            }
-                            // outputFile.put('\n'); // Newline at the end of each line
-                        }
-                    }
-                }
-            } fz_always(ctx) {
-                fz_drop_device(ctx, textDevice);
-                fz_drop_stext_page(ctx, textPage);
-                fz_drop_page(ctx, page);
-            } fz_catch(ctx) {
-                std::cerr << "Error extracting text from page " << i + 1 << std::endl;
-            }
+            extractTextFromPage(ctx, doc, i, outputFile);
         }
 
         fz_drop_document(ctx, doc);
     } fz_catch(ctx) {
-        fz_drop_context(ctx);
+        if (doc) fz_drop_document(ctx, doc);
         throw std::runtime_error("An error occurred while processing the PDF.");
     }
+}
+
+
+
+void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
+    std::cout << "Extracting text from PDF..." << std::endl;
+    std::cout << "PDF file: " << inputPath << std::endl;
+    std::cout << "Output file: " << outputFilePath << std::endl;
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    if (!std::filesystem::exists(inputPath)) {
+        throw std::runtime_error("PDF file does not exist: " + inputPath);
+    }
+
+    fz_context* ctx = createMuPDFContext();
+    std::ofstream outputFile(outputFilePath, std::ios::out | std::ios::binary);
+    if (!outputFile) {
+        throw std::runtime_error("Failed to open output file: " + outputFilePath);
+    }
+
+    processPDF(ctx, inputPath, outputFile);
 
     fz_drop_context(ctx);
 
     auto endTime = std::chrono::high_resolution_clock::now();
-
     std::chrono::duration<double> duration = endTime - startTime;
-
     std::cout << "Text extracted from PDF in " << duration.count() << " seconds." << std::endl;
 }
+
 
 // Helper function to determine the number of bytes in a UTF-8 character
 size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
@@ -458,38 +476,45 @@ std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& se
     std::vector<std::string> sentences;
     std::string currentChunk;
     size_t tokenCount = 0;
+    size_t i = 0;
 
-    for (size_t i = 0; i < sentence.size();) {
+    while (i < sentence.size()) {
         size_t charLength = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
         if (i + charLength > sentence.size()) break; // Safety check
 
-        currentChunk += sentence.substr(i, charLength);
+        std::string currentChar = sentence.substr(i, charLength);
+        currentChunk += currentChar;
         ++tokenCount;
 
-        // Check if the current substring matches any breakpoint
+        // Check for any breakpoint match at the current UTF-8 position
+        bool splitAtBreakpoint = false;
+        std::string matchedBreakpoint;
+        
         for (const auto& breakpoint : breakpoints) {
-            if (i + breakpoint.size() <= sentence.size() &&
-                sentence.substr(i, breakpoint.size()) == breakpoint) {
-                if (!currentChunk.empty()) {
-                    sentences.push_back(currentChunk);
-                    currentChunk.clear();
-                    tokenCount = 0;
-                }
+            // Ensure we don't split a multi-byte character in the middle
+            if (sentence.compare(i, breakpoint.length(), breakpoint) == 0) {
+                splitAtBreakpoint = true;
+                matchedBreakpoint = breakpoint;
                 break;
             }
         }
 
-        // Force a split if the token count exceeds maxLength
-        if (tokenCount > maxLength) {
+        if (splitAtBreakpoint || tokenCount >= maxLength) {
             sentences.push_back(currentChunk);
             currentChunk.clear();
             tokenCount = 0;
+
+            // Move index past the matched breakpoint safely
+            if (splitAtBreakpoint) {
+                i += matchedBreakpoint.length();
+                continue;
+            }
         }
 
         i += charLength;
     }
 
-    // Add any remaining text as the last sentence
+    // Add any remaining text
     if (!currentChunk.empty()) {
         sentences.push_back(currentChunk);
     }
@@ -560,13 +585,7 @@ std::vector<std::string> PDFTranslator::processAndSplitText(const std::string& i
 }
 
 void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
-    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
-    if (!ctx) {
-        std::cerr << "Failed to create MuPDF context" << std::endl;
-        return;
-    }
-
-    fz_register_document_handlers(ctx);
+    fz_context* ctx = createMuPDFContext();
 
     fz_document* doc = fz_open_document(ctx, pdfPath.c_str());
     if (!doc) {
@@ -934,7 +953,6 @@ std::string PDFTranslator::downloadTranslatedDocument(const std::string& documen
 
     return response_string;
 }
-
 
 int PDFTranslator::handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey) {
     // Upload the document to DeepL

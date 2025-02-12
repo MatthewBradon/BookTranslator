@@ -1105,7 +1105,7 @@ TEST_CASE("extractTags extracts <p> and <img> tags correctly from chapters") {
     }
 }
 
-TEST_CASE("exportEpub creates a valid EPUB file", "[exportEpub]") {
+TEST_CASE("exportEpub creates a valid EPUB file") {
     std::string tempExportPath = "test_export";
     std::string tempOutputDir = "test_output";
     std::string epubPath = tempOutputDir + "/output.epub";
@@ -1145,7 +1145,7 @@ TEST_CASE("exportEpub creates a valid EPUB file", "[exportEpub]") {
     std::filesystem::remove_all(tempOutputDir);
 }
 
-TEST_CASE("TestableEpubTranslator::removeUnwantedTags removes specific tags while preserving content", "[removeUnwantedTags]") {
+TEST_CASE("removeUnwantedTags removes specific tags while preserving content") {
     TestableEpubTranslator translator;
 
     SECTION("Removes <br>, <i>, <span>, <ruby>, and <rt> tags correctly") {
@@ -1353,4 +1353,76 @@ TEST_CASE("PDFTranslator: Create PDF") {
     // Clean up
     REQUIRE(std::filesystem::remove(inputTextFile));
     REQUIRE(std::filesystem::remove(outputPdf));
+}
+
+TEST_CASE("PDFTranslator::isImageAboveThreshold", "[image_processing]") {
+    TestablePDFTranslator translator;
+    
+    std::string testImagePath = std::filesystem::absolute("../test_files/testImage.png").string();
+
+    SECTION("Image standard deviation is below threshold") {
+        float lowThreshold = 999.0f; // Adjust based on expected image properties
+        REQUIRE_FALSE(translator.isImageAboveThreshold(testImagePath, lowThreshold));
+    }
+
+    SECTION("Image standard deviation is above threshold") {
+        float highThreshold = 10.0f; // Adjust accordingly
+        REQUIRE(translator.isImageAboveThreshold(testImagePath, highThreshold));
+    }
+}
+
+
+
+TEST_CASE("PDFTranslator::splitLongSentences") {
+    TestablePDFTranslator translator;
+    
+    SECTION("Sentence with breakpoints should split correctly") {
+        std::string longSentence = "これは長い文章です、しかし途中で区切るべきです。そして適切に分割されることを期待します。";
+        size_t maxLength = 10;
+        
+        auto result = translator.splitLongSentences(longSentence, maxLength);
+        
+        // Print the split sentences
+        for (const auto& sentence : result) {
+            std::cout << "Sentence: " << sentence << std::endl;
+        }
+
+        REQUIRE(result.size() > 1);
+        REQUIRE(result[0] == "これは長い文章です、");
+        REQUIRE(result[1] == "しかし途中で区切るべきです。");
+        REQUIRE(result[2] == "そして適切に分割されることを期待します。");
+    }
+    
+    SECTION("Sentence exceeding maxLength without breakpoints should be split forcefully") {
+        std::string longSentence = "これは非常に長い文章で区切り文字がないため強制的に分割されるべきです。";
+        size_t maxLength = 10;
+        
+        auto result = translator.splitLongSentences(longSentence, maxLength);
+        
+        REQUIRE(result.size() > 1);
+    }
+}
+
+TEST_CASE("PDFTranslator::getUtf8CharLength", "[utf8]") {
+    TestablePDFTranslator translator;
+
+    SECTION("Single-byte UTF-8 character (ASCII)") {
+        const char* utf8Char = "A";  // 1-byte UTF-8 sequence
+        REQUIRE(translator.getUtf8CharLength(static_cast<unsigned char>(utf8Char[0])) == 1);
+    }
+
+    SECTION("Two-byte UTF-8 character") {
+        const char* utf8Char1 = "Â";  // 2-byte UTF-8 sequence
+        REQUIRE(translator.getUtf8CharLength(static_cast<unsigned char>(utf8Char1[0])) == 2);
+    }
+
+    SECTION("Three-byte UTF-8 character") {
+        const char* utf8Char2 = "あ";  // 3-byte UTF-8 sequence
+        REQUIRE(translator.getUtf8CharLength(static_cast<unsigned char>(utf8Char2[0])) == 3);
+    }
+
+    SECTION("Four-byte UTF-8 character (Emoji)") {
+        const char* utf8Char3 = "😀"; // 4-byte UTF-8 sequence
+        REQUIRE(translator.getUtf8CharLength(static_cast<unsigned char>(utf8Char3[0])) == 4);
+    }
 }
