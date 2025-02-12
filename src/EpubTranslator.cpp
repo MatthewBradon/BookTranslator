@@ -132,23 +132,31 @@ std::string EpubTranslator::formatHTML(const std::string& input) {
     return formattedHtml;
 }
 
-std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) {
+#include <iostream>
+#include <regex>
+#include <string>
+#include <vector>
+#include <utility>
+
+std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) 
+{
     std::vector<std::string> manifest, spine;
 
-    // Step 1: Concatenate the content into a single line
+    // Step 1: Concatenate the content into a single string.
+    // Note: If you actually want newlines preserved, use "combinedContent += line + '\n';" instead.
     std::string combinedContent;
     for (const auto& line : content) {
-        combinedContent += line;  // Remove newlines
+        combinedContent += line;  // Removes newlines
     }
 
-    // Step 2: Regex patterns to extract the entire <manifest>...</manifest> and <spine>...</spine> blocks
-    std::regex manifestBlockPattern(R"(<manifest\b[^>]*>(.*?)</manifest>)");
-    std::regex spineBlockPattern(R"(<spine\b[^>]*>(.*?)</spine>)");
+    // Step 2: Regex patterns to extract the entire <manifest>...</manifest> and <spine>...</spine> blocks.
+    std::regex manifestBlockPattern(R"(<manifest\b[^>]*>([\s\S]*?)</manifest>)");
+    std::regex spineBlockPattern(R"(<spine\b[^>]*>([\s\S]*?)</spine>)");
     std::regex tagPattern(R"(<[^>]+>)");  // Matches any XML/HTML tag
 
     std::smatch match;
 
-    // Step 3: Extract and parse the <manifest> block
+    // Step 3: Extract and parse the <manifest> block.
     if (std::regex_search(combinedContent, match, manifestBlockPattern)) {
         manifest.push_back("\n<manifest>\n");  // Add opening tag
 
@@ -163,7 +171,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
         manifest.push_back("\n</manifest>\n");  // Add closing tag
     }
 
-    // Step 4: Extract and parse the <spine> block
+    // Step 4: Extract and parse the <spine> block.
     if (std::regex_search(combinedContent, match, spineBlockPattern)) {
         spine.push_back("\n<spine>\n");  // Add opening tag
 
@@ -300,11 +308,25 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
     inputFile.close();
 
     try {
-        auto manifestAndSpine = parseManifestAndSpine(fileContent);
+        std::pair<std::vector<std::string>, std::vector<std::string>> manifestAndSpine = parseManifestAndSpine(fileContent);
+
+
         std::vector<std::string> manifest = manifestAndSpine.first;
         std::vector<std::string> spine = manifestAndSpine.second;
 
+        std::cout << "Printing manifest" << std::endl;
+        for (const auto& line : manifest) {
+            std::cout << line << std::endl;
+        }
+
+        std::cout << "After manifest" << std::endl;
+
         std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
+
+        for (const auto& line : updatedManifest) {
+            std::cout << line << std::endl;
+        }
+
         std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
 
         std::ostringstream updatedContentStream;
@@ -1266,6 +1288,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
+
     updateContentOpf(spineOrder, templateContentOpfPath);
 
     std::cout << "After updateContentOpf" << "\n";
