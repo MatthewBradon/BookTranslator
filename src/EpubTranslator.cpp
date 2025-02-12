@@ -184,23 +184,33 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 // Update manifest section with new chapters
 std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
     std::vector<std::string> updatedManifest;
+    auto it = manifest.end(); // Default to end in case </manifest> isn't found
 
-    // Find the position of </manifest>
-    auto it = std::find(manifest.begin(), manifest.end(), "</manifest>");
+    // Find the line that contains "</manifest>"
+    for (auto iter = manifest.begin(); iter != manifest.end(); ++iter) {
+        if (iter->find("</manifest>") != std::string::npos) {
+            it = iter;
+            break;
+        }
+    }
 
-    // Copy everything up to </manifest>
-    updatedManifest.insert(updatedManifest.end(), manifest.begin(), it);
+    // Copy everything before "</manifest>"
+    if (it != manifest.end()) {
+        updatedManifest.insert(updatedManifest.end(), manifest.begin(), it);
+    } else {
+        updatedManifest = manifest; // If </manifest> is missing, copy everything
+    }
 
     // Append new chapters
     for (size_t i = 0; i < chapters.size(); ++i) {
         updatedManifest.push_back(
             "<item id=\"chapter" + std::to_string(i + 1) +
             "\" href=\"Text/" + chapters[i] +
-            "\" media-type=\"application/xhtml+xml\"/>"
+            "\" media-type=\"application/xhtml+xml\"/>\n"
         );
     }
 
-    // Append </manifest> if it exists
+    // Append "</manifest>" if it was found
     if (it != manifest.end()) {
         updatedManifest.push_back(*it);
     }
@@ -209,29 +219,40 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::s
 }
 
 
+
 // Update spine section with new chapters
 std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters) {
     std::vector<std::string> updatedSpine;
+    auto it = spine.end(); // Default to end in case </spine> isn't found
 
-    // Find the position of </spine>
-    auto it = std::find(spine.begin(), spine.end(), "</spine>");
-
-    // Copy everything up to </spine>
-    updatedSpine.insert(updatedSpine.end(), spine.begin(), it);
-
-    for (size_t i = 0; i < chapters.size(); ++i) {
-        updatedSpine.push_back(
-            "<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n"
-        );
+    // Find the line that contains "</spine>"
+    for (auto iter = spine.begin(); iter != spine.end(); ++iter) {
+        if (iter->find("</spine>") != std::string::npos) {
+            it = iter;
+            break;
+        }
     }
 
-    // Append </spine> if it exists
+    // Copy everything before "</spine>"
+    if (it != spine.end()) {
+        updatedSpine.insert(updatedSpine.end(), spine.begin(), it);
+    } else {
+        updatedSpine = spine; // If </spine> is missing, copy everything
+    }
+
+    // Insert new chapters before "</spine>"
+    for (size_t i = 0; i < chapters.size(); ++i) {
+        updatedSpine.push_back("<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n");
+    }
+
+    // Append "</spine>" if it was found
     if (it != spine.end()) {
         updatedSpine.push_back(*it);
     }
 
     return updatedSpine;
 }
+
 
 void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentOpfPath) {
     // Step 1: Read the entire file into a single string
@@ -279,18 +300,12 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
     inputFile.close();
 
     try {
-        std::cout << "Before parseManifestAndSpin" << std::endl;
         auto manifestAndSpine = parseManifestAndSpine(fileContent);
-        std::cout << "After parseManifestAndSpin" << std::endl;
         std::vector<std::string> manifest = manifestAndSpine.first;
         std::vector<std::string> spine = manifestAndSpine.second;
 
-        std::cout << "Before updateManifest" << std::endl;
         std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
-        std::cout << "After updateManifest" << std::endl;
-        std::cout << "Before updateSpine" << std::endl;
         std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
-        std::cout << "After updateSpine" << std::endl;
 
         std::ostringstream updatedContentStream;
         bool insideManifest = false, insideSpine = false;
