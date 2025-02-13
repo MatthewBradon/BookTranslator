@@ -1428,8 +1428,7 @@ TEST_CASE("PDFTranslator: getUtf8CharLength") {
     }
 }
 
-TEST_CASE("PDFTranslator: createMuPDFContext")
-{
+TEST_CASE("PDFTranslator: createMuPDFContext") {
     SECTION("Positive Test")
     {
         TestablePDFTranslator translator;
@@ -1445,8 +1444,7 @@ TEST_CASE("PDFTranslator: createMuPDFContext")
     }
 }
 
-TEST_CASE("PDFTranslator: extractTextFromPage")
-{
+TEST_CASE("PDFTranslator: extractTextFromPage") {
     SECTION("Valid Page")
     {
         TestablePDFTranslator translator;
@@ -1507,8 +1505,7 @@ TEST_CASE("PDFTranslator: extractTextFromPage")
     }
 }
 
-TEST_CASE("PDFTranslator: pageContainsText")
-{
+TEST_CASE("PDFTranslator: pageContainsText") {
     SECTION("Page With Text")
     {
         TestablePDFTranslator translator;
@@ -1574,8 +1571,7 @@ TEST_CASE("PDFTranslator: pageContainsText")
     }
 }
 
-TEST_CASE("PDFTranslator: processPDF")
-{
+TEST_CASE("PDFTranslator: processPDF") {
     SECTION("Positive Test")
     {
         TestablePDFTranslator translator;
@@ -1625,8 +1621,7 @@ TEST_CASE("PDFTranslator: processPDF")
     }
 }
 
-TEST_CASE("PDFTranslator: collectImageFiles")
-{
+TEST_CASE("PDFTranslator: collectImageFiles") {
     TestablePDFTranslator translator;
 
     SECTION("Positive Test - Directory with Images")
@@ -1655,12 +1650,10 @@ TEST_CASE("PDFTranslator: collectImageFiles")
         // Collect image files
         std::vector<std::string> imageFiles;
         REQUIRE_NOTHROW(imageFiles = translator.collectImageFiles(imagesDir.string()));
-
         // Expect at least the .png and .jpg to be discovered
         REQUIRE_FALSE(imageFiles.empty());
 
-        // Cleanup
-        std::filesystem::remove_all(imagesDir);
+
     }
 
     SECTION("Negative Test - Nonexistent Directory")
@@ -1675,8 +1668,7 @@ TEST_CASE("PDFTranslator: collectImageFiles")
     }
 }
 
-TEST_CASE("PDFTranslator: addImagesToPdf")
-{
+TEST_CASE("PDFTranslator: addImagesToPdf") {
     TestablePDFTranslator translator;
 
     SECTION("Positive Test - Valid PNG Images")
@@ -1708,7 +1700,6 @@ TEST_CASE("PDFTranslator: addImagesToPdf")
 
         // Remove test artifacts
         std::filesystem::remove(outputPdf);
-        std::filesystem::remove_all(imagesDir);
     }
     
     SECTION("Negative Test - No Valid Images")
@@ -1744,12 +1735,10 @@ TEST_CASE("PDFTranslator: addImagesToPdf")
 
         // Remove artifacts
         std::filesystem::remove(outputPdf);
-        std::filesystem::remove_all(imagesDir);
     }
 }
 
-TEST_CASE("PDFTranslator: createPDF")
-{
+TEST_CASE("PDFTranslator: createPDF") {
     TestablePDFTranslator translator;
 
     SECTION("Positive Test - text + images")
@@ -1772,11 +1761,7 @@ TEST_CASE("PDFTranslator: createPDF")
         }
 
         // Should not throw
-        REQUIRE_NOTHROW(
-            translator.createPDF(outputPdf, 
-                                 inputFile.string(), 
-                                 imagesDir.string())
-        );
+        REQUIRE_NOTHROW( translator.createPDF(outputPdf, inputFile.string(), imagesDir.string()));
 
         // Confirm PDF is non-empty
         {
@@ -1787,7 +1772,6 @@ TEST_CASE("PDFTranslator: createPDF")
 
         // Cleanup
         std::filesystem::remove(outputPdf);
-        std::filesystem::remove_all(imagesDir);
         std::filesystem::remove(inputFile);
     }
 
@@ -1820,6 +1804,24 @@ TEST_CASE("PDFTranslator: createPDF")
 
         // Cleanup
         std::filesystem::remove(outputPdf);
-        std::filesystem::remove_all(imagesDir);
+    }
+}
+
+TEST_CASE("PDFTranslator: isImageFile") {
+    TestablePDFTranslator translator;
+
+    SECTION("Positive Test - Valid Image Extensions")
+    {
+        REQUIRE(translator.isImageFile("image.png"));
+        REQUIRE(translator.isImageFile("image.jpg"));
+        REQUIRE(translator.isImageFile("image.jpeg"));
+        REQUIRE(translator.isImageFile("image.bmp"));
+        REQUIRE(translator.isImageFile("image.tiff"));
+    }
+
+    SECTION("Negative Test - Invalid Image Extensions"){
+        REQUIRE_FALSE(translator.isImageFile("image.txt"));
+        REQUIRE_FALSE(translator.isImageFile("image.pdf"));
+        REQUIRE_FALSE(translator.isImageFile("image.docx"));
     }
 }

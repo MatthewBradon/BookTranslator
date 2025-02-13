@@ -467,8 +467,7 @@ size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
     }
 }
 
-std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength)
-{
+std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength) {
     // You can adjust which words should "start" a new chunk vs. which punctuation 
     // should "end" the current chunk.
     // endBreakpoints appended to current chunk, then split.
@@ -704,8 +703,7 @@ bool PDFTranslator::isImageAboveThreshold(const std::string &imagePath, float th
 }
 
 
-std::pair<cairo_surface_t*, cairo_t*> PDFTranslator::initCairoPdfSurface(const std::string &filename, double width, double height)
-{
+std::pair<cairo_surface_t*, cairo_t*> PDFTranslator::initCairoPdfSurface(const std::string &filename, double width, double height) {
     cairo_surface_t* surface = cairo_pdf_surface_create(filename.c_str(), width, height);
     cairo_t* cr = cairo_create(surface);
 
@@ -713,14 +711,12 @@ std::pair<cairo_surface_t*, cairo_t*> PDFTranslator::initCairoPdfSurface(const s
 }
 
 
-void PDFTranslator::cleanupCairo(cairo_t* cr, cairo_surface_t* surface)
-{
+void PDFTranslator::cleanupCairo(cairo_t* cr, cairo_surface_t* surface) {
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
 }
 
-std::vector<std::string> PDFTranslator::collectImageFiles(const std::string &images_dir)
-{
+std::vector<std::string> PDFTranslator::collectImageFiles(const std::string &images_dir) {
     std::vector<std::string> image_files;
     for (const auto &entry : std::filesystem::directory_iterator(images_dir)) {
         if (entry.is_regular_file()) {
@@ -740,15 +736,13 @@ std::vector<std::string> PDFTranslator::collectImageFiles(const std::string &ima
     return image_files;
 }
 
-bool PDFTranslator::isImageFile(const std::string &extension)
-{
+bool PDFTranslator::isImageFile(const std::string &extension) {
     return (extension == ".png" || extension == ".jpg" || 
             extension == ".jpeg"|| extension == ".bmp" || extension == ".tiff");
 }
 
 
-bool PDFTranslator::addImagesToPdf(cairo_t *cr, cairo_surface_t *surface, const std::vector<std::string> &image_files)
-{
+bool PDFTranslator::addImagesToPdf(cairo_t *cr, cairo_surface_t *surface, const std::vector<std::string> &image_files) {
     bool has_images = false;
     
     for (const auto &image_file : image_files) {
@@ -783,14 +777,12 @@ bool PDFTranslator::addImagesToPdf(cairo_t *cr, cairo_surface_t *surface, const 
     return has_images;
 }
 
-void PDFTranslator::configureTextRendering(cairo_t *cr, const std::string &font_family, double font_size)
-{
+void PDFTranslator::configureTextRendering(cairo_t *cr, const std::string &font_family, double font_size) {
     cairo_select_font_face(cr, font_family.c_str(), CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, font_size);
 }
 
-void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const std::string &input_file, double page_width, double page_height, double margin, double line_spacing, double font_size)
-{
+void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const std::string &input_file, double page_width, double page_height, double margin, double line_spacing, double font_size) {
     std::ifstream infile(input_file);
     if (!infile.is_open()) {
         std::cerr << "Error: Could not open file " << input_file << std::endl;
@@ -859,8 +851,7 @@ void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const st
     }
 }
 
-void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir)
-{
+void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
     // Page dimensions in points (A4: 612x792 points)
     const double page_width = 612.0;
     const double page_height = 792.0;
