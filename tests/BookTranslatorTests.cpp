@@ -1812,16 +1812,16 @@ TEST_CASE("PDFTranslator: isImageFile") {
 
     SECTION("Positive Test - Valid Image Extensions")
     {
-        REQUIRE(translator.isImageFile("image.png"));
-        REQUIRE(translator.isImageFile("image.jpg"));
-        REQUIRE(translator.isImageFile("image.jpeg"));
-        REQUIRE(translator.isImageFile("image.bmp"));
-        REQUIRE(translator.isImageFile("image.tiff"));
+        REQUIRE(translator.isImageFile(".png"));
+        REQUIRE(translator.isImageFile(".jpg"));
+        REQUIRE(translator.isImageFile(".jpeg"));
+        REQUIRE(translator.isImageFile(".bmp"));
+        REQUIRE(translator.isImageFile(".tiff"));
     }
 
     SECTION("Negative Test - Invalid Image Extensions"){
-        REQUIRE_FALSE(translator.isImageFile("image.txt"));
-        REQUIRE_FALSE(translator.isImageFile("image.pdf"));
-        REQUIRE_FALSE(translator.isImageFile("image.docx"));
+        REQUIRE_FALSE(translator.isImageFile(".txt"));
+        REQUIRE_FALSE(translator.isImageFile(".pdf"));
+        REQUIRE_FALSE(translator.isImageFile(".docx"));
     }
 }
