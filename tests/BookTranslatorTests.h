@@ -1,6 +1,7 @@
 #include "EpubTranslator.h"
 #include "PDFTranslator.h"
 #include "GUI.h"
+#include <sys/stat.h>
 
 
 class TestableEpubTranslator : public EpubTranslator {
@@ -59,4 +60,11 @@ public:
     using PDFTranslator::convertPdfToImages;
     using PDFTranslator::isImageAboveThreshold;
     using PDFTranslator::createPDF;
+    using PDFTranslator::createMuPDFContext;
+    using PDFTranslator::extractTextFromPage;
+    using PDFTranslator::pageContainsText;
+    using PDFTranslator::extractTextFromBlocks;
+    using PDFTranslator::extractTextFromLines;
+    using PDFTranslator::extractTextFromChars;
+    using PDFTranslator::processPDF;
 };

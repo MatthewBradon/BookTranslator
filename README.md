@@ -8,7 +8,7 @@ MUPDF is included as a submodule for this repository after cloning run this comm
 git submodule update --init --recursive
 ```
 
-I built this using cmake and the Visaul Studio Community 2022 Build Tools
+I built this using cmake and the Visual Studio Community 2022 Build Tools
 
 ```
 cmake --build build --config Release

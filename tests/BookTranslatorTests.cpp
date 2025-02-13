@@ -4,7 +4,9 @@
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("searchForOPFFiles works correctly") {
+// ------ EpubTranslator ------
+
+TEST_CASE("EpubTranslator: searchForOPFFiles works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Returns correct path when .opf file exists") {
@@ -29,7 +31,7 @@ TEST_CASE("searchForOPFFiles works correctly") {
     }
 }
 
-TEST_CASE("extractSpineContent works correctly") {
+TEST_CASE("EpubTranslator: extractSpineContent works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Extracts content from a valid <spine> tag") {
@@ -91,7 +93,7 @@ TEST_CASE("extractSpineContent works correctly") {
     }
 }
 
-TEST_CASE("extractIdrefs works correctly") {
+TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Extracts idrefs from valid spine content") {
@@ -140,7 +142,7 @@ TEST_CASE("extractIdrefs works correctly") {
     }
 }
 
-TEST_CASE("getSpineOrder works correctly") {
+TEST_CASE("EpubTranslator: getSpineOrder works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Returns spine order from valid OPF file") {
@@ -173,7 +175,7 @@ TEST_CASE("getSpineOrder works correctly") {
     }
 }
 
-TEST_CASE("getAllXHTMLFiles works correctly") {
+TEST_CASE("EpubTranslator: getAllXHTMLFiles works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Returns all .xhtml files in a directory") {
@@ -202,7 +204,7 @@ TEST_CASE("getAllXHTMLFiles works correctly") {
     }
 }
 
-TEST_CASE("sortXHTMLFilesBySpineOrder works correctly") {
+TEST_CASE("EpubTranslator: sortXHTMLFilesBySpineOrder works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Sorts files correctly by spine order") {
@@ -224,7 +226,7 @@ TEST_CASE("sortXHTMLFilesBySpineOrder works correctly") {
     }
 }
 
-TEST_CASE("parseManifestAndSpine") {
+TEST_CASE("EpubTranslator: parseManifestAndSpine") {
     TestableEpubTranslator translator;
 
     SECTION("Parses valid manifest and spine correctly") {
@@ -282,7 +284,7 @@ TEST_CASE("parseManifestAndSpine") {
     }
 }
 
-TEST_CASE("updateManifest") {
+TEST_CASE("EpubTranslator: updateManifest") {
     TestableEpubTranslator translator;
 
     SECTION("Adds new chapters correctly to manifest") {
@@ -326,7 +328,7 @@ TEST_CASE("updateManifest") {
     }
 }
 
-TEST_CASE("updateSpine") {
+TEST_CASE("EpubTranslator: updateSpine") {
     TestableEpubTranslator translator;
 
     SECTION("Adds new chapters correctly to spine") {
@@ -367,7 +369,7 @@ TEST_CASE("updateSpine") {
 
 }
 
-TEST_CASE("removeSection0001Tags removes specific tags from content.opf") {
+TEST_CASE("EpubTranslator: removeSection0001Tags removes specific tags from content.opf") {
     // Step 1: Create a temporary content.opf file
     std::filesystem::path tempFile = "temp_content.opf";
     std::ofstream tempOutput(tempFile);
@@ -444,7 +446,7 @@ TEST_CASE("formatHTML handles various HTML inputs") {
 
 }
 
-TEST_CASE("updateNavXHTML correctly updates the TOC") {
+TEST_CASE("EpubTranslator: updateNavXHTML correctly updates the TOC") {
     TestableEpubTranslator translator;
 
     // Create a temporary nav.xhtml file for testing
@@ -477,7 +479,7 @@ TEST_CASE("updateNavXHTML correctly updates the TOC") {
     std::filesystem::remove(tempNavPath);
 }
 
-TEST_CASE("copyImages correctly copies image files") {
+TEST_CASE("EpubTranslator: copyImages correctly copies image files") {
     TestableEpubTranslator translator;
 
     // Setup: Create temp source and destination directories
@@ -502,7 +504,7 @@ TEST_CASE("copyImages correctly copies image files") {
     std::filesystem::remove_all(destDir);
 }
 
-TEST_CASE("replaceFullWidthSpaces correctly handles full-width spaces") {
+TEST_CASE("EpubTranslator: replaceFullWidthSpaces correctly handles full-width spaces") {
     TestableEpubTranslator translator;
 
     SECTION("Replaces a single full-width space with a normal space") {
@@ -576,7 +578,7 @@ TEST_CASE("replaceFullWidthSpaces correctly handles full-width spaces") {
     }
 }
 
-TEST_CASE("updateContentOpf works correctly") {
+TEST_CASE("EpubTranslator: updateContentOpf works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Updates OPF file with new spine and manifest") {
@@ -611,7 +613,7 @@ TEST_CASE("updateContentOpf works correctly") {
     }
 }
 
-TEST_CASE("stripHtmlTags correctly removes HTML tags from strings") {
+TEST_CASE("EpubTranslator: stripHtmlTags correctly removes HTML tags from strings") {
     TestableEpubTranslator translator;
 
     SECTION("Removes simple HTML tags") {
@@ -671,7 +673,7 @@ TEST_CASE("stripHtmlTags correctly removes HTML tags from strings") {
     }
 }
 
-TEST_CASE("readChapterFile reads file content correctly") {
+TEST_CASE("EpubTranslator: readChapterFile reads file content correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Reads content from a valid file") {
@@ -693,7 +695,7 @@ TEST_CASE("readChapterFile reads file content correctly") {
     }
 }
 
-TEST_CASE("parseHtmlDocument parses valid HTML content") {
+TEST_CASE("EpubTranslator: parseHtmlDocument parses valid HTML content") {
     TestableEpubTranslator translator;
 
     SECTION("Parses valid HTML content successfully") {
@@ -712,7 +714,7 @@ TEST_CASE("parseHtmlDocument parses valid HTML content") {
     }
 }
 
-TEST_CASE("cleanNodes removes unwanted tags") {
+TEST_CASE("EpubTranslator: cleanNodes removes unwanted tags") {
     TestableEpubTranslator translator;
 
     std::string htmlContent = "<html><body><p>Keep this</p><span>Remove this</span></body></html>";
@@ -731,7 +733,7 @@ TEST_CASE("cleanNodes removes unwanted tags") {
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("serializeDocument correctly serializes HTML content") {
+TEST_CASE("EpubTranslator: serializeDocument correctly serializes HTML content") {
     TestableEpubTranslator translator;
 
     std::string htmlContent = "<html><body><p>Sample Text</p></body></html>";
@@ -747,7 +749,7 @@ TEST_CASE("serializeDocument correctly serializes HTML content") {
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("writeChapterFile writes content to a file correctly") {
+TEST_CASE("EpubTranslator: writeChapterFile writes content to a file correctly") {
     TestableEpubTranslator translator;
     std::filesystem::path tempFile = "output_chapter.html";
 
@@ -763,7 +765,7 @@ TEST_CASE("writeChapterFile writes content to a file correctly") {
     std::filesystem::remove(tempFile); // Cleanup
 }
 
-TEST_CASE("extractNodesFromDoc extracts <p> and <img> tags correctly") {
+TEST_CASE("EpubTranslator: extractNodesFromDoc extracts <p> and <img> tags correctly") {
     TestableEpubTranslator translator;
 
     std::string htmlContent = R"(<html><body><p>Paragraph 1</p><img src="image.png"/><p>Paragraph 2</p></body></html>)";
@@ -777,7 +779,7 @@ TEST_CASE("extractNodesFromDoc extracts <p> and <img> tags correctly") {
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("cleanChapter works correctly") {
+TEST_CASE("EpubTranslator: cleanChapter works correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Cleans unwanted tags and replaces full-width spaces") {
@@ -865,7 +867,7 @@ TEST_CASE("cleanChapter works correctly") {
     }
 }
 
-TEST_CASE("processImgTag extracts image filename correctly") {
+TEST_CASE("EpubTranslator: processImgTag extracts image filename correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Extracts filename from img tag with src attribute") {
@@ -897,7 +899,7 @@ TEST_CASE("processImgTag extracts image filename correctly") {
     }
 }
 
-TEST_CASE("processPTag extracts and cleans text content from p tags") {
+TEST_CASE("EpubTranslator: processPTag extracts and cleans text content from p tags") {
     TestableEpubTranslator translator;
 
     SECTION("Extracts plain text from p tag with nested HTML") {
@@ -928,7 +930,7 @@ TEST_CASE("processPTag extracts and cleans text content from p tags") {
     }
 }
 
-TEST_CASE("readFileUtf8 reads UTF-8 encoded file content correctly") {
+TEST_CASE("EpubTranslator: readFileUtf8 reads UTF-8 encoded file content correctly") {
     TestableEpubTranslator translator;
 
     SECTION("Reads content from a valid UTF-8 file") {
@@ -995,7 +997,7 @@ TEST_CASE("readFileUtf8 reads UTF-8 encoded file content correctly") {
     }
 }
 
-TEST_CASE("extractTags extracts <p> and <img> tags correctly from chapters") {
+TEST_CASE("EpubTranslator: extractTags extracts <p> and <img> tags correctly from chapters") {
     TestableEpubTranslator translator;
 
     SECTION("Extracts both <p> and <img> tags from a valid chapter file") {
@@ -1105,7 +1107,7 @@ TEST_CASE("extractTags extracts <p> and <img> tags correctly from chapters") {
     }
 }
 
-TEST_CASE("exportEpub creates a valid EPUB file") {
+TEST_CASE("EpubTranslator: exportEpub creates a valid EPUB file") {
     std::string tempExportPath = "test_export";
     std::string tempOutputDir = "test_output";
     std::string epubPath = tempOutputDir + "/output.epub";
@@ -1145,7 +1147,7 @@ TEST_CASE("exportEpub creates a valid EPUB file") {
     std::filesystem::remove_all(tempOutputDir);
 }
 
-TEST_CASE("removeUnwantedTags removes specific tags while preserving content") {
+TEST_CASE("EpubTranslator: removeUnwantedTags removes specific tags while preserving content") {
     TestableEpubTranslator translator;
 
     SECTION("Removes <br>, <i>, <span>, <ruby>, and <rt> tags correctly") {
@@ -1227,7 +1229,9 @@ TEST_CASE("removeUnwantedTags removes specific tags while preserving content") {
     }
 }
 
-TEST_CASE("Font Loading", "[GUI]") {
+// ------ GUI -------
+
+TEST_CASE("GUI: Font Loading") {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
@@ -1236,7 +1240,7 @@ TEST_CASE("Font Loading", "[GUI]") {
     ImGui::DestroyContext();
 }
 
-TEST_CASE("Input Field Updates", "[GUI]") {
+TEST_CASE("GUI: Input Field Updates") {
     TestableGUI gui;
     strcpy(gui.inputFile, "test.epub");
     strcpy(gui.outputPath, "output/");
@@ -1353,7 +1357,7 @@ TEST_CASE("PDFTranslator: Create PDF") {
     REQUIRE(std::filesystem::remove(outputPdf));
 }
 
-TEST_CASE("PDFTranslator::isImageAboveThreshold") {
+TEST_CASE("PDFTranslator: isImageAboveThreshold") {
     TestablePDFTranslator translator;
     
     std::string testImagePath = std::filesystem::absolute("../test_files/testImage.png").string();
@@ -1369,7 +1373,7 @@ TEST_CASE("PDFTranslator::isImageAboveThreshold") {
     }
 }
 
-TEST_CASE("PDFTranslator::splitLongSentences") {
+TEST_CASE("PDFTranslator: splitLongSentences") {
     TestablePDFTranslator translator;
     
     SECTION("Sentence with breakpoints should split correctly") {
@@ -1400,7 +1404,7 @@ TEST_CASE("PDFTranslator::splitLongSentences") {
     }
 }
 
-TEST_CASE("PDFTranslator::getUtf8CharLength") {
+TEST_CASE("PDFTranslator: getUtf8CharLength") {
     TestablePDFTranslator translator;
 
     SECTION("Single-byte UTF-8 character (ASCII)") {
@@ -1421,5 +1425,202 @@ TEST_CASE("PDFTranslator::getUtf8CharLength") {
     SECTION("Four-byte UTF-8 character (Emoji)") {
         const char* utf8Char3 = "😀"; // 4-byte UTF-8 sequence
         REQUIRE(translator.getUtf8CharLength(static_cast<unsigned char>(utf8Char3[0])) == 4);
+    }
+}
+
+TEST_CASE("PDFTranslator: createMuPDFContext")
+{
+    SECTION("Positive Test")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = nullptr;
+
+        REQUIRE_NOTHROW(ctx = translator.createMuPDFContext());
+        REQUIRE(ctx != nullptr);
+
+        if (ctx)
+        {
+            fz_drop_context(ctx);
+        }
+    }
+}
+
+TEST_CASE("PDFTranslator: extractTextFromPage")
+{
+    SECTION("Valid Page")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        // Open a test PDF that we expect to have at least one page of text
+        fz_document* doc = fz_open_document(ctx, "../test_files/lorem-ipsum.pdf");
+        REQUIRE(doc != nullptr);
+
+        // We'll attempt to extract text from page 0 (first page) and write to a file
+        std::ofstream outputFile("extractTextPositive.txt");
+        REQUIRE_NOTHROW(translator.extractTextFromPage(ctx, doc, 0, outputFile));
+        outputFile.close();
+
+        // Manually check if the file has a size > 0
+        {
+            std::ifstream fileCheck("extractTextPositive.txt", std::ios::ate | std::ios::binary);
+            REQUIRE(fileCheck.is_open());
+            auto fileSize = fileCheck.tellg();
+            fileCheck.close();
+            REQUIRE(fileSize > 0);
+        }
+
+        // Cleanup
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+    }
+
+    SECTION("Invalid Page Index")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        // Open a valid PDF
+        fz_document* doc = fz_open_document(ctx, "../test_files/lorem-ipsum.pdf");
+        REQUIRE(doc != nullptr);
+
+        // We'll provide an out-of-range index on purpose
+        int pageCount = fz_count_pages(ctx, doc);
+        std::ofstream outputFile("extractTextNegative.txt");
+
+        // Should not throw an exception; it should just return and write nothing
+        REQUIRE_NOTHROW(translator.extractTextFromPage(ctx, doc, pageCount, outputFile));
+        outputFile.close();
+
+        // Check the file is empty
+        {
+            std::ifstream fileCheck("extractTextNegative.txt", std::ios::ate | std::ios::binary);
+            REQUIRE(fileCheck.is_open());
+            auto fileSize = fileCheck.tellg();
+            fileCheck.close();
+            REQUIRE(fileSize == 0);
+        }
+
+        // Cleanup
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+    }
+}
+
+TEST_CASE("PDFTranslator: pageContainsText")
+{
+    SECTION("Page With Text")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        fz_document* doc = fz_open_document(ctx, "../test_files/lorem-ipsum.pdf");
+        REQUIRE(doc != nullptr);
+
+        // Load first page (assumed to have text)
+        fz_page* page = fz_load_page(ctx, doc, 0);
+        REQUIRE(page != nullptr);
+
+        // Create an stext_page
+        fz_rect bounds = fz_bound_page(ctx, page);
+        fz_stext_page* textPage = fz_new_stext_page(ctx, bounds);
+        fz_stext_options options = { 0 };
+        fz_device* textDevice = fz_new_stext_device(ctx, textPage, &options);
+
+        // Run the page to fill textPage
+        fz_run_page(ctx, page, textDevice, fz_identity, NULL);
+
+        // Check if pageContainsText returns true
+        REQUIRE(translator.pageContainsText(textPage) == true);
+
+        // Cleanup
+        fz_drop_device(ctx, textDevice);
+        fz_drop_stext_page(ctx, textPage);
+        fz_drop_page(ctx, page);
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+    }
+
+    SECTION("Page With No Text")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        // Open a PDF that has a completely blank page, e.g., blank.pdf
+        fz_document* doc = fz_open_document(ctx, "../test_files/blank.pdf");
+        REQUIRE(doc != nullptr);
+
+        // Load the first (and only) page which is blank
+        fz_page* page = fz_load_page(ctx, doc, 0);
+        REQUIRE(page != nullptr);
+
+        fz_rect bounds = fz_bound_page(ctx, page);
+        fz_stext_page* textPage = fz_new_stext_page(ctx, bounds);
+        fz_stext_options options = { 0 };
+        fz_device* textDevice = fz_new_stext_device(ctx, textPage, &options);
+
+        // Run the page; no text should be extracted
+        fz_run_page(ctx, page, textDevice, fz_identity, NULL);
+
+        // Verify that pageContainsText returns false
+        REQUIRE(translator.pageContainsText(textPage) == false);
+
+        // Cleanup
+        fz_drop_device(ctx, textDevice);
+        fz_drop_stext_page(ctx, textPage);
+        fz_drop_page(ctx, page);
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+    }
+}
+
+TEST_CASE("PDFTranslator: processPDF")
+{
+    SECTION("Positive Test")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        std::ofstream outputFile("processPDFPositive.txt");
+        REQUIRE_NOTHROW(translator.processPDF(ctx, "../test_files/lorem-ipsum.pdf", outputFile));
+        outputFile.close();
+
+        // Manually check if the output file has size > 0
+        {
+            std::ifstream fileCheck("processPDFPositive.txt", std::ios::ate | std::ios::binary);
+            REQUIRE(fileCheck.is_open());
+            auto fileSize = fileCheck.tellg();
+            fileCheck.close();
+            REQUIRE(fileSize > 0);
+        }
+
+        fz_drop_context(ctx);
+    }
+
+    SECTION("File Does Not Exist")
+    {
+        TestablePDFTranslator translator;
+        fz_context* ctx = translator.createMuPDFContext();
+
+        std::ofstream outputFile("processPDFNegative.txt");
+
+        // This should throw a runtime_error because the file doesn't exist
+        REQUIRE_THROWS_AS(
+            translator.processPDF(ctx, "../test_files/does_not_exist.pdf", outputFile),
+            std::runtime_error
+        );
+
+        outputFile.close();
+
+        // Check that the file is empty or zero-sized
+        {
+            std::ifstream fileCheck("processPDFNegative.txt", std::ios::ate | std::ios::binary);
+            REQUIRE(fileCheck.is_open());
+            auto fileSize = fileCheck.tellg();
+            fileCheck.close();
+            REQUIRE(fileSize == 0);
+        }
+
+        fz_drop_context(ctx);
     }
 }

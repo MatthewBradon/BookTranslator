@@ -52,4 +52,11 @@ protected:
     void extractTextFromBlocks(fz_stext_page* textPage, std::ofstream& outputFile);
     void extractTextFromLines(fz_stext_block* block, std::ofstream& outputFile);
     void extractTextFromChars(fz_stext_line* line, std::ofstream& outputFile);
+    std::pair<cairo_surface_t*, cairo_t*> initCairoPdfSurface(const std::string &filename, double width, double height);
+    void cleanupCairo(cairo_t* cr, cairo_surface_t* surface);
+    std::vector<std::string> collectImageFiles(const std::string &images_dir);
+    bool addImagesToPdf(cairo_t *cr, cairo_surface_t *surface, const std::vector<std::string> &image_files);
+    void configureTextRendering(cairo_t *cr, const std::string &font_family, double font_size);
+    void addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const std::string &input_file, double page_width, double page_height, double margin, double line_spacing, double font_size);
+    bool isImageFile(const std::string &extension);
 };
