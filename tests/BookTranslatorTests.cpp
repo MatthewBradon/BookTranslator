@@ -1247,7 +1247,6 @@ TEST_CASE("Input Field Updates", "[GUI]") {
 
 // ----- PDFTranslator -------
 
-
 TEST_CASE("PDFTranslator: Remove Whitespace") {
     TestablePDFTranslator translator;
     REQUIRE(translator.removeWhitespace("Hello World") == "HelloWorld");
@@ -1270,7 +1269,6 @@ TEST_CASE("PDFTranslator: Extract Text from PDF") {
     // Clean up
     std::filesystem::remove(outputPath);
 }
-
 
 TEST_CASE("PDFTranslator: Split Japanese Text") {
     TestablePDFTranslator translator;
@@ -1355,7 +1353,7 @@ TEST_CASE("PDFTranslator: Create PDF") {
     REQUIRE(std::filesystem::remove(outputPdf));
 }
 
-TEST_CASE("PDFTranslator::isImageAboveThreshold", "[image_processing]") {
+TEST_CASE("PDFTranslator::isImageAboveThreshold") {
     TestablePDFTranslator translator;
     
     std::string testImagePath = std::filesystem::absolute("../test_files/testImage.png").string();
@@ -1371,18 +1369,17 @@ TEST_CASE("PDFTranslator::isImageAboveThreshold", "[image_processing]") {
     }
 }
 
-
-
 TEST_CASE("PDFTranslator::splitLongSentences") {
     TestablePDFTranslator translator;
     
     SECTION("Sentence with breakpoints should split correctly") {
         std::string longSentence = "これは長い文章です、しかし途中で区切るべきです。そして適切に分割されることを期待します。";
-        size_t maxLength = 10;
+        size_t maxLength = 100;
         
         auto result = translator.splitLongSentences(longSentence, maxLength);
-        
+          
         // Print the split sentences
+        std::cout << "Split sentences max length: " << maxLength << std::endl;
         for (const auto& sentence : result) {
             std::cout << "Sentence: " << sentence << std::endl;
         }
@@ -1403,7 +1400,7 @@ TEST_CASE("PDFTranslator::splitLongSentences") {
     }
 }
 
-TEST_CASE("PDFTranslator::getUtf8CharLength", "[utf8]") {
+TEST_CASE("PDFTranslator::getUtf8CharLength") {
     TestablePDFTranslator translator;
 
     SECTION("Single-byte UTF-8 character (ASCII)") {

@@ -470,56 +470,105 @@ size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
     }
 }
 
-// Function to split long sentences into smaller chunks based on logical breakpoints
-std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength) {
-    std::vector<std::string> breakpoints = {"、", "。", "しかし", "そして", "だから", "そのため"};
-    std::vector<std::string> sentences;
+std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength)
+{
+    // You can adjust which words should "start" a new chunk vs. which punctuation 
+    // should "end" the current chunk.
+    // endBreakpoints appended to current chunk, then split.
+    // startBreakpoints cause us to split BEFORE them, then start a new chunk WITH them.
+    std::vector<std::string> endBreakpoints   = { "、", "。"};
+    std::vector<std::string> startBreakpoints = { "しかし", "そして", "だから", "そのため" };
+
+    std::vector<std::string> results;
     std::string currentChunk;
-    size_t tokenCount = 0;
     size_t i = 0;
 
     while (i < sentence.size()) {
-        size_t charLength = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
-        if (i + charLength > sentence.size()) break; // Safety check
+        // Determine the length of the next UTF-8 character safely
+        size_t charLen = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
 
-        std::string currentChar = sentence.substr(i, charLength);
-        currentChunk += currentChar;
-        ++tokenCount;
+        // Safety check if the UTF-8 seems truncated near the end of the string
+        if (i + charLen > sentence.size()) {
+            // Add whatever is left as-is
+            currentChunk += sentence.substr(i);
+            break;
+        }
 
-        // Check for any breakpoint match at the current UTF-8 position
-        bool splitAtBreakpoint = false;
+        // We'll look ahead at the substring starting at i to see if it matches
+        // any start breakpoint or end breakpoint.
+        std::string_view nextSubstring(&sentence[i], sentence.size() - i);
+
+        bool foundStartBreakpoint = false;
+        bool foundEndBreakpoint   = false;
         std::string matchedBreakpoint;
-        
-        for (const auto& breakpoint : breakpoints) {
-            // Ensure we don't split a multi-byte character in the middle
-            if (sentence.compare(i, breakpoint.length(), breakpoint) == 0) {
-                splitAtBreakpoint = true;
-                matchedBreakpoint = breakpoint;
+
+        // Check "startBreakpoints" first
+        for (auto&& sb : startBreakpoints) {
+            if (nextSubstring.compare(0, sb.size(), sb) == 0) {
+                foundStartBreakpoint = true;
+                matchedBreakpoint    = sb;
                 break;
             }
         }
 
-        if (splitAtBreakpoint || tokenCount >= maxLength) {
-            sentences.push_back(currentChunk);
-            currentChunk.clear();
-            tokenCount = 0;
-
-            // Move index past the matched breakpoint safely
-            if (splitAtBreakpoint) {
-                i += matchedBreakpoint.length();
-                continue;
+        // Check endBreakpoints only if we did not match a start-breakpoint
+        if (!foundStartBreakpoint) {
+            for (auto&& eb : endBreakpoints) {
+                if (nextSubstring.compare(0, eb.size(), eb) == 0) {
+                    foundEndBreakpoint = true;
+                    matchedBreakpoint  = eb;
+                    break;
+                }
             }
         }
 
-        i += charLength;
+        if (foundStartBreakpoint) {
+            // Found a starting breakpoint
+            // End the current chunk before this word (if currentChunk not empty)
+            // Start a new chunk with that word included.
+
+            // If there's already something accumulated, push it out
+            if (!currentChunk.empty()) {
+                results.push_back(currentChunk);
+                currentChunk.clear();
+            }
+
+            // Now start a new chunk that *begins* with the matched breakpoint
+            currentChunk += matchedBreakpoint;
+            i += matchedBreakpoint.size();
+
+        } else if (foundEndBreakpoint) {
+            // We have encountered punctuation like "、" or "。"
+            //  -> Add that punctuation to the current chunk
+            //  -> End the chunk immediately after.
+
+            currentChunk += matchedBreakpoint;
+            i += matchedBreakpoint.size();
+
+            // Now push this chunk
+            results.push_back(currentChunk);
+            currentChunk.clear();
+
+        } else {
+            // Just a normal character: append to currentChunk
+            std::string nextChar = sentence.substr(i, charLen);
+            currentChunk += nextChar;
+            i += charLen;
+
+            // Check if currentChunk reached maxLength
+            if (currentChunk.size() >= maxLength) {
+                results.push_back(currentChunk);
+                currentChunk.clear();
+            }
+        }
     }
 
-    // Add any remaining text
+    // If something remains in currentChunk, push it out
     if (!currentChunk.empty()) {
-        sentences.push_back(currentChunk);
+        results.push_back(currentChunk);
     }
 
-    return sentences;
+    return results;
 }
 
 // Function to intelligently split Japanese text into sentences
