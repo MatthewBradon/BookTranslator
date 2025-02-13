@@ -67,4 +67,11 @@ public:
     using PDFTranslator::extractTextFromLines;
     using PDFTranslator::extractTextFromChars;
     using PDFTranslator::processPDF;
+    using PDFTranslator::initCairoPdfSurface;
+    using PDFTranslator::cleanupCairo;
+    using PDFTranslator::collectImageFiles;
+    using PDFTranslator::isImageFile;
+    using PDFTranslator::addImagesToPdf;
+    using PDFTranslator::configureTextRendering;
+    using PDFTranslator::addTextToPdf;
 };

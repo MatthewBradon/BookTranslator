@@ -425,8 +425,6 @@ void PDFTranslator::processPDF(fz_context* ctx, const std::string& inputPath, st
     }
 }
 
-
-
 void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
     std::cout << "Extracting text from PDF..." << std::endl;
     std::cout << "PDF file: " << inputPath << std::endl;
@@ -452,7 +450,6 @@ void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::
     std::chrono::duration<double> duration = endTime - startTime;
     std::cout << "Text extracted from PDF in " << duration.count() << " seconds." << std::endl;
 }
-
 
 // Helper function to determine the number of bytes in a UTF-8 character
 size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
@@ -862,9 +859,7 @@ void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const st
     }
 }
 
-void PDFTranslator::createPDF(const std::string &output_file,
-                              const std::string &input_file,
-                              const std::string &images_dir)
+void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir)
 {
     // Page dimensions in points (A4: 612x792 points)
     const double page_width = 612.0;

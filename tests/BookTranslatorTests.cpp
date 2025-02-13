@@ -1624,3 +1624,202 @@ TEST_CASE("PDFTranslator: processPDF")
         fz_drop_context(ctx);
     }
 }
+
+TEST_CASE("PDFTranslator: collectImageFiles")
+{
+    TestablePDFTranslator translator;
+
+    SECTION("Positive Test - Directory with Images")
+    {
+        // Create a temporary directory for valid images
+        auto imagesDir = std::filesystem::temp_directory_path() / "test_images_valid";
+        if (!std::filesystem::exists(imagesDir)) {
+            std::filesystem::create_directories(imagesDir);
+        }
+
+        // Create some dummy image files
+        {
+            std::ofstream fakePng((imagesDir / "image1.png").string(), std::ios::binary);
+            fakePng << "DUMMY_PNG_DATA";
+        }
+        {
+            std::ofstream fakeJpg((imagesDir / "image2.jpg").string(), std::ios::binary);
+            fakeJpg << "DUMMY_JPG_DATA";
+        }
+        // Also create a non-image file to ensure it’s skipped
+        {
+            std::ofstream txtFile((imagesDir / "readme.txt").string());
+            txtFile << "Some text—should be skipped by isImageFile.";
+        }
+
+        // Collect image files
+        std::vector<std::string> imageFiles;
+        REQUIRE_NOTHROW(imageFiles = translator.collectImageFiles(imagesDir.string()));
+
+        // Expect at least the .png and .jpg to be discovered
+        REQUIRE_FALSE(imageFiles.empty());
+
+        // Cleanup
+        std::filesystem::remove_all(imagesDir);
+    }
+
+    SECTION("Negative Test - Nonexistent Directory")
+    {
+        // We intentionally don't create this directory, so it doesn't exist
+        auto invalidDir = std::filesystem::temp_directory_path() / "does_not_exist_123";
+
+        REQUIRE_THROWS_AS(
+            translator.collectImageFiles(invalidDir.string()),
+            std::filesystem::filesystem_error
+        );
+    }
+}
+
+TEST_CASE("PDFTranslator: addImagesToPdf")
+{
+    TestablePDFTranslator translator;
+
+    SECTION("Positive Test - Valid PNG Images")
+    {
+        const std::string outputPdf = "test_addImagesToPdf.pdf";
+
+        // Create a minimal PDF surface
+        auto [surface, cr] = translator.initCairoPdfSurface(outputPdf, 300, 400);
+
+        std::string imagesDir =   std::filesystem::absolute("../test_files/").string();
+
+        // Collect these images
+        auto imageFiles = translator.collectImageFiles(imagesDir);
+        REQUIRE_FALSE(imageFiles.empty());
+
+        bool result = false;
+        REQUIRE_NOTHROW(result = translator.addImagesToPdf(cr, surface, imageFiles));
+        REQUIRE(result == true); // Should have processed the dummy image
+
+        // Cleanup Cairo
+        translator.cleanupCairo(cr, surface);
+
+        // Check that the PDF exists and is non-empty
+        {
+            std::ifstream ifs(outputPdf, std::ios::ate | std::ios::binary);
+            REQUIRE(ifs.is_open());
+            REQUIRE(ifs.tellg() > 0);  // Non-empty
+        }
+
+        // Remove test artifacts
+        std::filesystem::remove(outputPdf);
+        std::filesystem::remove_all(imagesDir);
+    }
+    
+    SECTION("Negative Test - No Valid Images")
+    {
+        const std::string outputPdf = "test_addImagesNoValid.pdf";
+        auto [surface, cr] = translator.initCairoPdfSurface(outputPdf, 300, 400);
+
+        // Create directory with no valid image files
+        auto imagesDir = std::filesystem::temp_directory_path() / "test_images_invalid";
+        std::filesystem::create_directories(imagesDir);
+
+        // A non-image file
+        {
+            std::ofstream txtFile((imagesDir / "notes.txt").string());
+            txtFile << "Just text. No valid image extension.";
+        }
+
+        auto imageFiles = translator.collectImageFiles(imagesDir.string());
+        bool result = false;
+        REQUIRE_NOTHROW(result = translator.addImagesToPdf(cr, surface, imageFiles));
+        REQUIRE(result == false); // No valid images means result is false
+
+        // Cleanup
+        translator.cleanupCairo(cr, surface);
+
+        // The PDF file should still exist, but may be empty
+        {
+            std::ifstream ifs(outputPdf, std::ios::ate | std::ios::binary);
+            REQUIRE(ifs.is_open());  // Confirm it was created at least
+            // If it's zero length, you might decide how you want to handle that
+            // We'll just check existence here, not size.
+        }
+
+        // Remove artifacts
+        std::filesystem::remove(outputPdf);
+        std::filesystem::remove_all(imagesDir);
+    }
+}
+
+TEST_CASE("PDFTranslator: createPDF")
+{
+    TestablePDFTranslator translator;
+
+    SECTION("Positive Test - text + images")
+    {
+        const std::string outputPdf = "test_createPDF.pdf";
+
+        // Create a dummy images directory
+        auto imagesDir = std::filesystem::temp_directory_path() / "test_images_valid_2";
+        std::filesystem::create_directories(imagesDir);
+        {
+            std::ofstream fakePng((imagesDir / "sample.png").string(), std::ios::binary);
+            fakePng << "FAKE_PNG_DATA";
+        }
+
+        // Also create a small text file
+        auto inputFile = std::filesystem::temp_directory_path() / "valid_text_input.txt";
+        {
+            std::ofstream txt(inputFile.string());
+            txt << "Some sample text line 1.\nLine 2.";
+        }
+
+        // Should not throw
+        REQUIRE_NOTHROW(
+            translator.createPDF(outputPdf, 
+                                 inputFile.string(), 
+                                 imagesDir.string())
+        );
+
+        // Confirm PDF is non-empty
+        {
+            std::ifstream ifs(outputPdf, std::ios::ate | std::ios::binary);
+            REQUIRE(ifs.is_open());
+            REQUIRE(ifs.tellg() > 0);
+        }
+
+        // Cleanup
+        std::filesystem::remove(outputPdf);
+        std::filesystem::remove_all(imagesDir);
+        std::filesystem::remove(inputFile);
+    }
+
+    SECTION("Negative Test - Nonexistent Text Input")
+    {
+        const std::string outputPdf = "test_createPDF_noInput.pdf";
+        
+        // Valid images directory with a dummy file
+        auto imagesDir = std::filesystem::temp_directory_path() / "test_images_valid_3";
+        std::filesystem::create_directories(imagesDir);
+        {
+            std::ofstream fakeJpg((imagesDir / "another.jpg").string(), std::ios::binary);
+            fakeJpg << "FAKE_JPG_DATA";
+        }
+
+        // Use a bad (nonexistent) input file path
+        auto badInput = (std::filesystem::temp_directory_path() / "does_not_exist.txt").string();
+
+        // Logs an error internally, does not throw
+        REQUIRE_NOTHROW(
+            translator.createPDF(outputPdf, badInput, imagesDir.string())
+        );
+
+        // PDF may still exist (with images only) or be empty
+        {
+            std::ifstream ifs(outputPdf, std::ios::ate | std::ios::binary);
+            REQUIRE(ifs.is_open()); // Confirms it was created
+            // Could check size if you like, but the main point is it got created.
+        }
+
+        // Cleanup
+        std::filesystem::remove(outputPdf);
+        std::filesystem::remove_all(imagesDir);
+    }
+}
