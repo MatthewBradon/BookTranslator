@@ -994,7 +994,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
     std::vector<std::vector<tagData>> chapterTags;
     // Divide bookTags into chapters chapterNum is the chapter number
-    for(auto& tag : bookTags) {
+    for (auto& tag : bookTags) {
         if (tag.chapterNum >= chapterTags.size()) {
             chapterTags.resize(tag.chapterNum + 1);
         }
@@ -1118,7 +1118,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
         htmlStringVector[i] = responseHTMLString;
         // Limit the number of translations for testing
-        if(i == 9 ) {
+        if (i == 9 ) {
             break;
         }
     }
@@ -1306,7 +1306,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
 
     // Clean each chapter
-    for(const auto& xhtmlFile : spineOrderXHTMLFiles) {
+    for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
             cleanChapter(xhtmlFile);
             std::cout << "Chapter cleaned: " << xhtmlFile.string() << "\n";
     }
@@ -1314,13 +1314,13 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     //Extract all of the relevant tags
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
-    if(bookTags.empty()) {
+    if (bookTags.empty()) {
         std::cerr << "No tags extracted from the book." << "\n";
         return 1;
     }
 
     if (localModel == 1){
-        if(deepLKey.empty()) {
+        if (deepLKey.empty()) {
             std::cerr << "No DeepL API key provided." << "\n";
             return 1;
         }
@@ -1337,8 +1337,9 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         exportEpub(templatePath, outputEpubPath);
         
         // // Remove the unzipped and export directories
-        // std::filesystem::remove_all(unzippedPath);
-        // std::filesystem::remove_all(templatePath);
+        std::filesystem::remove_all(unzippedPath);
+        std::filesystem::remove_all(templatePath);
+        std::filesystem::remove_all("translatedHTML");
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
@@ -1356,12 +1357,12 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Write out a file of the raw tags
     std::filesystem::path rawTagsPath = rawTagsPathString;
     std::ofstream rawTagsFile(rawTagsPath);
-    if(!rawTagsFile.is_open()) {
+    if (!rawTagsFile.is_open()) {
         std::cerr << "Failed to open file for writing: " << rawTagsPath << "\n";
         return 1;
     }
 
-    for(auto& tag : bookTags) {
+    for (auto& tag : bookTags) {
         rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
     }
     rawTagsFile.close();
@@ -1544,7 +1545,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
     std::vector<std::vector<tagData>> chapterTags;
     // Divide bookTags into chapters chapterNum is the chapter number
-    for(auto& tag : bookTags) {
+    for (auto& tag : bookTags) {
         if (tag.chapterNum >= chapterTags.size()) {
             chapterTags.resize(tag.chapterNum + 1);
         }
@@ -1629,6 +1630,10 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         if (std::filesystem::exists(translatedTagsPathString)) {
             std::filesystem::remove(translatedTagsPathString);
             std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+        }
+        if (std::filesystem::exists(rawTagsPathString)) {
+            std::filesystem::remove(rawTagsPathString);
+            std::cout << "Deleted file: " << rawTagsPathString << "\n";
         }
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Filesystem error: " << e.what() << "\n";

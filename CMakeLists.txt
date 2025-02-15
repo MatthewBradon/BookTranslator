@@ -1,7 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
+
+
+set(VCPKG_CRT_LINKAGE static)
+set(VCPKG_LIBRARY_LINKAGE static)
 
 set(CMAKE_CXX_STANDARD 17)
 project(main)
+
+
+
 
 # Add the executable
 add_executable(${PROJECT_NAME} 
@@ -10,6 +17,8 @@ add_executable(${PROJECT_NAME}
     src/PDFTranslator.cpp 
     src/EpubTranslator.cpp 
 )
+
+set_property(TARGET ${PROJECT_NAME}  PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # Include directories for headers
 target_include_directories(${PROJECT_NAME} PRIVATE src)
@@ -49,15 +58,14 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
 # MuPDF configuration
 set(MUPDF_LIB_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/platform/win32/x64/Release")
 set(MUPDF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/mupdf/include")
-include_directories("${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include")
-file(GLOB MUPDF_LIBS "${MUPDF_LIB_DIR}/*.lib")
+# include_directories("${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows-static/include")
+file(GLOB MUPDF_LIBS "${CMAKE_SOURCE_DIR}/external/mupdf/platform/win32/x64/Release/*.lib")
 
 endif()
 
 # Include the MuPDF headers
 include_directories(${MUPDF_INCLUDE_DIR})
 
-# Dynamically collect all .lib files in the MuPDF library directory
 
 
 # Link libraries
@@ -72,14 +80,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     )
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        CURL::libcurl 
+        CURL::libcurl nlohmann_json::nlohmann_json
         PkgConfig::cairo PkgConfig::cairo-script-interpreter
         Boost::process Boost::filesystem Boost::system 
         nfd::nfd glad::glad glfw imgui::imgui 
         libzip::zip LibXml2::LibXml2
         ${MUPDF_LIBS} # Include all MuPDF libraries
     )
-    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows-static/include)
 endif()
 
 # Set output directory for the executable
@@ -103,6 +111,9 @@ add_executable(BookTranslatorTest
     src/PDFTranslator.cpp
 )
 
+set_property(TARGET BookTranslatorTest PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+
 # Include directories for headers
 target_include_directories(BookTranslatorTest PRIVATE src)
 
@@ -117,7 +128,7 @@ target_link_libraries(BookTranslatorTest PRIVATE
     ${MUPDF_LIBS} # Include all MuPDF libraries
 )
 
-target_include_directories(BookTranslatorTest PRIVATE ${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows/include)
+target_include_directories(BookTranslatorTest PRIVATE ${CMAKE_SOURCE_DIR}/build/vcpkg_installed/x64-windows-static/include)
 
 
 target_compile_definitions(BookTranslatorTest PRIVATE TESTING)

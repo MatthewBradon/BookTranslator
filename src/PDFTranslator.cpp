@@ -305,6 +305,30 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
         std::cerr << "Exception: " << ex.what() << std::endl;
         return 1;
     }
+
+    // Clean up the temp files
+    if (std::filesystem::exists(rawTextFilePath)) {
+        std::filesystem::remove(rawTextFilePath);
+    }
+
+    if (std::filesystem::exists(extractedTextPath)) {
+        std::filesystem::remove(extractedTextPath);
+    }
+
+    if (std::filesystem::exists("encodedTags.txt")) {
+        std::filesystem::remove("encodedTags.txt");
+    }
+
+    if (std::filesystem::exists("translatedTags.txt")) {
+        std::filesystem::remove("translatedTags.txt");
+    }
+    
+    if (std::filesystem::exists(imagesDir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(imagesDir)) {
+            std::filesystem::remove(entry.path());
+        }
+    }
+
     std::cout << "Finished" << std::endl;
 
     return 0;
