@@ -8,7 +8,7 @@ MUPDF is included as a submodule for this repository after cloning run this comm
 git submodule update --init --recursive
 ```
 
-I built this using cmake and the Visaul Studio Community 2022 Build Tools
+I built this using cmake and the Visual Studio Community 2022 Build Tools
 
 ```
 cmake --build build --config Release
@@ -43,6 +43,11 @@ optimum-cli export onnx --model ./fine_tuned_model ./onnx-model-dir --task text2
 
 When running pyinstaller either have all the python modules installed already or run it while in a venv
 
+
+For testing run
+```
+ctest -V -C Release --test-dir build
+```
 
 
 

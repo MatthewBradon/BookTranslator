@@ -2,7 +2,6 @@
 #include <stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
-
 #include "PDFTranslator.h"
 
 int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
@@ -306,6 +305,30 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
         std::cerr << "Exception: " << ex.what() << std::endl;
         return 1;
     }
+
+    // Clean up the temp files
+    if (std::filesystem::exists(rawTextFilePath)) {
+        std::filesystem::remove(rawTextFilePath);
+    }
+
+    if (std::filesystem::exists(extractedTextPath)) {
+        std::filesystem::remove(extractedTextPath);
+    }
+
+    if (std::filesystem::exists("encodedTags.txt")) {
+        std::filesystem::remove("encodedTags.txt");
+    }
+
+    if (std::filesystem::exists("translatedTags.txt")) {
+        std::filesystem::remove("translatedTags.txt");
+    }
+    
+    if (std::filesystem::exists(imagesDir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(imagesDir)) {
+            std::filesystem::remove(entry.path());
+        }
+    }
+
     std::cout << "Finished" << std::endl;
 
     return 0;
@@ -325,37 +348,89 @@ std::string PDFTranslator::removeWhitespace(const std::string &input) {
     return result;
 }
 
-void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
-
-    std::cout << "Extracting text from PDF..." << std::endl;
-    std::cout << "PDF file: " << inputPath << std::endl;
-    std::cout << "Output file: " << outputFilePath << std::endl;
-
-    auto startTime = std::chrono::high_resolution_clock::now();
-
-
-    // Check if the file exists
-    if (!std::filesystem::exists(inputPath)) {
-        throw std::runtime_error("PDF file does not exist: " + inputPath);
-    }
-
-    // Create a MuPDF context
-    fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
+fz_context* PDFTranslator::createMuPDFContext() {
+    fz_context* ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
     if (!ctx) {
         throw std::runtime_error("Failed to create MuPDF context.");
     }
-
-    // Register document handlers
     fz_register_document_handlers(ctx);
+    return ctx;
+}
 
-    std::ofstream outputFile(outputFilePath, std::ios::out | std::ios::binary);
-    if (!outputFile) {
-        throw std::runtime_error("Failed to open output file: " + outputFilePath);
-    }
+
+void PDFTranslator::extractTextFromPage(fz_context* ctx, fz_document* doc, int pageIndex, std::ofstream& outputFile) {
+    fz_page* page = nullptr;
+    fz_stext_page* textPage = nullptr;
+    fz_device* textDevice = nullptr;
 
     fz_try(ctx) {
-        // Open the PDF document
-        fz_document *doc = fz_open_document(ctx, inputPath.c_str());
+        page = fz_load_page(ctx, doc, pageIndex);
+        if (!page) {
+            std::cerr << "Failed to load page " << pageIndex + 1 << "." << std::endl;
+            return;
+        }
+
+        fz_rect bounds = fz_bound_page(ctx, page);
+        textPage = fz_new_stext_page(ctx, bounds);
+        fz_stext_options options = { 0 };
+        textDevice = fz_new_stext_device(ctx, textPage, &options);
+
+        fz_run_page(ctx, page, textDevice, fz_identity, NULL);
+
+        if (!pageContainsText(textPage)) {
+            return;
+        }
+
+        extractTextFromBlocks(textPage, outputFile);
+
+    } fz_always(ctx) {
+        if (textDevice) fz_drop_device(ctx, textDevice);
+        if (textPage) fz_drop_stext_page(ctx, textPage);
+        if (page) fz_drop_page(ctx, page);
+    } fz_catch(ctx) {
+        std::cerr << "Error extracting text from page " << pageIndex + 1 << std::endl;
+    }
+}
+
+bool PDFTranslator::pageContainsText(fz_stext_page* textPage) {
+    for (fz_stext_block* block = textPage->first_block; block; block = block->next) {
+        if (block->type == FZ_STEXT_BLOCK_TEXT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void PDFTranslator::extractTextFromBlocks(fz_stext_page* textPage, std::ofstream& outputFile) {
+    for (fz_stext_block* block = textPage->first_block; block; block = block->next) {
+        if (block->type == FZ_STEXT_BLOCK_TEXT) {
+            extractTextFromLines(block, outputFile);
+        }
+    }
+}
+
+void PDFTranslator::extractTextFromLines(fz_stext_block* block, std::ofstream& outputFile) {
+    for (fz_stext_line* line = block->u.t.first_line; line; line = line->next) {
+        extractTextFromChars(line, outputFile);
+    }
+}
+
+
+void PDFTranslator::extractTextFromChars(fz_stext_line* line, std::ofstream& outputFile) {
+    for (fz_stext_char* ch = line->first_char; ch; ch = ch->next) {
+        char utf8[5] = { 0 };
+        int len = fz_runetochar(utf8, ch->c);
+        outputFile.write(utf8, len);
+    }
+}
+
+
+void PDFTranslator::processPDF(fz_context* ctx, const std::string& inputPath, std::ofstream& outputFile) {
+    fz_document* doc = nullptr;
+
+    fz_try(ctx) {
+        doc = fz_open_document(ctx, inputPath.c_str());
         if (!doc) {
             throw std::runtime_error("Failed to open PDF file: " + inputPath);
         }
@@ -364,75 +439,39 @@ void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::
         std::cout << "Total pages: " << pageCount << std::endl;
 
         for (int i = 0; i < pageCount; ++i) {
-            // Load the page
-            fz_page *page = fz_load_page(ctx, doc, i);
-            if (!page) {
-                std::cerr << "Failed to load page " << i + 1 << "." << std::endl;
-                continue;
-            }
-
-            // Get the page bounds
-            fz_rect bounds = fz_bound_page(ctx, page);
-
-            // Create a structured text page and device
-            fz_stext_page *textPage = fz_new_stext_page(ctx, bounds);
-            fz_stext_options options = { 0 };
-
-            fz_device *textDevice = fz_new_stext_device(ctx, textPage, &options);
-
-            fz_try(ctx) {
-                // Run the page through the text extraction device
-                fz_run_page(ctx, page, textDevice, fz_identity, NULL);
-
-                // Check if the page contains any text
-                bool hasText = false;
-                for (fz_stext_block *block = textPage->first_block; block; block = block->next) {
-                    if (block->type == FZ_STEXT_BLOCK_TEXT) {
-                        hasText = true;
-                        break;
-                    }
-                }
-
-                // Skip the page if no text is found
-                if (!hasText) {
-                    continue;
-                }
-
-                // Extract text from the structured text page
-                for (fz_stext_block *block = textPage->first_block; block; block = block->next) {
-                    if (block->type == FZ_STEXT_BLOCK_TEXT) {
-                        for (fz_stext_line *line = block->u.t.first_line; line; line = line->next) {
-                            for (fz_stext_char *ch = line->first_char; ch; ch = ch->next) {
-                                // Write the UTF-8 character to the file
-                                char utf8[5] = { 0 }; // Buffer for UTF-8 encoding
-                                int len = fz_runetochar(utf8, ch->c); // Convert to UTF-8
-                                outputFile.write(utf8, len);
-                            }
-                            // outputFile.put('\n'); // Newline at the end of each line
-                        }
-                    }
-                }
-            } fz_always(ctx) {
-                fz_drop_device(ctx, textDevice);
-                fz_drop_stext_page(ctx, textPage);
-                fz_drop_page(ctx, page);
-            } fz_catch(ctx) {
-                std::cerr << "Error extracting text from page " << i + 1 << std::endl;
-            }
+            extractTextFromPage(ctx, doc, i, outputFile);
         }
 
         fz_drop_document(ctx, doc);
     } fz_catch(ctx) {
-        fz_drop_context(ctx);
+        if (doc) fz_drop_document(ctx, doc);
         throw std::runtime_error("An error occurred while processing the PDF.");
     }
+}
+
+void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::string& outputFilePath) {
+    std::cout << "Extracting text from PDF..." << std::endl;
+    std::cout << "PDF file: " << inputPath << std::endl;
+    std::cout << "Output file: " << outputFilePath << std::endl;
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    if (!std::filesystem::exists(inputPath)) {
+        throw std::runtime_error("PDF file does not exist: " + inputPath);
+    }
+
+    fz_context* ctx = createMuPDFContext();
+    std::ofstream outputFile(outputFilePath, std::ios::out | std::ios::binary);
+    if (!outputFile) {
+        throw std::runtime_error("Failed to open output file: " + outputFilePath);
+    }
+
+    processPDF(ctx, inputPath, outputFile);
 
     fz_drop_context(ctx);
 
     auto endTime = std::chrono::high_resolution_clock::now();
-
     std::chrono::duration<double> duration = endTime - startTime;
-
     std::cout << "Text extracted from PDF in " << duration.count() << " seconds." << std::endl;
 }
 
@@ -452,49 +491,104 @@ size_t PDFTranslator::getUtf8CharLength(unsigned char firstByte) {
     }
 }
 
-// Function to split long sentences into smaller chunks based on logical breakpoints
 std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& sentence, size_t maxLength) {
-    std::vector<std::string> breakpoints = {"、", "。", "しかし", "そして", "だから", "そのため"};
-    std::vector<std::string> sentences;
+    // You can adjust which words should "start" a new chunk vs. which punctuation 
+    // should "end" the current chunk.
+    // endBreakpoints appended to current chunk, then split.
+    // startBreakpoints cause us to split BEFORE them, then start a new chunk WITH them.
+    std::vector<std::string> endBreakpoints   = { "、", "。"};
+    std::vector<std::string> startBreakpoints = { "しかし", "そして", "だから", "そのため" };
+
+    std::vector<std::string> results;
     std::string currentChunk;
-    size_t tokenCount = 0;
+    size_t i = 0;
 
-    for (size_t i = 0; i < sentence.size();) {
-        size_t charLength = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
-        if (i + charLength > sentence.size()) break; // Safety check
+    while (i < sentence.size()) {
+        // Determine the length of the next UTF-8 character safely
+        size_t charLen = getUtf8CharLength(static_cast<unsigned char>(sentence[i]));
 
-        currentChunk += sentence.substr(i, charLength);
-        ++tokenCount;
+        // Safety check if the UTF-8 seems truncated near the end of the string
+        if (i + charLen > sentence.size()) {
+            // Add whatever is left as-is
+            currentChunk += sentence.substr(i);
+            break;
+        }
 
-        // Check if the current substring matches any breakpoint
-        for (const auto& breakpoint : breakpoints) {
-            if (i + breakpoint.size() <= sentence.size() &&
-                sentence.substr(i, breakpoint.size()) == breakpoint) {
-                if (!currentChunk.empty()) {
-                    sentences.push_back(currentChunk);
-                    currentChunk.clear();
-                    tokenCount = 0;
-                }
+        // We'll look ahead at the substring starting at i to see if it matches
+        // any start breakpoint or end breakpoint.
+        std::string_view nextSubstring(&sentence[i], sentence.size() - i);
+
+        bool foundStartBreakpoint = false;
+        bool foundEndBreakpoint   = false;
+        std::string matchedBreakpoint;
+
+        // Check "startBreakpoints" first
+        for (auto&& sb : startBreakpoints) {
+            if (nextSubstring.compare(0, sb.size(), sb) == 0) {
+                foundStartBreakpoint = true;
+                matchedBreakpoint    = sb;
                 break;
             }
         }
 
-        // Force a split if the token count exceeds maxLength
-        if (tokenCount > maxLength) {
-            sentences.push_back(currentChunk);
-            currentChunk.clear();
-            tokenCount = 0;
+        // Check endBreakpoints only if we did not match a start-breakpoint
+        if (!foundStartBreakpoint) {
+            for (auto&& eb : endBreakpoints) {
+                if (nextSubstring.compare(0, eb.size(), eb) == 0) {
+                    foundEndBreakpoint = true;
+                    matchedBreakpoint  = eb;
+                    break;
+                }
+            }
         }
 
-        i += charLength;
+        if (foundStartBreakpoint) {
+            // Found a starting breakpoint
+            // End the current chunk before this word (if currentChunk not empty)
+            // Start a new chunk with that word included.
+
+            // If there's already something accumulated, push it out
+            if (!currentChunk.empty()) {
+                results.push_back(currentChunk);
+                currentChunk.clear();
+            }
+
+            // Now start a new chunk that *begins* with the matched breakpoint
+            currentChunk += matchedBreakpoint;
+            i += matchedBreakpoint.size();
+
+        } else if (foundEndBreakpoint) {
+            // We have encountered punctuation like "、" or "。"
+            //  -> Add that punctuation to the current chunk
+            //  -> End the chunk immediately after.
+
+            currentChunk += matchedBreakpoint;
+            i += matchedBreakpoint.size();
+
+            // Now push this chunk
+            results.push_back(currentChunk);
+            currentChunk.clear();
+
+        } else {
+            // Just a normal character: append to currentChunk
+            std::string nextChar = sentence.substr(i, charLen);
+            currentChunk += nextChar;
+            i += charLen;
+
+            // Check if currentChunk reached maxLength
+            if (currentChunk.size() >= maxLength) {
+                results.push_back(currentChunk);
+                currentChunk.clear();
+            }
+        }
     }
 
-    // Add any remaining text as the last sentence
+    // If something remains in currentChunk, push it out
     if (!currentChunk.empty()) {
-        sentences.push_back(currentChunk);
+        results.push_back(currentChunk);
     }
 
-    return sentences;
+    return results;
 }
 
 // Function to intelligently split Japanese text into sentences
@@ -560,13 +654,7 @@ std::vector<std::string> PDFTranslator::processAndSplitText(const std::string& i
 }
 
 void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
-    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
-    if (!ctx) {
-        std::cerr << "Failed to create MuPDF context" << std::endl;
-        return;
-    }
-
-    fz_register_document_handlers(ctx);
+    fz_context* ctx = createMuPDFContext();
 
     fz_document* doc = fz_open_document(ctx, pdfPath.c_str());
     if (!doc) {
@@ -638,48 +726,55 @@ bool PDFTranslator::isImageAboveThreshold(const std::string &imagePath, float th
     return stddev > threshold;
 }
 
-void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
-    // Page dimensions in points (A4 size: 612x792 points)
-    const int page_width = 612;
-    const int page_height = 792;
 
-    // Margins
-    const double margin = 72; // 1 inch margins
-    const double usable_width = page_width - 2 * margin;
+std::pair<cairo_surface_t*, cairo_t*> PDFTranslator::initCairoPdfSurface(const std::string &filename, double width, double height) {
+    cairo_surface_t* surface = cairo_pdf_surface_create(filename.c_str(), width, height);
+    cairo_t* cr = cairo_create(surface);
 
-    // Line spacing multiplier
-    const double line_spacing = 2.0; // Adjust this value to increase or decrease spacing
+    return {surface, cr};
+}
 
-    // Create a Cairo surface for the PDF
-    cairo_surface_t *surface = cairo_pdf_surface_create(output_file.c_str(), page_width, page_height);
-    cairo_t *cr = cairo_create(surface);
 
-    // Get all the file names in the images directory
+void PDFTranslator::cleanupCairo(cairo_t* cr, cairo_surface_t* surface) {
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+}
+
+std::vector<std::string> PDFTranslator::collectImageFiles(const std::string &images_dir) {
     std::vector<std::string> image_files;
     for (const auto &entry : std::filesystem::directory_iterator(images_dir)) {
         if (entry.is_regular_file()) {
-            image_files.push_back(entry.path().string());
+            std::string path_str = entry.path().string();
+            std::string ext = std::filesystem::path(path_str).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower); // to lowercase
+
+            if (isImageFile(ext)) {
+                image_files.push_back(path_str);
+            } else {
+                std::cout << "Skipping non-image file: " << path_str << std::endl;
+            }
         }
     }
-    // Sort the image files to ensure they are added in order 
-    std::sort(image_files.begin(), image_files.end());
 
-    // Add images to the PDF
-    bool has_images = false; // Track if any images were added
+    std::sort(image_files.begin(), image_files.end());
+    return image_files;
+}
+
+bool PDFTranslator::isImageFile(const std::string &extension) {
+    return (extension == ".png" || extension == ".jpg" || 
+            extension == ".jpeg"|| extension == ".bmp" || extension == ".tiff");
+}
+
+
+bool PDFTranslator::addImagesToPdf(cairo_t *cr, cairo_surface_t *surface, const std::vector<std::string> &image_files) {
+    bool has_images = false;
+    
     for (const auto &image_file : image_files) {
-        
-        // If the file extentsion is not an image, skip it
-        std::string extension = std::filesystem::path(image_file).extension().string();
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // Convert to lowercase for consistency
-        if (extension != ".png" && extension != ".jpg" && extension != ".jpeg" && extension != ".bmp" && extension != ".tiff") {
-            std::cout << "Skipping non-image file: " << image_file << std::endl;
-            continue; // Skip files that are not supported image types
-        }
-        
-        // Load the image
+        // Try loading the image as PNG (change logic if you want to handle JPG, etc. differently)
         cairo_surface_t *image = cairo_image_surface_create_from_png(image_file.c_str());
         if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
             std::cerr << "Failed to load image: " << image_file << std::endl;
+            cairo_surface_destroy(image);
             continue;
         }
 
@@ -690,7 +785,7 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
         // Set the page size to match the image size
         cairo_pdf_surface_set_size(surface, image_width, image_height);
 
-        // Draw the image at (0, 0) since the page size matches the image size
+        // Draw the image at (0, 0)
         cairo_save(cr);
         cairo_set_source_surface(cr, image, 0, 0);
         cairo_paint(cr);
@@ -698,92 +793,115 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
 
         // Start a new page for the next image
         cairo_show_page(cr);
-        has_images = true; // Mark that at least one image was added
+        has_images = true;
 
-        // Clean up
         cairo_surface_destroy(image);
     }
 
-    // Reset the page size to A4 for text pages only if images were added
-    if (has_images) {
-        cairo_pdf_surface_set_size(surface, page_width, page_height);
-    }
+    return has_images;
+}
 
-    // Set the font and size for text
-    cairo_select_font_face(cr, "Helvetica", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-    cairo_set_font_size(cr, 12);
-    const double font_size = 12;
+void PDFTranslator::configureTextRendering(cairo_t *cr, const std::string &font_family, double font_size) {
+    cairo_select_font_face(cr, font_family.c_str(), CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, font_size);
+}
 
-    // Set the starting position for text
-    double x = margin;
-    double y = margin;
-
-    // Open the input file
+void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const std::string &input_file, double page_width, double page_height, double margin, double line_spacing, double font_size) {
     std::ifstream infile(input_file);
     if (!infile.is_open()) {
         std::cerr << "Error: Could not open file " << input_file << std::endl;
-        cairo_destroy(cr);
-        cairo_surface_destroy(surface);
         return;
     }
 
-    // Add text content to the PDF
+    double x = margin;
+    double y = margin;
+    double usable_width = page_width - 2 * margin;
+
     std::string line;
     while (std::getline(infile, line)) {
-        // Split the line into number and text (assuming the format is number,text)
+        // Assuming format: number,text
         size_t comma_pos = line.find(',');
-        if (comma_pos != std::string::npos) {
-            std::string text = line.substr(comma_pos + 1); // Extract text after the comma
+        if (comma_pos == std::string::npos) {
+            // If no comma found, skip or handle differently
+            continue;
+        }
 
-            // Word wrapping logic
-            std::istringstream text_stream(text);
-            std::string word;
-            std::string current_line;
-            cairo_text_extents_t extents;
+        // Extract text after the comma
+        std::string text = line.substr(comma_pos + 1);
 
-            while (text_stream >> word) {
-                // Check if adding the word exceeds the line width
-                std::string test_line = current_line.empty() ? word : current_line + " " + word;
-                cairo_text_extents(cr, test_line.c_str(), &extents);
+        // Word wrapping
+        std::istringstream text_stream(text);
+        std::string word;
+        std::string current_line;
+        cairo_text_extents_t extents;
 
-                if (extents.width > usable_width) {
-                    // Render the current line and move to the next line
-                    cairo_move_to(cr, x, y);
-                    cairo_show_text(cr, current_line.c_str());
-                    y += font_size * line_spacing; // Increase line height by line spacing
+        while (text_stream >> word) {
+            // Test if adding this word exceeds usable width
+            std::string test_line = current_line.empty() ? word : (current_line + " " + word);
+            cairo_text_extents(cr, test_line.c_str(), &extents);
 
-                    // Start a new page if necessary
-                    if (y > page_height - margin) {
-                        cairo_show_page(cr);
-                        y = margin; // Reset the y position for the new page
-                    }
-
-                    // Start a new line with the current word
-                    current_line = word;
-                } else {
-                    // Add the word to the current line
-                    current_line = test_line;
-                }
-            }
-
-            // Render any remaining text in the current line
-            if (!current_line.empty()) {
+            if (extents.width > usable_width) {
+                // Render the current line
                 cairo_move_to(cr, x, y);
                 cairo_show_text(cr, current_line.c_str());
-                y += font_size * line_spacing; // Increase line height by line spacing
+                y += font_size * line_spacing;
 
-                // Start a new page if necessary
+                // New page if we exceed the page limit
                 if (y > page_height - margin) {
                     cairo_show_page(cr);
                     y = margin;
                 }
+
+                // Start a new line with the current word
+                current_line = word;
+            } else {
+                // Keep adding to the current line
+                current_line = test_line;
+            }
+        }
+
+        // Render remaining text in the current line
+        if (!current_line.empty()) {
+            cairo_move_to(cr, x, y);
+            cairo_show_text(cr, current_line.c_str());
+            y += font_size * line_spacing;
+
+            // Check for page overflow
+            if (y > page_height - margin) {
+                cairo_show_page(cr);
+                y = margin;
             }
         }
     }
+}
 
-    // Clean up
-    cairo_destroy(cr);
-    cairo_surface_destroy(surface);
+void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
+    // Page dimensions in points (A4: 612x792 points)
+    const double page_width = 612.0;
+    const double page_height = 792.0;
+    const double margin = 72.0;       // 1 inch
+    const double line_spacing = 2.0;  // Adjust as needed
+    const double font_size = 12.0;
+    const std::string font_family = "Helvetica";
+
+    // 1. Initialize Cairo PDF surface
+    auto [surface, cr] = initCairoPdfSurface(output_file, page_width, page_height);
+
+    // 2. Collect and add images
+    std::vector<std::string> image_files = collectImageFiles(images_dir);
+    bool has_images = addImagesToPdf(cr, surface, image_files);
+
+    // If images were added, reset surface to standard A4 for text
+    if (has_images) {
+        cairo_pdf_surface_set_size(surface, page_width, page_height);
+    }
+
+    // 3. Configure text rendering and add text
+    configureTextRendering(cr, font_family, font_size);
+    addTextToPdf(cr, surface, input_file, page_width, page_height, margin, line_spacing, font_size);
+
+    // 4. Cleanup
+    cleanupCairo(cr, surface);
 
     std::cout << "PDF created with images first: " << output_file << std::endl;
 }
@@ -934,7 +1052,6 @@ std::string PDFTranslator::downloadTranslatedDocument(const std::string& documen
 
     return response_string;
 }
-
 
 int PDFTranslator::handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey) {
     // Upload the document to DeepL

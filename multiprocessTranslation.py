@@ -83,6 +83,9 @@ def run_model_multiprocessing(file_path, num_workers=4, chapter_num_mode=0):
     tasks = [(encoded_data, chapterNum, position) for (chapterNum, position), encoded_data in inputs.items()] if chapter_num_mode == 0 else \
             [(encoded_data, position) for position, encoded_data in inputs.items()]
 
+    # For testing purposes, limit the number of tasks
+    tasks = tasks[:50]
+
     print(f"Processing {len(tasks)} tasks.", flush=True)
 
     # Set up the pool with an initializer to pass chapter_num_mode to each worker
