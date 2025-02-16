@@ -1617,8 +1617,8 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     exportEpub(templatePath, outputEpubPath);
 
     // // Remove the unzipped and export directories
-    // std::filesystem::remove_all(unzippedPath);
-    // std::filesystem::remove_all(templatePath);
+    std::filesystem::remove_all(unzippedPath);
+    std::filesystem::remove_all(templatePath);
 
 
     // Remove the temp text files
