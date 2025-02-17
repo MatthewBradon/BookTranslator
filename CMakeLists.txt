@@ -18,6 +18,7 @@ if(APPLE)
         src/GUI.cpp
         src/PDFTranslator.cpp
         src/EpubTranslator.cpp
+        src/DocxTranslator.cpp
         ${APP_ICON}
     )
 
@@ -32,6 +33,7 @@ else()
         src/GUI.cpp
         src/PDFTranslator.cpp
         src/EpubTranslator.cpp
+        src/DocxTranslator.cpp
     )
 
     set_property(TARGET BookTranslator PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -155,6 +157,7 @@ add_executable(BookTranslatorTest
     src/EpubTranslator.cpp
     src/GUI.cpp
     src/PDFTranslator.cpp
+    src/DocxTranslator.cpp
 )
 
 set_property(TARGET BookTranslatorTest PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

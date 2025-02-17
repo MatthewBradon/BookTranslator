@@ -51,7 +51,7 @@ void GUI::update(std::ostringstream& logStream) {
     if (ImGui::Button("Browse")) {
         nfdchar_t* outPath = nullptr;
         // Set up filter for EPUB files
-        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF Files", "epub,pdf" } };
+        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF/DOCX Files", "epub,pdf,docx" } };
         nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
         if (result == NFD_OKAY) {
             strcpy(inputFile, outPath);
@@ -106,6 +106,8 @@ void GUI::update(std::ostringstream& logStream) {
                         translator = TranslatorFactory::createTranslator("epub");
                     } else if (fileExtension == "pdf") {
                         translator = TranslatorFactory::createTranslator("pdf");
+                    } else if (fileExtension == "docx") {
+                        translator = TranslatorFactory::createTranslator("docx");
                     } else {
                         throw std::runtime_error("Unsupported file type: " + fileExtension);
                     }
