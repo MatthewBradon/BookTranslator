@@ -33,14 +33,14 @@ class DocxTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface
     int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey);
-    // static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
+    static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 
 protected:
-    // std::string uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
-    // std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
-    // std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
-    // int handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey);
+    std::string uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
+    std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
+    std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
+    int handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey);
     bool unzip_file(const std::string& zipPath, const std::string& outputDir);
     bool make_directory(const std::filesystem::path& path);
     std::string getNodePath(xmlNode *node);
