@@ -52,4 +52,6 @@ protected:
     void traverseAndReinsert(xmlNode *node, std::unordered_multimap<std::string, std::string> &translations, std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator> &lastUsed);
     void reinsertTranslations(xmlNode *root, std::unordered_multimap<std::string, std::string> &translations);
     void exportDocx(const std::string& exportPath, const std::string& outputDir);
+    std::string escapeForDocx(const std::string& input);
+    void escapeTranslations(std::unordered_multimap<std::string, std::string>& translations);
 };

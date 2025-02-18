@@ -475,6 +475,11 @@ void EpubTranslator::exportEpub(const std::string& exportPath, const std::string
         return;
     }
 
+    if (!std::filesystem::exists(outputDir)) {
+        std::cerr << "Ouput path does not exist: " << outputDir << "\n";
+        return;
+    }
+
     // Create the output Epub file path
     std::string epubPath = outputDir + "/output.epub";
 

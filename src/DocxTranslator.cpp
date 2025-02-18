@@ -199,8 +199,9 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::cout << "After call to multiprocessTranslation.py" << '\n';
 
     // Load the translations
-    std::unordered_multimap<std::string, std::string> translations = loadTranslations("position_tags.txt", "translatedTags.txt");
-
+    std::unordered_multimap<std::string, std::string> translations = loadTranslations(positionFilePath, "translatedTags.txt");
+    
+    escapeTranslations(translations);
 
     // Print the translations
     for (const auto& [path, text] : translations) {
@@ -231,6 +232,13 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
+
+    // Cleanup
+    std::filesystem::remove_all(unzippedPath);
+    std::filesystem::remove(positionFilePath);
+    std::filesystem::remove(textFilePath);
+    std::filesystem::remove("translatedTags.txt");
+    std::filesystem::remove("encodedTags.txt");
 
     return 0;
 }
@@ -317,7 +325,6 @@ bool DocxTranslator::unzip_file(const std::string& zipPath, const std::string& o
     return true;
 }
 
-// Helper function to get XPath-like node path
 std::string DocxTranslator::getNodePath(xmlNode *node) {
     std::string path;
     while (node) {
@@ -329,7 +336,6 @@ std::string DocxTranslator::getNodePath(xmlNode *node) {
     return path;
 }
 
-// Optimized Step 1: Extract text from <w:t> nodes and record positions
 void DocxTranslator::extractTextNodesRecursive(xmlNode *node, std::vector<TextNode> &nodes) {
     for (; node; node = node->next) {
         if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "t") == 0) {
@@ -343,7 +349,7 @@ void DocxTranslator::extractTextNodesRecursive(xmlNode *node, std::vector<TextNo
     }
 }
 
-// Wrapper function to start the extraction
+// Wrapper function to start the extraction (Needs namespace in the XML)
 std::vector<TextNode> DocxTranslator::extractTextNodes(xmlNode *root) {
     std::vector<TextNode> nodes;
     nodes.reserve(10000);  // Reserve large space to avoid multiple allocations
@@ -352,8 +358,6 @@ std::vector<TextNode> DocxTranslator::extractTextNodes(xmlNode *root) {
 }
 
 
-// Step 2: Save extracted text to a file
-// Step 2: Save extracted text and positions to separate files
 void DocxTranslator::saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename) {
     std::ofstream positionFile(positionFilename);
     std::ofstream textFile(textFilename);
@@ -493,6 +497,11 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
         return;
     }
 
+    if (!std::filesystem::exists(outputDir)) {
+        std::cerr << "Ouput path does not exist: " << outputDir << "\n";
+        return;
+    }
+
     // Create the output DOCX file path
     std::string docxPath = outputDir + "/output.docx";
 
@@ -539,4 +548,38 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
     }
 
     std::cout << "DOCX file created: " << docxPath << "\n";
+}
+std::string DocxTranslator::escapeForDocx(const std::string& input) {
+    std::string escaped;
+    escaped.reserve(input.size());
+
+    for (char ch : input) {
+        switch (ch) {
+            case '&':
+                escaped.append("&amp;");
+                break;
+            case '<':
+                escaped.append("&lt;");
+                break;
+            case '>':
+                escaped.append("&gt;");
+                break;
+            case '"':
+                escaped.append("&quot;");
+                break;
+            case '\'':
+                escaped.append("&apos;");
+                break;
+            default:
+                escaped.push_back(ch);
+                break;
+        }
+    }
+    return escaped;
+}
+
+void DocxTranslator::escapeTranslations(std::unordered_multimap<std::string, std::string>& translations) {
+    for (auto& pair : translations) {
+        pair.second = escapeForDocx(pair.second);
+    }
 }
