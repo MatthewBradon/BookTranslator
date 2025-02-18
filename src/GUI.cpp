@@ -17,7 +17,8 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-    ImGui::StyleColorsLight();
+    // setCustomLightStyle();
+    setCustomDarkStyle();
 
     running = false;   // Initialize flags
     finished = false;
@@ -144,22 +145,17 @@ void GUI::update(std::ostringstream& logStream) {
     }
 
     // Log window
+    float logHeight = ImGui::GetContentRegionAvail().y - LOG_WINDOW_PADDING;
+
     ImGui::Text("Logs:");
-    ImGui::BeginChild("LogChild", ImVec2(0, 150), true, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild("LogChild", ImVec2(0, logHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
+
     std::string logContents = logStream.str();
     ImGui::TextUnformatted(logContents.c_str());
     if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
         ImGui::SetScrollHereY(1.0f); // Auto-scroll to bottom
     }
     ImGui::EndChild();
-
-    // // Test button
-    // if (ImGui::Button("PDF Test")) {
-    //     // Call PDFTranslator run
-    //     std::cout << "Calling PDFTranslator run" << std::endl;
-    //     PDFTranslator parser;
-    //     parser.run();
-    // }
 
     ImGui::End();
 }
@@ -181,4 +177,47 @@ void GUI::newFrame() {
 
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+}
+
+void GUI::setCustomDarkStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    colors[ImGuiCol_Header] = ImVec4(0.25f, 0.25f, 0.28f, 1.0f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.45f, 0.45f, 0.48f, 1.0f);
+    colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.23f, 1.0f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.7f, 0.5f, 0.9f, 1.0f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.20f, 0.23f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.30f, 0.30f, 0.33f, 1.0f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
+    colors[ImGuiCol_Border] = ImVec4(0.30f, 0.30f, 0.32f, 1.0f);
+    colors[ImGuiCol_Separator] = ImVec4(0.35f, 0.35f, 0.37f, 1.0f);
+    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.0f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.75f, 0.75f, 0.78f, 1.0f);
+}
+
+
+void GUI::setCustomLightStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4(0.95f, 0.95f, 0.98f, 1.0f);
+    colors[ImGuiCol_Header] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.80f, 0.80f, 0.85f, 1.0f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.75f, 0.75f, 0.80f, 1.0f);
+    colors[ImGuiCol_Button] = ImVec4(0.85f, 0.85f, 0.88f, 1.0f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.5f, 0.7f, 1.0f, 1.0f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.70f, 0.70f, 0.75f, 1.0f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.90f, 0.90f, 0.93f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.85f, 0.85f, 0.88f, 1.0f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.80f, 0.80f, 0.85f, 1.0f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.95f, 0.95f, 0.98f, 1.0f);
+    colors[ImGuiCol_Border] = ImVec4(0.75f, 0.75f, 0.78f, 1.0f);
+    colors[ImGuiCol_Separator] = ImVec4(0.80f, 0.80f, 0.83f, 1.0f);
+    colors[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.15f, 1.0f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.55f, 1.0f);
 }

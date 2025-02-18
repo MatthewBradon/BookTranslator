@@ -1,5 +1,7 @@
 #pragma once
 
+#define LOG_WINDOW_PADDING 22.0f
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -27,4 +29,6 @@ protected:
     std::mutex resultMutex;
     std::string statusMessage;
     int result = -1;
+    void setCustomDarkStyle();
+    void setCustomLightStyle();
 };

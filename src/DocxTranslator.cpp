@@ -3,16 +3,16 @@
 
 int DocxTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
     //Disabling DeepL for now
-    // if (localModel == 1) {
-    //     int result = handleDeepLRequest(inputPath, outputPath+"output.docx", deepLKey);
+    if (localModel == 1) {
+        int result = handleDeepLRequest(inputPath, outputPath+"output.docx", deepLKey);
 
-    //     if (result != 0) {
-    //         std::cerr << "Failed to handle DeepL request." << std::endl;
-    //         return 1;
-    //     }
+        if (result != 0) {
+            std::cerr << "Failed to handle DeepL request." << std::endl;
+            return 1;
+        }
 
-    //     return 0;
-    // }
+        return 0;
+    }
 
 
     // Unzip the DOCX file
