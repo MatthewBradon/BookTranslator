@@ -47,7 +47,9 @@ protected:
     void extractTextNodesRecursive(xmlNode *node, std::vector<TextNode> &nodes);
     std::vector<TextNode> extractTextNodes(xmlNode *root);
     void saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename);
-    std::unordered_map<std::string, std::string> loadTranslations(const std::string &filename);
-    void reinsertTranslations(xmlNode *root, const std::unordered_map<std::string, std::string> &translations);
-
+    std::unordered_multimap<std::string, std::string> loadTranslations(const std::string &positionFilename, const std::string &textFilename);
+    void updateNodeWithTranslation(xmlNode *node, const std::string &translation);
+    void traverseAndReinsert(xmlNode *node, std::unordered_multimap<std::string, std::string> &translations, std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator> &lastUsed);
+    void reinsertTranslations(xmlNode *root, std::unordered_multimap<std::string, std::string> &translations);
+    void exportDocx(const std::string& exportPath, const std::string& outputDir);
 };

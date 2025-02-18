@@ -59,6 +59,173 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
 
     saveTextToFile(textNodes, positionFilePath, textFilePath);
 
+
+    
+    std::cout << "Before call to tokenizeRawTags.exe" << '\n';
+    boost::filesystem::path exePath;
+    #if defined(__APPLE__)
+        exePath = "tokenizeRawTags";
+
+    #elif defined(_WIN32)
+        exePath = "tokenizeRawTags.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+    boost::filesystem::path inputFilePath = textFilePath;  // Path to the input file
+    std::string chapterNumberMode = "1";
+    // Ensure the .exe exists
+    if (!boost::filesystem::exists(exePath)) {
+        std::cerr << "Executable not found: " << exePath << std::endl;
+        return 1;
+    }
+
+    // Ensure the input file exists
+    if (!boost::filesystem::exists(inputFilePath)) {
+        std::cerr << "Input file not found: " << inputFilePath << std::endl;
+        return 1;
+    }
+
+    // Create pipes for capturing stdout and stderr
+    boost::process::ipstream encodeTagspipe_stdout;
+    boost::process::ipstream encodeTagspipe_stderr;
+
+    try {
+        // Start the .exe process with arguments
+        boost::process::child c(
+            exePath.string(),                 // Executable path
+            inputFilePath.string(),           // Argument: path to input file
+            chapterNumberMode,                // Argument: chapter number mode
+            boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
+            boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
+        );
+
+        // Read stdout
+        std::string line;
+        while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
+        }
+
+        // Read any remaining stdout
+        while (std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
+        }
+
+        // Read stderr
+        while (std::getline(encodeTagspipe_stderr, line)) {
+            std::cerr << "Error: " << line << std::endl;
+        }
+
+        // Wait for the process to exit
+        c.wait();
+
+        // Check the exit code
+        if (c.exit_code() == 0) {
+            std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
+        } else {
+            std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << std::endl;
+        return 1;
+    }
+
+    std::cout << "After call to tokenizeRawTags.exe" << '\n';
+
+
+    //Start the multiprocessing translaton
+    std::filesystem::path multiprocessExe;
+
+    #if defined(__APPLE__)
+        multiprocessExe = "multiprocessTranslation";
+
+    #elif defined(_WIN32)
+        multiprocessExe = "multiprocessTranslation.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    if (!std::filesystem::exists(multiprocessExe)) {
+        std::cerr << "Executable not found: " << multiprocessExe << std::endl;
+        return 1;
+    }
+
+    std::string multiprocessExePath = multiprocessExe.string();
+    
+
+    std::cout << "Before call to multiprocessTranslation.py" << '\n';
+
+    boost::process::ipstream pipe_stdout, pipe_stderr;
+
+    try {
+
+        boost::process::child c(
+            multiprocessExePath,
+            chapterNumberMode,
+            boost::process::std_out > pipe_stdout, 
+            boost::process::std_err > pipe_stderr
+        );
+
+        // Threads to handle asynchronous reading
+        std::thread stdout_thread([&pipe_stdout]() {
+            std::string line;
+            while (std::getline(pipe_stdout, line)) {
+                std::cout << "Python stdout: " << line << "\n";
+            }
+        });
+
+        std::thread stderr_thread([&pipe_stderr]() {
+            std::string line;
+            while (std::getline(pipe_stderr, line)) {
+                std::cerr << "Python stderr: " << line << "\n";
+            }
+        });
+
+        c.wait(); // Wait for process completion
+
+        stdout_thread.join();
+        stderr_thread.join();
+
+        if (c.exit_code() == 0) {
+            std::cout << "Translation Python script executed successfully." << "\n";
+        } else {
+            std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
+    }
+
+    std::cout << "After call to multiprocessTranslation.py" << '\n';
+
+    // Load the translations
+    std::unordered_multimap<std::string, std::string> translations = loadTranslations("position_tags.txt", "translatedTags.txt");
+
+
+    // Print the translations
+    for (const auto& [path, text] : translations) {
+        std::cout << path << " -> " << text << "\n";
+    }
+    try{
+        // Reinsert the translations into the XML document
+        reinsertTranslations(root, translations);
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
+    }
+
+    // Save the modified XML document to a file
+    if (xmlSaveFileEnc(documentXmlPath.c_str(), doc, "UTF-8") == -1) {
+        std::cerr << "Failed to save modified XML document." << "\n";
+        return 1;
+    }
+
+    // Free the XML document
+    xmlFreeDoc(doc);
+
+    std::cout << "Modified XML document saved to: " << documentXmlPath << "\n";
+
+    exportDocx(unzippedPath, outputPath);
+
     
     // End timer
     auto end = std::chrono::high_resolution_clock::now();
@@ -213,41 +380,163 @@ void DocxTranslator::saveTextToFile(const std::vector<TextNode> &nodes, const st
 }
 
 
-// Step 3: Read translations from a file
-std::unordered_map<std::string, std::string> DocxTranslator::loadTranslations(const std::string &filename) {
-    std::unordered_map<std::string, std::string> translations;
-    std::ifstream infile(filename);
-    std::string line;
-    while (std::getline(infile, line)) {
-        size_t delimiter = line.find("||");
-        if (delimiter != std::string::npos) {
-            std::string path = line.substr(0, delimiter);
-            std::string translation = line.substr(delimiter + 2);
-            translations[path] = translation;
+std::unordered_multimap<std::string, std::string> DocxTranslator::loadTranslations(const std::string &positionFilename, const std::string &textFilename) {
+
+    std::unordered_multimap<std::string, std::string> translations;
+
+    std::ifstream positionFile(positionFilename);
+    std::ifstream textFile(textFilename);
+
+    if (!positionFile.is_open() || !textFile.is_open()) {
+        std::cerr << "Error opening translation files.\n";
+        return translations;
+    }
+
+    std::string positionLine, textLine;
+
+    while (std::getline(positionFile, positionLine) && std::getline(textFile, textLine)) {
+        // Parse position line: "counterNum,node.path"
+        size_t posDelimiter = positionLine.find(',');
+        if (posDelimiter == std::string::npos) continue;
+
+        std::string posCounter = positionLine.substr(0, posDelimiter);
+        std::string nodePath = positionLine.substr(posDelimiter + 1);
+
+        // Parse text line: "counterNum,node.text"
+        size_t textDelimiter = textLine.find(',');
+        if (textDelimiter == std::string::npos) continue;
+
+        std::string textCounter = textLine.substr(0, textDelimiter);
+        std::string nodeText = textLine.substr(textDelimiter + 1);
+
+        // Match counterNum before inserting
+        if (posCounter == textCounter) {
+            translations.insert({nodePath, nodeText});
+        } else {
+            std::cerr << "Mismatched counters: Position " << posCounter 
+                      << " vs Text " << textCounter << "\n";
         }
     }
-    infile.close();
+
+    positionFile.close();
+    textFile.close();
+
+    std::cout << "Loaded " << translations.size() << " translations.\n";
     return translations;
 }
 
-// Step 4: Reinsert translations into the XML
-void DocxTranslator::reinsertTranslations(xmlNode *root, const std::unordered_map<std::string, std::string> &translations) {
-    for (xmlNode *node = root; node; node = node->next) {
-        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "t") == 0) {
-            std::string path = getNodePath(node);
-            if (translations.find(path) != translations.end()) {
-                // Replace text content
-                xmlNodeSetContent(node, BAD_CAST translations.at(path).c_str());
+// Helper function to update text content and language attribute
+void DocxTranslator::updateNodeWithTranslation(xmlNode *node, const std::string &translation) {
+    // Replace text content
+    xmlNodeSetContent(node, BAD_CAST translation.c_str());
 
-                // Update language attribute to English
-                xmlNode *parent = node->parent;
-                if (parent) {
-                    xmlNewProp(parent, BAD_CAST "xml:lang", BAD_CAST "en-US");
-                }
-            }
-        }
-        reinsertTranslations(node->children, translations);
+    // Update parent's language attribute to English
+    if (xmlNode *parent = node->parent) {
+        xmlNewProp(parent, BAD_CAST "xml:lang", BAD_CAST "en-US");
     }
 }
 
+// Recursive function to traverse nodes and insert translations
+void DocxTranslator::traverseAndReinsert(xmlNode *node, std::unordered_multimap<std::string, std::string> &translations, std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator> &lastUsed) {
+    for (; node; node = node->next) {
+        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "t") == 0) {
+            std::string path = getNodePath(node);
 
+            // Find available translations for this path
+            auto range = translations.equal_range(path);
+            if (range.first != range.second) {
+                // Initialize iterator if not set
+                if (lastUsed.find(path) == lastUsed.end()) {
+                    lastUsed[path] = range.first;
+                } else {
+                    // Increment and loop if needed
+                    auto &it = lastUsed[path];
+                    ++it;
+                    if (it == range.second) {
+                        it = range.first; // Cycle back to the first translation
+                    }
+                }
+
+                // Insert the translation
+                updateNodeWithTranslation(node, lastUsed[path]->second);
+            }
+        }
+        // Recurse into child nodes
+        traverseAndReinsert(node->children, translations, lastUsed);
+    }
+}
+
+// Main function to reinsert translations using multimap
+void DocxTranslator::reinsertTranslations(xmlNode *root, std::unordered_multimap<std::string, std::string> &translations) {
+    if (!root) {
+        std::cerr << "Error: XML root node is null.\n";
+        return;
+    }
+
+    // Track which translation was last used for each node path
+    std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator> lastUsed;
+
+    // Begin recursive traversal and reinsertion
+    try {
+        traverseAndReinsert(root, translations, lastUsed);
+    } catch (const std::exception &e) {
+        std::cerr << "Exception during reinsert: " << e.what() << "\n";
+    } catch (...) {
+        std::cerr << "Unknown error during reinsert.\n";
+    }
+}
+
+void DocxTranslator::exportDocx(const std::string& exportPath, const std::string& outputDir) {
+    // Check if the exportPath directory exists
+    if (!std::filesystem::exists(exportPath)) {
+        std::cerr << "Export directory does not exist: " << exportPath << "\n";
+        return;
+    }
+
+    // Create the output DOCX file path
+    std::string docxPath = outputDir + "/output.docx";
+
+    // Create a ZIP archive for the DOCX
+    zip_t* archive = zip_open(docxPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, nullptr);
+    if (!archive) {
+        std::cerr << "Error creating ZIP archive: " << docxPath << "\n";
+        return;
+    }
+
+    // Add all files in the exportPath directory to the ZIP archive
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
+        if (entry.is_regular_file()) {
+            std::filesystem::path filePath = entry.path();
+            std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
+
+            // Convert file paths to UTF-8 encoded strings
+            std::string filePathUtf8 = filePath.u8string();
+            std::string relativePathUtf8 = relativePath.u8string();
+
+            // Create a zip_source_t from the file
+            zip_source_t* source = zip_source_file(archive, filePathUtf8.c_str(), 0, 0);
+            if (source == nullptr) {
+                std::cerr << "Error creating zip_source_t for file: " << filePath << "\n";
+                zip_discard(archive);
+                return;
+            }
+
+            // Add the file to the ZIP archive with UTF-8 encoding
+            zip_int64_t index = zip_file_add(archive, relativePathUtf8.c_str(), source, ZIP_FL_ENC_UTF_8);
+            if (index < 0) {
+                std::cerr << "Error adding file to ZIP archive: " << filePath << "\n";
+                zip_source_free(source);
+                zip_discard(archive);
+                return;
+            }
+        }
+    }
+
+    // Close the ZIP archive
+    if (zip_close(archive) < 0) {
+        std::cerr << "Error closing ZIP archive: " << docxPath << "\n";
+        return;
+    }
+
+    std::cout << "DOCX file created: " << docxPath << "\n";
+}
