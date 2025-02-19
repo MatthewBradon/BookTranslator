@@ -17,8 +17,38 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-    // setCustomLightStyle();
-    setCustomDarkStyle();
+    
+    // Check theme file exists if it doesnt default to light theme
+    if (!std::filesystem::exists(themeFile)) {
+        isDarkTheme = false;
+
+        // Create theme file put light theme in it
+        std::ofstream theme(themeFile);
+
+        if (theme.is_open()) {
+            theme << "light";
+            theme.close();
+            setCustomLightStyle();
+        } else {
+            std::cerr << "Failed to open theme file for writing" << std::endl;
+        }
+
+    } else {
+        std::ifstream theme(themeFile);
+        if (theme.is_open()) {
+            std::string themeStr;
+            theme >> themeStr;
+            if (themeStr == "dark") {
+                isDarkTheme = true;
+                setCustomDarkStyle();
+            } else {
+                isDarkTheme = false;
+                setCustomLightStyle();
+            }
+        } else {
+            std::cerr << "Failed to open theme file for reading" << std::endl;
+        }
+    }
 
     running = false;   // Initialize flags
     finished = false;
@@ -32,6 +62,11 @@ void GUI::render() {
 void GUI::update(std::ostringstream& logStream) {
     // The GUI code
     ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
+
+    // Render the menu bar
+    renderMenuBar();
+
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20); // Push content down
 
     // Begin Combo box for selecting the local model
     ImGui::Text("Select Translator:");
@@ -181,9 +216,10 @@ void GUI::newFrame() {
 
 void GUI::setCustomDarkStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
-
     ImVec4* colors = style.Colors;
+
     colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
     colors[ImGuiCol_Header] = ImVec4(0.25f, 0.25f, 0.28f, 1.0f);
     colors[ImGuiCol_HeaderHovered] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
     colors[ImGuiCol_HeaderActive] = ImVec4(0.45f, 0.45f, 0.48f, 1.0f);
@@ -203,9 +239,10 @@ void GUI::setCustomDarkStyle() {
 
 void GUI::setCustomLightStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
-
     ImVec4* colors = style.Colors;
+
     colors[ImGuiCol_WindowBg] = ImVec4(0.95f, 0.95f, 0.98f, 1.0f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
     colors[ImGuiCol_Header] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
     colors[ImGuiCol_HeaderHovered] = ImVec4(0.80f, 0.80f, 0.85f, 1.0f);
     colors[ImGuiCol_HeaderActive] = ImVec4(0.75f, 0.75f, 0.80f, 1.0f);
@@ -220,4 +257,51 @@ void GUI::setCustomLightStyle() {
     colors[ImGuiCol_Separator] = ImVec4(0.80f, 0.80f, 0.83f, 1.0f);
     colors[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.15f, 1.0f);
     colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.55f, 1.0f);
+}
+
+
+void GUI::renderMenuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        // Push "Settings" to the right
+        float width = ImGui::GetContentRegionAvail().x; // Get available width
+        ImGui::SetCursorPosX(width - 75); // Move cursor position near the right
+
+        if (ImGui::BeginMenu("Settings")) {
+            if (ImGui::MenuItem("Light Theme", nullptr, !isDarkTheme)) {
+                isDarkTheme = false;
+                setCustomLightStyle();
+
+                // Open themeFile
+                std::ofstream theme(themeFile);
+
+                if (theme.is_open()) {
+                    theme << "light";
+                    theme.close();
+                } else {
+                    std::cerr << "Failed to open theme file for writing" << std::endl;
+                }
+
+                theme.close();
+            }
+            if (ImGui::MenuItem("Dark Theme", nullptr, isDarkTheme)) {
+                isDarkTheme = true;
+                setCustomDarkStyle();
+
+                // Open themeFile
+                std::ofstream theme(themeFile);
+
+                if (theme.is_open()) {
+                    theme << "dark";
+                    theme.close();
+                } else {
+                    std::cerr << "Failed to open theme file for writing" << std::endl;
+                }
+
+                theme.close();
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
 }

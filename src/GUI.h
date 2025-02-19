@@ -29,6 +29,9 @@ protected:
     std::mutex resultMutex;
     std::string statusMessage;
     int result = -1;
+    bool isDarkTheme = true;
+    std::string themeFile = "theme.txt";
     void setCustomDarkStyle();
     void setCustomLightStyle();
+    void renderMenuBar();
 };

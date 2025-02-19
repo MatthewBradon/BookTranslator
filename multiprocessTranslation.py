@@ -84,7 +84,7 @@ def run_model_multiprocessing(file_path, num_workers=4, chapter_num_mode=0):
             [(encoded_data, position) for position, encoded_data in inputs.items()]
 
     # For testing purposes, limit the number of tasks
-    tasks = tasks[:50]
+    # tasks = tasks[:50]
 
     print(f"Processing {len(tasks)} tasks.", flush=True)
 
