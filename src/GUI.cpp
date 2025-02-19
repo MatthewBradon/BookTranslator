@@ -179,6 +179,13 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::EndDisabled();
     }
 
+    if (running) {
+        ImGui::Text("Translation in progress...");
+        ImGui::SameLine();
+        ShowSpinner();
+        ImGui::NewLine();
+    }
+
     if (finished) {
         std::lock_guard<std::mutex> lock(resultMutex);
         ImGui::Text("%s", statusMessage.c_str());
@@ -324,5 +331,30 @@ void GUI::handleFileDrop(int count, const char** paths) {
         ImGui::ClearActiveID();
 
         strcpy(inputFile, paths[0]);
+    }
+}
+
+void GUI::ShowSpinner(float radius, int numSegments, float thickness) {
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImVec2 center = ImGui::GetCursorScreenPos();
+    center.x += radius;
+    center.y += radius;
+
+    float start = (float)ImGui::GetTime() * 2.0f;
+    for (int i = 0; i < numSegments; i++) {
+        float angle = start + (i * IM_PI * 2.0f / numSegments);
+        ImVec2 startPos = ImVec2(center.x + cos(angle) * radius, center.y + sin(angle) * radius);
+        ImVec2 endPos = ImVec2(center.x + cos(angle) * (radius - thickness), center.y + sin(angle) * (radius - thickness));
+
+        float alpha = (float)i / (float)numSegments;
+        // Change color based o
+        ImU32 color;
+        if (isDarkTheme){
+           color = ImColor(1.0f, 1.0f, 1.0f, alpha);
+        } else {
+            color = ImColor(0.0f, 0.0f, 0.0f, alpha);
+        }
+
+        drawList->AddLine(startPos, endPos, color, thickness);
     }
 }

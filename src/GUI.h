@@ -36,4 +36,5 @@ protected:
     void setCustomDarkStyle();
     void setCustomLightStyle();
     void renderMenuBar();
+    void ShowSpinner(float radius = 10.0f, int numSegments = 12, float thickness = 2.0f);
 };
