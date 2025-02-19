@@ -124,6 +124,11 @@ void GUI::update(std::ostringstream& logStream) {
         running = true;      // Set the running flag
         finished = false;    // Reset the finished flag
 
+        // Ensure previous thread is joined before starting a new one
+        if (workerThread.joinable()) {
+            workerThread.join(); // Wait for previous thread to complete before launching a new one
+        }
+
         // Start the worker thread
         workerThread = std::thread([this, &logStream]() {
             {
