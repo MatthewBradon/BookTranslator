@@ -305,3 +305,19 @@ void GUI::renderMenuBar() {
         ImGui::EndMainMenuBar();
     }
 }
+
+
+void GUI::handleFileDrop(int count, const char** paths) {
+    // If count count is more than 1 print drag only one file message
+    if (count > 1) {
+        std::cout << "Please only drag one file at a time." << std::endl;
+        return;
+    }
+
+
+    if (count == 1) {
+        ImGui::ClearActiveID();
+
+        strcpy(inputFile, paths[0]);
+    }
+}

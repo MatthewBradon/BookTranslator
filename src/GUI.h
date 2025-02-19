@@ -10,6 +10,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include "imgui_internal.h"
 
 class GUI {
 public:
@@ -18,6 +19,7 @@ public:
     void update(std::ostringstream& logStream);
     void shutdown();
     void newFrame();
+    void handleFileDrop(int count, const char** paths);
 protected:
     char inputFile[256] = "";
     char outputPath[256] = "";
