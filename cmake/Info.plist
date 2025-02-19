@@ -11,10 +11,6 @@
   <key>CFBundleDisplayName</key>
   <string>BookTranslator</string>
 
-  <!-- A unique identifier in reverse-DNS style. Customize as needed. -->
-  <key>CFBundleIdentifier</key>
-  <string>com.yourcompany.booktranslator</string>
-
   <!-- The version number of your app. -->
   <key>CFBundleVersion</key>
   <string>1.0</string>
@@ -26,7 +22,7 @@
   <!-- If you have an .icns file for the app icon, specify its base name here. 
        For example, if your .icns is MyApp.icns, put 'MyApp' below (no extension). -->
   <key>CFBundleIconFile</key>
-  <string>MyApp</string>
+  <string>BookTranslator</string>
 
   <!-- Minimum macOS version required to run your app. Adjust as needed. -->
   <key>LSMinimumSystemVersion</key>

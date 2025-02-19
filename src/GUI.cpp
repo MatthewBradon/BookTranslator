@@ -17,7 +17,38 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-    ImGui::StyleColorsLight();
+    
+    // Check theme file exists if it doesnt default to light theme
+    if (!std::filesystem::exists(themeFile)) {
+        isDarkTheme = false;
+
+        // Create theme file put light theme in it
+        std::ofstream theme(themeFile);
+
+        if (theme.is_open()) {
+            theme << "light";
+            theme.close();
+            setCustomLightStyle();
+        } else {
+            std::cerr << "Failed to open theme file for writing" << std::endl;
+        }
+
+    } else {
+        std::ifstream theme(themeFile);
+        if (theme.is_open()) {
+            std::string themeStr;
+            theme >> themeStr;
+            if (themeStr == "dark") {
+                isDarkTheme = true;
+                setCustomDarkStyle();
+            } else {
+                isDarkTheme = false;
+                setCustomLightStyle();
+            }
+        } else {
+            std::cerr << "Failed to open theme file for reading" << std::endl;
+        }
+    }
 
     running = false;   // Initialize flags
     finished = false;
@@ -31,6 +62,11 @@ void GUI::render() {
 void GUI::update(std::ostringstream& logStream) {
     // The GUI code
     ImGui::Begin("Epub Translator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
+
+    // Render the menu bar
+    renderMenuBar();
+
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20); // Push content down
 
     // Begin Combo box for selecting the local model
     ImGui::Text("Select Translator:");
@@ -51,7 +87,7 @@ void GUI::update(std::ostringstream& logStream) {
     if (ImGui::Button("Browse")) {
         nfdchar_t* outPath = nullptr;
         // Set up filter for EPUB files
-        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF Files", "epub,pdf" } };
+        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF/DOCX Files", "epub,pdf,docx" } };
         nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
         if (result == NFD_OKAY) {
             strcpy(inputFile, outPath);
@@ -88,6 +124,11 @@ void GUI::update(std::ostringstream& logStream) {
         running = true;      // Set the running flag
         finished = false;    // Reset the finished flag
 
+        // Ensure previous thread is joined before starting a new one
+        if (workerThread.joinable()) {
+            workerThread.join(); // Wait for previous thread to complete before launching a new one
+        }
+
         // Start the worker thread
         workerThread = std::thread([this, &logStream]() {
             {
@@ -106,6 +147,8 @@ void GUI::update(std::ostringstream& logStream) {
                         translator = TranslatorFactory::createTranslator("epub");
                     } else if (fileExtension == "pdf") {
                         translator = TranslatorFactory::createTranslator("pdf");
+                    } else if (fileExtension == "docx") {
+                        translator = TranslatorFactory::createTranslator("docx");
                     } else {
                         throw std::runtime_error("Unsupported file type: " + fileExtension);
                     }
@@ -136,28 +179,30 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::EndDisabled();
     }
 
+    if (running) {
+        ImGui::Text("Translation in progress...");
+        ImGui::SameLine();
+        ShowSpinner();
+        ImGui::NewLine();
+    }
+
     if (finished) {
         std::lock_guard<std::mutex> lock(resultMutex);
         ImGui::Text("%s", statusMessage.c_str());
     }
 
     // Log window
+    float logHeight = ImGui::GetContentRegionAvail().y - LOG_WINDOW_PADDING;
+
     ImGui::Text("Logs:");
-    ImGui::BeginChild("LogChild", ImVec2(0, 150), true, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild("LogChild", ImVec2(0, logHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
+
     std::string logContents = logStream.str();
     ImGui::TextUnformatted(logContents.c_str());
     if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
         ImGui::SetScrollHereY(1.0f); // Auto-scroll to bottom
     }
     ImGui::EndChild();
-
-    // // Test button
-    // if (ImGui::Button("PDF Test")) {
-    //     // Call PDFTranslator run
-    //     std::cout << "Calling PDFTranslator run" << std::endl;
-    //     PDFTranslator parser;
-    //     parser.run();
-    // }
 
     ImGui::End();
 }
@@ -179,4 +224,137 @@ void GUI::newFrame() {
 
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+}
+
+void GUI::setCustomDarkStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
+    colors[ImGuiCol_Header] = ImVec4(0.25f, 0.25f, 0.28f, 1.0f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.45f, 0.45f, 0.48f, 1.0f);
+    colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.23f, 1.0f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.7f, 0.5f, 0.9f, 1.0f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.20f, 0.23f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.30f, 0.30f, 0.33f, 1.0f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.35f, 0.35f, 0.38f, 1.0f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
+    colors[ImGuiCol_Border] = ImVec4(0.30f, 0.30f, 0.32f, 1.0f);
+    colors[ImGuiCol_Separator] = ImVec4(0.35f, 0.35f, 0.37f, 1.0f);
+    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.0f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.75f, 0.75f, 0.78f, 1.0f);
+}
+
+
+void GUI::setCustomLightStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    colors[ImGuiCol_WindowBg] = ImVec4(0.95f, 0.95f, 0.98f, 1.0f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
+    colors[ImGuiCol_Header] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.80f, 0.80f, 0.85f, 1.0f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.75f, 0.75f, 0.80f, 1.0f);
+    colors[ImGuiCol_Button] = ImVec4(0.85f, 0.85f, 0.88f, 1.0f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.5f, 0.7f, 1.0f, 1.0f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.70f, 0.70f, 0.75f, 1.0f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.90f, 0.90f, 0.93f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.85f, 0.85f, 0.88f, 1.0f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.80f, 0.80f, 0.85f, 1.0f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.95f, 0.95f, 0.98f, 1.0f);
+    colors[ImGuiCol_Border] = ImVec4(0.75f, 0.75f, 0.78f, 1.0f);
+    colors[ImGuiCol_Separator] = ImVec4(0.80f, 0.80f, 0.83f, 1.0f);
+    colors[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.15f, 1.0f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.55f, 1.0f);
+}
+
+
+void GUI::renderMenuBar() {
+    if (ImGui::BeginMainMenuBar()) {
+        // Push "Settings" to the right
+        float width = ImGui::GetContentRegionAvail().x; // Get available width
+        ImGui::SetCursorPosX(width - 75); // Move cursor position near the right
+
+        if (ImGui::BeginMenu("Settings")) {
+            if (ImGui::MenuItem("Light Theme", nullptr, !isDarkTheme)) {
+                isDarkTheme = false;
+                setCustomLightStyle();
+
+                // Open themeFile
+                std::ofstream theme(themeFile);
+
+                if (theme.is_open()) {
+                    theme << "light";
+                    theme.close();
+                } else {
+                    std::cerr << "Failed to open theme file for writing" << std::endl;
+                }
+
+                theme.close();
+            }
+            if (ImGui::MenuItem("Dark Theme", nullptr, isDarkTheme)) {
+                isDarkTheme = true;
+                setCustomDarkStyle();
+
+                // Open themeFile
+                std::ofstream theme(themeFile);
+
+                if (theme.is_open()) {
+                    theme << "dark";
+                    theme.close();
+                } else {
+                    std::cerr << "Failed to open theme file for writing" << std::endl;
+                }
+
+                theme.close();
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+
+void GUI::handleFileDrop(int count, const char** paths) {
+    // If count count is more than 1 print drag only one file message
+    if (count > 1) {
+        std::cout << "Please only drag one file at a time." << std::endl;
+        return;
+    }
+
+
+    if (count == 1) {
+        ImGui::ClearActiveID();
+
+        strcpy(inputFile, paths[0]);
+    }
+}
+
+void GUI::ShowSpinner(float radius, int numSegments, float thickness) {
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImVec2 center = ImGui::GetCursorScreenPos();
+    center.x += radius;
+    center.y += radius;
+
+    float start = (float)ImGui::GetTime() * 2.0f;
+    for (int i = 0; i < numSegments; i++) {
+        float angle = start + (i * IM_PI * 2.0f / numSegments);
+        ImVec2 startPos = ImVec2(center.x + cos(angle) * radius, center.y + sin(angle) * radius);
+        ImVec2 endPos = ImVec2(center.x + cos(angle) * (radius - thickness), center.y + sin(angle) * (radius - thickness));
+
+        float alpha = (float)i / (float)numSegments;
+        // Change color based o
+        ImU32 color;
+        if (isDarkTheme){
+           color = ImColor(1.0f, 1.0f, 1.0f, alpha);
+        } else {
+            color = ImColor(0.0f, 0.0f, 0.0f, alpha);
+        }
+
+        drawList->AddLine(startPos, endPos, color, thickness);
+    }
 }

@@ -1471,6 +1471,10 @@ TEST_CASE("PDFTranslator: extractTextFromPage") {
         // Cleanup
         fz_drop_document(ctx, doc);
         fz_drop_context(ctx);
+
+        if (std::filesystem::exists("extractTextPositive.txt")) {
+            std::filesystem::remove("extractTextPositive.txt");
+        }
     }
 
     SECTION("Invalid Page Index")
@@ -1502,6 +1506,11 @@ TEST_CASE("PDFTranslator: extractTextFromPage") {
         // Cleanup
         fz_drop_document(ctx, doc);
         fz_drop_context(ctx);
+
+        // Remove the empty file
+        if (std::filesystem::exists("extractTextNegative.txt")) {
+            std::filesystem::remove("extractTextNegative.txt");
+        }
     }
 }
 
@@ -1591,6 +1600,9 @@ TEST_CASE("PDFTranslator: processPDF") {
         }
 
         fz_drop_context(ctx);
+        if (std::filesystem::exists("processPDFPositive.txt")) {
+            std::filesystem::remove("processPDFPositive.txt");
+        }
     }
 
     SECTION("File Does Not Exist")
@@ -1618,6 +1630,10 @@ TEST_CASE("PDFTranslator: processPDF") {
         }
 
         fz_drop_context(ctx);
+
+        if (std::filesystem::exists("processPDFNegative.txt")) {
+            std::filesystem::remove("processPDFNegative.txt");
+        }
     }
 }
 
@@ -1824,4 +1840,285 @@ TEST_CASE("PDFTranslator: isImageFile") {
         REQUIRE_FALSE(translator.isImageFile(".pdf"));
         REQUIRE_FALSE(translator.isImageFile(".docx"));
     }
+}
+
+
+
+
+// ===================== escapeForDocx() =====================
+TEST_CASE("escapeForDocx: Properly escapes XML special characters", "[escapeForDocx]") {
+    TestableDocxTranslator translator;
+
+    SECTION("Escapes all XML characters") {
+        REQUIRE(translator.escapeForDocx("&<>'\"") == "&amp;&lt;&gt;&apos;&quot;");
+    }
+    SECTION("No change for normal text") {
+        REQUIRE(translator.escapeForDocx("Hello World") == "Hello World");
+    }
+    SECTION("Empty string") {
+        REQUIRE(translator.escapeForDocx("") == "");
+    }
+    SECTION("Handles repeated special chars") {
+        REQUIRE(translator.escapeForDocx("&&&&") == "&amp;&amp;&amp;&amp;");
+    }
+    SECTION("Stress test large input") {
+        std::string input(100000, '&');
+        std::string expected;
+        for (int i = 0; i < 100000; ++i) expected += "&amp;";
+        REQUIRE(translator.escapeForDocx(input) == expected);
+    }
+}
+
+TEST_CASE("getNodePath: Constructs correct XPath from XML node", "[getNodePath]") {
+    TestableDocxTranslator translator;
+
+    xmlDocPtr doc = xmlParseDoc(BAD_CAST "<root><child><subchild/></child></root>");
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    xmlNodePtr subchild = root->children->children;
+
+    REQUIRE(translator.getNodePath(subchild) == "/root/child/subchild");
+
+    xmlFreeDoc(doc);
+}
+
+TEST_CASE("extractTextNodes: Extracts <w:t> nodes from DOCX XML", "[extractTextNodes]") {
+    TestableDocxTranslator translator;
+
+
+    xmlDocPtr doc = xmlParseDoc(BAD_CAST 
+        "<root xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:t>Hello</w:t>"
+        "<w:t>World</w:t>"
+        "</root>"
+    );
+    
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+
+    std::vector<TextNode> nodes = translator.extractTextNodes(root);
+    // Print out the extracted nodes
+    for (const auto& node : nodes) {
+        std::cout << "Node: " << node.text << std::endl;
+    }
+
+    REQUIRE(nodes.size() == 2);
+    REQUIRE(nodes[0].text == "Hello");
+    REQUIRE(nodes[1].text == "World");
+
+    xmlFreeDoc(doc);
+}
+
+TEST_CASE("saveTextToFile: Saves extracted text to files", "[saveTextToFile]") {
+    TestableDocxTranslator translator;
+
+
+    std::vector<TextNode> nodes = {
+        {"path1", "Hello"},
+        {"path2", "World"}
+    };
+
+    translator.saveTextToFile(nodes, "test_positions.txt", "test_texts.txt");
+
+    std::ifstream posFile("test_positions.txt");
+    std::ifstream textFile("test_texts.txt");
+
+    std::string posLine, textLine;
+    std::getline(posFile, posLine);
+    std::getline(textFile, textLine);
+
+    REQUIRE(posLine == "1,path1");
+    REQUIRE(textLine == "1,Hello");
+
+    std::getline(posFile, posLine);
+    std::getline(textFile, textLine);
+
+    REQUIRE(posLine == "2,path2");
+    REQUIRE(textLine == "2,World");
+
+    posFile.close();
+    textFile.close();
+    std::filesystem::remove("test_positions.txt");
+    std::filesystem::remove("test_texts.txt");
+}
+
+TEST_CASE("loadTranslations: Loads translations from files", "[loadTranslations]") {
+    TestableDocxTranslator translator;
+
+    // Prepare test files
+    std::ofstream posFile("test_positions.txt");
+    std::ofstream textFile("test_translations.txt");
+
+    posFile << "1,/root/child\n2,/root/child/subchild\n";
+    textFile << "1,Hello\n2,World\n";
+
+    posFile.close();
+    textFile.close();
+
+    auto translations = translator.loadTranslations("test_positions.txt", "test_translations.txt");
+
+    REQUIRE(translations.size() == 2);
+    REQUIRE(translations.count("/root/child") == 1);
+    REQUIRE(translations.count("/root/child/subchild") == 1);
+
+    std::filesystem::remove("test_positions.txt");
+    std::filesystem::remove("test_translations.txt");
+}
+
+TEST_CASE("updateNodeWithTranslation: Replaces text content in XML nodes", "[updateNodeWithTranslation]") {
+    TestableDocxTranslator translator;
+
+    xmlDocPtr doc = xmlParseDoc(BAD_CAST 
+        "<root xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:t>Old</w:t>"
+        "</root>"
+    );
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    xmlNodePtr textNode = root->children;
+
+    translator.updateNodeWithTranslation(textNode, "NewText");
+
+    xmlChar* content = xmlNodeGetContent(textNode);
+    REQUIRE(std::string((char*)content) == "NewText");
+    xmlFree(content);
+
+    xmlFreeDoc(doc);
+}
+
+TEST_CASE("reinsertTranslations: Replaces text nodes with translations from multimap", "[reinsertTranslations]") {
+    TestableDocxTranslator translator;
+
+    // Sample XML Document (DOCX-like structure)
+    xmlDocPtr doc = xmlParseDoc(BAD_CAST 
+        "<document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<body>"
+            "<p>"
+                "<r><w:t>Original1</w:t></r>"
+                "<r><w:t>Original2</w:t></r>"
+            "</p>"
+            "<p>"
+                "<r><w:t>Original3</w:t></r>"
+            "</p>"
+        "</body>"
+        "</document>"
+    );
+    REQUIRE(doc != nullptr);
+
+    // Get root node
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    REQUIRE(root != nullptr);
+
+    // Simulated translations from a multimap
+    std::unordered_multimap<std::string, std::string> translations = {
+        {"/document/body/p/r/t", "Translated1"},
+        {"/document/body/p/r/t", "Translated2"},
+        {"/document/body/p/r/t", "Translated3"}
+    };
+
+    // Perform the translation insertion
+    translator.reinsertTranslations(root, translations);
+
+    // Collect the content from the nodes
+    std::vector<std::string> nodeContents;
+    std::function<void(xmlNodePtr)> collectTextNodes = [&](xmlNodePtr node) {
+        for (; node; node = node->next) {
+            if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "t") == 0) {
+                xmlChar* content = xmlNodeGetContent(node);
+                nodeContents.emplace_back((char*)content);
+                xmlFree(content);
+            }
+            collectTextNodes(node->children);
+        }
+    };
+    collectTextNodes(root->children);
+
+    // Print for debugging
+    for (size_t i = 0; i < nodeContents.size(); ++i) {
+        std::cout << "Node " << i + 1 << ": " << nodeContents[i] << std::endl;
+    }
+
+    // Verify that translations were inserted correctly in order
+    REQUIRE(nodeContents.size() == 3);
+    REQUIRE(nodeContents[0] == "Translated1");
+    REQUIRE(nodeContents[1] == "Translated2");
+    REQUIRE(nodeContents[2] == "Translated3");
+
+    // Clean up
+    xmlFreeDoc(doc);
+}
+
+
+TEST_CASE("make_directory: Creates directories", "[make_directory]") {
+    TestableDocxTranslator translator;
+
+    std::string dirName = "test_dir";
+    REQUIRE(translator.make_directory(dirName) == true);
+    REQUIRE(std::filesystem::exists(dirName));
+
+    std::filesystem::remove_all(dirName);
+}
+
+TEST_CASE("unzip_file: Unzips DOCX file", "[unzip_file]") {
+    TestableDocxTranslator translator;
+
+    // If outputDir exists, remove it
+    std::string outputDir = "test_unzipped";
+    if (std::filesystem::exists(outputDir)) {
+        std::filesystem::remove_all(outputDir);
+    }
+
+    std::string testFile = std::filesystem::absolute("../test_files/lorem-ipsum.docx").string();
+    REQUIRE_NOTHROW(translator.unzip_file(testFile, outputDir));
+
+    REQUIRE(std::filesystem::exists(outputDir));
+
+    std::filesystem::remove_all(outputDir);
+}
+
+TEST_CASE("exportDocx: Creates DOCX file from directory", "[exportDocx]") {
+    TestableDocxTranslator translator;
+
+    // If outputDir exists, remove it
+    std::string unzippedDir = "test_unzipped";
+    if (std::filesystem::exists(unzippedDir)) {
+        std::filesystem::remove_all(unzippedDir);
+    }
+
+    std::string testDir = std::filesystem::absolute("../test_files/").string();
+
+    std::string testFile = std::filesystem::absolute("../test_files/lorem-ipsum.docx").string();
+
+    // List what is in the directory
+    std::filesystem::directory_iterator it(testDir);
+    for (const auto& entry : it) {
+        std::cout << entry.path() << std::endl;
+    }
+
+    REQUIRE(std::filesystem::exists(testFile));
+
+    REQUIRE_NOTHROW(translator.unzip_file(testFile, unzippedDir));
+
+    REQUIRE(std::filesystem::exists(unzippedDir));
+
+    // Export the directory back to a DOCX file
+    std::string outputDocxDir = "test_output";
+    if (std::filesystem::exists(outputDocxDir)) {
+        std::filesystem::remove_all(outputDocxDir);
+    }
+
+    // Ensure the output directory is created
+    REQUIRE(translator.make_directory(outputDocxDir) == true);
+    REQUIRE(std::filesystem::exists(outputDocxDir));
+
+
+    REQUIRE_NOTHROW(translator.exportDocx(unzippedDir, outputDocxDir));
+
+    // Print everything in the output directory
+    std::filesystem::directory_iterator it2(outputDocxDir);
+    for (const auto& entry : it2) {
+        std::cout << entry.path() << std::endl;
+    }
+
+    REQUIRE(std::filesystem::exists(outputDocxDir + "/output.docx"));
+
+    std::filesystem::remove_all(unzippedDir);
+    std::filesystem::remove_all(outputDocxDir);
 }

@@ -1,5 +1,13 @@
 #include "main.h"
 
+void fileDropCallback(GLFWwindow* window, int count, const char** paths) {
+    // Retrieve the GUI instance stored in window user pointer
+    GUI* gui = static_cast<GUI*>(glfwGetWindowUserPointer(window));
+    if (gui) {
+        gui->handleFileDrop(count, paths);
+    }
+}
+
 int main() {
     try{
         // All the couts are redirected to captureOutput so we can use it in our GUI
@@ -30,9 +38,10 @@ int main() {
     #endif
 
         // Create window with graphics context
-        GLFWwindow *window = glfwCreateWindow(720, 360, "Book Translator", NULL, NULL);
+        GLFWwindow *window = glfwCreateWindow(720, 420, "Book Translator", NULL, NULL);
         if (window == NULL)
             return 1;
+        glfwSetWindowSizeLimits(window, 720, 420, GLFW_DONT_CARE, GLFW_DONT_CARE);
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1); // Enable vsync
 
@@ -49,6 +58,10 @@ int main() {
         GUI gui;
 
         gui.init(window, glsl_version);
+
+        // Store reference to GUI instance in the window user pointer
+        glfwSetWindowUserPointer(window, &gui);
+        glfwSetDropCallback(window, fileDropCallback);
 
         while(!glfwWindowShouldClose(window)) {
             glfwPollEvents();

@@ -1,5 +1,6 @@
 #include "EpubTranslator.h"
 #include "PDFTranslator.h"
+#include "DocxTranslator.h"
 #include "GUI.h"
 #include <sys/stat.h>
 
@@ -74,4 +75,21 @@ public:
     using PDFTranslator::addImagesToPdf;
     using PDFTranslator::configureTextRendering;
     using PDFTranslator::addTextToPdf;
+};
+
+class TestableDocxTranslator : public DocxTranslator {
+    public:
+        using DocxTranslator::unzip_file;
+        using DocxTranslator::make_directory;
+        using DocxTranslator::getNodePath;
+        using DocxTranslator::extractTextNodesRecursive;
+        using DocxTranslator::extractTextNodes;
+        using DocxTranslator::saveTextToFile;
+        using DocxTranslator::loadTranslations;
+        using DocxTranslator::updateNodeWithTranslation;
+        using DocxTranslator::traverseAndReinsert;
+        using DocxTranslator::reinsertTranslations;
+        using DocxTranslator::exportDocx;
+        using DocxTranslator::escapeForDocx;
+        using DocxTranslator::escapeTranslations;
 };
