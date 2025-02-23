@@ -39,9 +39,9 @@ std::vector<std::string> EpubTranslator::extractIdrefs(const std::string& spineC
 
     for (auto it = begin; it != end; ++it) {
         std::string idref = (*it)[1].str();
-        if (idref.find(".xhtml") == std::string::npos) {
-            idref += ".xhtml";
-        }
+        // if (idref.find(".xhtml") == std::string::npos) {
+        //     idref += ".xhtml";
+        // }
         idrefs.push_back(idref);
     }
     return idrefs;
@@ -93,14 +93,24 @@ std::vector<std::filesystem::path> EpubTranslator::getAllXHTMLFiles(const std::f
     return xhtmlFiles;
 }
 
-std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder) {
+std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder, std::vector<std::pair<std::string, std::string>> manifestMappingIds)  {
     std::vector<std::filesystem::path> sortedXHTMLFiles;
 
     for (const auto& idref : spineOrder) {
-        for (const auto& xhtmlFile : xhtmlFiles) {
-            if (xhtmlFile.filename() == idref) {
-                sortedXHTMLFiles.push_back(xhtmlFile);
-                break;
+        // Find the corresponding href from the manifestMappingIds
+        auto it = std::find_if(manifestMappingIds.begin(), manifestMappingIds.end(), 
+            [&](const std::pair<std::string, std::string>& pair) {
+                return pair.first == idref;
+            });
+
+        if (it != manifestMappingIds.end()) {
+            std::filesystem::path manifestFilename = std::filesystem::path(it->second).filename();
+
+            for (const auto& xhtmlFile : xhtmlFiles) {
+                if (xhtmlFile.filename() == manifestFilename) {
+                    sortedXHTMLFiles.push_back(xhtmlFile);
+                    break; // Stop after finding the first match
+                }
             }
         }
     }
@@ -157,11 +167,6 @@ std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifest
 
         // Ensure both id and href are found before adding to the mapping
         if (!id.empty() && !href.empty()) {
-            // Ensure href is an XHTML file
-            if (href.find(".xhtml") == std::string::npos) {
-                href += ".xhtml";
-            }
-
             idToFileMapping.emplace_back(id, href);
         }
     }
@@ -229,73 +234,67 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 }
 
 // Update manifest section with new chapters
-std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters) {
+std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::pair<std::string, std::string>>& manifestMappingIds) {
     std::vector<std::string> updatedManifest;
-    auto it = manifest.end(); // Default to end in case </manifest> isn't found
+    
+    // Start the manifest block
+    updatedManifest.push_back("<manifest>\n");
 
-    // Find the line that contains "</manifest>"
-    for (auto iter = manifest.begin(); iter != manifest.end(); ++iter) {
-        if (iter->find("</manifest>") != std::string::npos) {
-            it = iter;
-            break;
+    // Append new manifest items
+    for (const auto& [id, file] : manifestMappingIds) {
+        std::string filename = std::filesystem::path(file).filename().string();
+        std::string updatedPath;
+
+        // Skip css files
+        if (filename.size() > 4 && filename.compare(filename.size() - 4, 4, ".css") == 0) {
+            continue;
         }
+        // Skip js files
+        if (filename.size() > 3 && filename.compare(filename.size() - 3, 3, ".js") == 0) {
+            continue;
+        }
+
+        if (filename.size() > 6 && filename.compare(filename.size() - 6, 6, ".xhtml") == 0) {
+            updatedPath = "Text/" + filename;
+        } else if (filename.size() > 4 && 
+                   (filename.compare(filename.size() - 4, 4, ".jpg") == 0 ||
+                    filename.compare(filename.size() - 5, 5, ".jpeg") == 0 ||
+                    filename.compare(filename.size() - 4, 4, ".png") == 0)) {
+            updatedPath = "Images/" + filename;
+        } else {
+            updatedPath = filename; // Keep original path for other file types
+        }
+
+        // Create manifest entry
+        std::string manifestEntry = "   <item id=\"" + id + "\" href=\"" + updatedPath + "\" />\n";
+        updatedManifest.push_back(manifestEntry);
     }
 
-    // Copy everything before "</manifest>"
-    if (it != manifest.end()) {
-        updatedManifest.insert(updatedManifest.end(), manifest.begin(), it);
-    } else {
-        updatedManifest = manifest; // If </manifest> is missing, copy everything
-    }
-
-    // Append new chapters
-    for (size_t i = 0; i < chapters.size(); ++i) {
-        updatedManifest.push_back(
-            "<item id=\"chapter" + std::to_string(i + 1) +
-            "\" href=\"Text/" + chapters[i] +
-            "\" media-type=\"application/xhtml+xml\"/>\n"
-        );
-    }
-
-    // Append "</manifest>" if it was found
-    if (it != manifest.end()) {
-        updatedManifest.push_back(*it);
-    }
+    // Close the manifest block
+    updatedManifest.push_back("</manifest>\n");
 
     return updatedManifest;
 }
 
 
-
 // Update spine section with new chapters
-std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters) {
+std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds) {
     std::vector<std::string> updatedSpine;
-    auto it = spine.end(); // Default to end in case </spine> isn't found
+    
+    // Start the spine block
+    updatedSpine.push_back("<spine>\n");
 
-    // Find the line that contains "</spine>"
-    for (auto iter = spine.begin(); iter != spine.end(); ++iter) {
-        if (iter->find("</spine>") != std::string::npos) {
-            it = iter;
-            break;
+    // Iterate over manifestMappingIds and include only XHTML file IDs
+    for (const auto& [id, file] : manifestMappingIds) {
+        // Check if the file is an XHTML file
+        if (file.size() > 6 && file.compare(file.size() - 6, 6, ".xhtml") == 0) {
+            std::string spineEntry = "  <itemref idref=\"" + id + "\" />\n";
+            updatedSpine.push_back(spineEntry);
         }
     }
 
-    // Copy everything before "</spine>"
-    if (it != spine.end()) {
-        updatedSpine.insert(updatedSpine.end(), spine.begin(), it);
-    } else {
-        updatedSpine = spine; // If </spine> is missing, copy everything
-    }
-
-    // Insert new chapters before "</spine>"
-    for (size_t i = 0; i < chapters.size(); ++i) {
-        updatedSpine.push_back("<itemref idref=\"chapter" + std::to_string(i + 1) + "\" />\n");
-    }
-
-    // Append "</spine>" if it was found
-    if (it != spine.end()) {
-        updatedSpine.push_back(*it);
-    }
+    // Close the spine block
+    updatedSpine.push_back("</spine>\n");
 
     return updatedSpine;
 }
@@ -331,7 +330,7 @@ void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentO
     outputFile.close();
 }
 
-void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath) {
+void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds, std::vector<std::string> manifest, std::vector<std::string> spine) {
     std::ifstream inputFile(contentOpfPath);
     if (!inputFile.is_open()) {
         std::cerr << "Failed to open content.opf file!" << "\n";
@@ -347,26 +346,14 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
     inputFile.close();
 
     try {
-        std::pair<std::vector<std::string>, std::vector<std::string>> manifestAndSpine = parseManifestAndSpine(fileContent);
 
-
-        std::vector<std::string> manifest = manifestAndSpine.first;
-        std::vector<std::string> spine = manifestAndSpine.second;
-
-        std::cout << "Printing manifest" << std::endl;
-        for (const auto& line : manifest) {
-            std::cout << line << std::endl;
-        }
-
-        std::cout << "After manifest" << std::endl;
-
-        std::vector<std::string> updatedManifest = updateManifest(manifest, epubChapterList);
+        std::vector<std::string> updatedManifest = updateManifest(manifestMappingIds);
 
         for (const auto& line : updatedManifest) {
             std::cout << line << std::endl;
         }
 
-        std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList);
+        std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList, manifestMappingIds);
 
         std::ostringstream updatedContentStream;
         bool insideManifest = false, insideSpine = false;
@@ -374,7 +361,7 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
         for (const auto& fileLine : fileContent) {
             // Skip original manifest and spine sections
             if (fileLine.find("<manifest") != std::string::npos) {
-                insideManifest = true;
+                insideManifest = true;                
                 continue;
             }
             if (fileLine.find("</manifest>") != std::string::npos) {
@@ -1275,6 +1262,12 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
     std::vector<std::string> spineOrder = getSpineOrder(contentOpfPath);
 
+    // Print the spine order
+    std::cout << "Spine Order:" << "\n";
+    for (const auto& item : spineOrder) {
+        std::cout << item << "\n";
+    }
+
     std::cout << "After getSpineOrder" << "\n";
 
     if (spineOrder.empty()) {
@@ -1300,6 +1293,8 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Extract spine and manifest from the OPF file
     std::pair<std::vector<std::string>, std::vector<std::string>> spineAndManifest = parseManifestAndSpine(fileContent);
 
+    std::vector<std::string> manifest = spineAndManifest.first;
+    std::vector<std::string> spine = spineAndManifest.second;
 
     // Print the spine and manifest
     std::cout << "Manifest:" << "\n";
@@ -1327,12 +1322,6 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         return 1;
     }
 
-    // Print the manifest ids
-    std::cout << "Manifest IDs:" << "\n";
-    for (const auto& item : manifestMappingIds) {
-        std::cout << item.first << " : " << item.second << "\n";
-    }
-
     std::cout << "After extractManifestIds" << "\n";
 
     
@@ -1343,13 +1332,25 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         return 1;
     }
 
+    // Print the XHTML files
+    std::cout << "XHTML Files:" << "\n";
+    for (const auto& item : xhtmlFiles) {
+        std::cout << item << "\n";
+    }
+
     std::cout << "After getAllXHTMLFiles" << "\n";
 
     // Sort the XHTML files based on the spine order
-    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+    std::vector<std::filesystem::path> spineOrderXHTMLFiles = sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder, manifestMappingIds);
     if (spineOrderXHTMLFiles.empty()) {
         std::cerr << "No XHTML files found in the unzipped EPUB directory matching the spine order." << "\n";
         return 1;
+    }
+
+    // Print the sorted XHTML files
+    std::cout << "Sorted XHTML Files:" << "\n";
+    for (const auto& item : spineOrderXHTMLFiles) {
+        std::cout << item << "\n";
     }
 
     std::cout << "After sortXHTMLFilesBySpineOrder" << "\n";
@@ -1383,7 +1384,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
 
-    updateContentOpf(spineOrder, templateContentOpfPath);
+    updateContentOpf(spineOrder, templateContentOpfPath, manifestMappingIds, manifest, spine);
 
     std::cout << "After updateContentOpf" << "\n";
 
@@ -1441,7 +1442,6 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
         return 0;
     }
-
 
 
     std::string rawTagsPathString = "rawTags.txt";
@@ -1710,28 +1710,28 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Zip export directory to create the final EPUB file
     exportEpub(templatePath, outputEpubPath);
 
-    // // Remove the unzipped and export directories
-    std::filesystem::remove_all(unzippedPath);
-    std::filesystem::remove_all(templatePath);
+    // // // Remove the unzipped and export directories
+    // std::filesystem::remove_all(unzippedPath);
+    // std::filesystem::remove_all(templatePath);
 
 
-    // Remove the temp text files
-    try {
-        if (std::filesystem::exists(encodedTagsPathString)) {
-            std::filesystem::remove(encodedTagsPathString);
-            std::cout << "Deleted file: " << encodedTagsPathString << "\n";
-        }
-        if (std::filesystem::exists(translatedTagsPathString)) {
-            std::filesystem::remove(translatedTagsPathString);
-            std::cout << "Deleted file: " << translatedTagsPathString << "\n";
-        }
-        if (std::filesystem::exists(rawTagsPathString)) {
-            std::filesystem::remove(rawTagsPathString);
-            std::cout << "Deleted file: " << rawTagsPathString << "\n";
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << "\n";
-    }
+    // // Remove the temp text files
+    // try {
+    //     if (std::filesystem::exists(encodedTagsPathString)) {
+    //         std::filesystem::remove(encodedTagsPathString);
+    //         std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+    //     }
+    //     if (std::filesystem::exists(translatedTagsPathString)) {
+    //         std::filesystem::remove(translatedTagsPathString);
+    //         std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+    //     }
+    //     if (std::filesystem::exists(rawTagsPathString)) {
+    //         std::filesystem::remove(rawTagsPathString);
+    //         std::cout << "Deleted file: " << rawTagsPathString << "\n";
+    //     }
+    // } catch (const std::filesystem::filesystem_error& e) {
+    //     std::cerr << "Filesystem error: " << e.what() << "\n";
+    // }
 
     // End timer
     auto end = std::chrono::high_resolution_clock::now();
