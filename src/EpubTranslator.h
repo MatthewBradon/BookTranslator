@@ -73,7 +73,6 @@ protected:
     std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
     void removeSection0001Tags(const std::filesystem::path& contentOpfPath);
-    std::string formatHTML(const std::string& input);
     std::string readFileUtf8(const std::filesystem::path& filePath);
     htmlDocPtr parseHtmlDocument(const std::string& data);
     xmlNodeSetPtr extractNodesFromDoc(htmlDocPtr doc);
@@ -84,4 +83,5 @@ protected:
     std::string readChapterFile(const std::filesystem::path& chapterPath);
     void writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content);
     std::vector<std::pair<std::string, std::string>> extractManifestIds(const std::vector<std::string>& manifestItems);
+    void addTitleAndAuthor(const char* filename, const std::string& title, const std::string& author);
 };

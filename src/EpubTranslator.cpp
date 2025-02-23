@@ -29,8 +29,6 @@ std::string EpubTranslator::extractSpineContent(const std::string& content) {
     throw std::runtime_error("No <spine> tag found in the OPF file.");
 }
 
-
-
 std::vector<std::string> EpubTranslator::extractIdrefs(const std::string& spineContent) {
     std::vector<std::string> idrefs;
     std::regex idrefPattern(R"(idref\s*=\s*"([^\"]*)\")");
@@ -118,32 +116,6 @@ std::vector<std::filesystem::path> EpubTranslator::sortXHTMLFilesBySpineOrder(co
     return sortedXHTMLFiles;
 }
 
-std::string EpubTranslator::formatHTML(const std::string& input) {
-
-
-    htmlDocPtr doc = parseHtmlDocument(input);
-
-    if (doc == nullptr) {
-        std::cerr << "Error: unable to parse HTML." << std::endl;
-        return "";
-    }
-
-    xmlChar* output = nullptr;
-    int size = 0;
-
-    xmlDocDumpFormatMemory(doc, &output, &size, 1);
-
-    std::string formattedHtml;
-    if (output != nullptr) {
-        formattedHtml.assign(reinterpret_cast<const char*>(output), size);
-        xmlFree(output);
-    }
-
-    xmlFreeDoc(doc);
-
-    return formattedHtml;
-}
-
 std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifestIds(const std::vector<std::string>& manifestItems) {
     std::vector<std::pair<std::string, std::string>> idToFileMapping;
 
@@ -178,9 +150,6 @@ std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifest
 
     return idToFileMapping;
 }
-
-
-
 
 std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) 
 {
@@ -394,15 +363,13 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
             }
         }
 
-        std::string formattedContent = formatHTML(updatedContentStream.str());
-
         std::ofstream outputFile(contentOpfPath);
         if (!outputFile.is_open()) {
             std::cerr << "Failed to open content.opf file for writing!" << "\n";
             return;
         }
 
-        outputFile << formattedContent;
+        outputFile << updatedContentStream.str();
         outputFile.close();
 
         removeSection0001Tags(contentOpfPath);
@@ -866,13 +833,11 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
     return bookTags;
 }
 
-
 size_t EpubTranslator::writeCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     size_t totalSize = size * nmemb;
     output->append((char*)contents, totalSize);
     return totalSize;
 }
-
 
 std::string EpubTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
     CURL* curl;
@@ -1190,6 +1155,77 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     return 0; 
 }
 
+void EpubTranslator::addTitleAndAuthor(const char* filename, const std::string& title, const std::string& author) {
+    xmlDocPtr doc = xmlReadFile(filename, NULL, 0);
+    if (!doc) {
+        std::cerr << "Failed to parse " << filename << std::endl;
+        return;
+    }
+
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    if (!root) {
+        std::cerr << "Empty document!" << std::endl;
+        xmlFreeDoc(doc);
+        return;
+    }
+
+    // Find the <metadata> node
+    xmlNodePtr metadataNode = nullptr;
+    for (xmlNodePtr node = root->children; node; node = node->next) {
+        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "metadata") == 0) {
+            metadataNode = node;
+            break;
+        }
+    }
+
+    if (!metadataNode) {
+        std::cerr << "No <metadata> found in XML!" << std::endl;
+        xmlFreeDoc(doc);
+        return;
+    }
+
+    // Ensure the Dublin Core namespace is defined
+    xmlNsPtr dcNamespace = xmlSearchNsByHref(doc, metadataNode, BAD_CAST "http://purl.org/dc/elements/1.1/");
+    if (!dcNamespace) {
+        dcNamespace = xmlNewNs(metadataNode, BAD_CAST "http://purl.org/dc/elements/1.1/", BAD_CAST "dc");
+    }
+
+    // Overwrite <dc:title>
+    xmlNodePtr titleNode = nullptr;
+    for (xmlNodePtr node = metadataNode->children; node; node = node->next) {
+        if (node->type == XML_ELEMENT_NODE && xmlStrcmp(node->name, BAD_CAST "title") == 0 &&
+            node->ns && xmlStrcmp(node->ns->href, BAD_CAST "http://purl.org/dc/elements/1.1/") == 0) {
+            titleNode = node;
+            break;
+        }
+    }
+
+    if (titleNode) {
+        xmlNodeSetContent(titleNode, BAD_CAST title.c_str());  // Overwrite existing title
+    } else {
+        xmlNewChild(metadataNode, dcNamespace, BAD_CAST "title", BAD_CAST title.c_str());
+    }
+
+    // Remove existing <dc:creator> nodes
+    xmlNodePtr cur = metadataNode->children;
+    while (cur) {
+        xmlNodePtr next = cur->next;
+        if (cur->type == XML_ELEMENT_NODE && xmlStrcmp(cur->name, BAD_CAST "creator") == 0 &&
+            cur->ns && xmlStrcmp(cur->ns->href, BAD_CAST "http://purl.org/dc/elements/1.1/") == 0) {
+            xmlUnlinkNode(cur);
+            xmlFreeNode(cur);
+        }
+        cur = next;
+    }
+
+    // Add new <dc:creator>
+    xmlNewChild(metadataNode, dcNamespace, BAD_CAST "creator", BAD_CAST author.c_str());
+
+    // Save the updated XML
+    xmlSaveFormatFileEnc(filename, doc, "UTF-8", 1);
+    xmlFreeDoc(doc);
+    xmlCleanupParser();
+}
 
 int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey) {
     
@@ -1398,7 +1434,29 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     copyImages(std::filesystem::path(unzippedPath), std::filesystem::path("export/OEBPS/Images"));
 
 
+    // check if book_details.txt exists
+    std::filesystem::path bookDetailsPath = "book_details.txt";
 
+    if (std::filesystem::exists(bookDetailsPath)) {
+        std::ifstream bookDetailsFile(bookDetailsPath);
+        if (!bookDetailsFile.is_open()) {
+            std::cerr << "Failed to open book_details.txt file." << "\n";
+            return 1;
+        }
+
+        std::string title;
+        std::string author;
+        std::getline(bookDetailsFile, title);
+        std::getline(bookDetailsFile, author);
+        bookDetailsFile.close();
+
+        std::cout << "Title: " << title << "\n";
+        std::cout << "Author: " << author << "\n";
+
+        std::string templateContentOpfPathString = "export/OEBPS/content.opf";
+
+        addTitleAndAuthor(templateContentOpfPathString.c_str(), title, author);
+    }
 
     // Clean each chapter
     for (const auto& xhtmlFile : spineOrderXHTMLFiles) {
@@ -1710,28 +1768,28 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Zip export directory to create the final EPUB file
     exportEpub(templatePath, outputEpubPath);
 
-    // // // Remove the unzipped and export directories
-    // std::filesystem::remove_all(unzippedPath);
-    // std::filesystem::remove_all(templatePath);
+    // Remove the unzipped and export directories
+    std::filesystem::remove_all(unzippedPath);
+    std::filesystem::remove_all(templatePath);
 
 
-    // // Remove the temp text files
-    // try {
-    //     if (std::filesystem::exists(encodedTagsPathString)) {
-    //         std::filesystem::remove(encodedTagsPathString);
-    //         std::cout << "Deleted file: " << encodedTagsPathString << "\n";
-    //     }
-    //     if (std::filesystem::exists(translatedTagsPathString)) {
-    //         std::filesystem::remove(translatedTagsPathString);
-    //         std::cout << "Deleted file: " << translatedTagsPathString << "\n";
-    //     }
-    //     if (std::filesystem::exists(rawTagsPathString)) {
-    //         std::filesystem::remove(rawTagsPathString);
-    //         std::cout << "Deleted file: " << rawTagsPathString << "\n";
-    //     }
-    // } catch (const std::filesystem::filesystem_error& e) {
-    //     std::cerr << "Filesystem error: " << e.what() << "\n";
-    // }
+    // Remove the temp text files
+    try {
+        if (std::filesystem::exists(encodedTagsPathString)) {
+            std::filesystem::remove(encodedTagsPathString);
+            std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+        }
+        if (std::filesystem::exists(translatedTagsPathString)) {
+            std::filesystem::remove(translatedTagsPathString);
+            std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+        }
+        if (std::filesystem::exists(rawTagsPathString)) {
+            std::filesystem::remove(rawTagsPathString);
+            std::cout << "Deleted file: " << rawTagsPathString << "\n";
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << "\n";
+    }
 
     // End timer
     auto end = std::chrono::high_resolution_clock::now();

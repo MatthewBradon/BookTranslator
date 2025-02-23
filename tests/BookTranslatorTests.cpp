@@ -404,48 +404,6 @@ TEST_CASE("EpubTranslator: removeSection0001Tags removes specific tags from cont
     std::filesystem::remove(tempFile);
 }
 
-TEST_CASE("formatHTML handles various HTML inputs") {
-    TestableEpubTranslator translator;
-
-    SECTION("Formats simple valid HTML correctly") {
-        std::string unformattedHTML = R"(<html><body><p>Hello, world!</p><div><span>Test</span></div></body></html>)";
-        std::string formattedHTML = translator.formatHTML(unformattedHTML);
-
-        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<p>Hello, world!</p>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<div>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<span>Test</span>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
-    }
-
-    SECTION("Handles invalid HTML by auto-correcting structure") {
-        std::string invalidHTML = R"(<html><body><p>Unclosed paragraph)";
-        std::string formattedHTML = translator.formatHTML(invalidHTML);
-
-        REQUIRE(!formattedHTML.empty());
-        REQUIRE(formattedHTML.find("<p>Unclosed paragraph</p>") != std::string::npos); // Auto-closing expected
-        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
-    }
-    
-    SECTION("Handles completely invalid input gracefully") {
-        std::string invalidHTML = "%%% INVALID HTML $$$";
-        std::string formattedHTML = translator.formatHTML(invalidHTML);
-    
-        std::cout << "FORMATTED HTML" << std::endl;
-        std::cout << formattedHTML << std::endl;
-    
-        // Instead of expecting an empty string, verify the recovered structure
-        REQUIRE(!formattedHTML.empty());
-        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<p>%%% INVALID HTML $$$</p>") != std::string::npos);
-    }
-
-}
-
 TEST_CASE("EpubTranslator: updateNavXHTML correctly updates the TOC") {
     TestableEpubTranslator translator;
 
