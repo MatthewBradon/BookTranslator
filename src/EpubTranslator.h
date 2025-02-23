@@ -84,6 +84,5 @@ protected:
     std::string serializeDocument(htmlDocPtr doc);
     std::string readChapterFile(const std::filesystem::path& chapterPath);
     void writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content);
-
-
+    std::vector<std::pair<std::string, std::string>> extractManifestIds(const std::vector<std::string>& manifestItems);
 };

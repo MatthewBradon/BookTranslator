@@ -29,6 +29,8 @@ std::string EpubTranslator::extractSpineContent(const std::string& content) {
     throw std::runtime_error("No <spine> tag found in the OPF file.");
 }
 
+
+
 std::vector<std::string> EpubTranslator::extractIdrefs(const std::string& spineContent) {
     std::vector<std::string> idrefs;
     std::regex idrefPattern(R"(idref\s*=\s*"([^\"]*)\")");
@@ -132,11 +134,48 @@ std::string EpubTranslator::formatHTML(const std::string& input) {
     return formattedHtml;
 }
 
-#include <iostream>
-#include <regex>
-#include <string>
-#include <vector>
-#include <utility>
+std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifestIds(const std::vector<std::string>& manifestItems) {
+    std::vector<std::pair<std::string, std::string>> idToFileMapping;
+
+    // Separate regex patterns for extracting id and href
+    std::regex idPattern(R"(\bid\s*=\s*\"([^\"]+)\")");
+    std::regex hrefPattern(R"(\bhref\s*=\s*\"([^\"]+)\")");
+
+    for (const std::string& item : manifestItems) {
+        std::smatch idMatch, hrefMatch;
+        std::string id, href;
+
+        // Extract id attribute
+        if (std::regex_search(item, idMatch, idPattern)) {
+            id = idMatch[1].str();
+        }
+
+        // Extract href attribute
+        if (std::regex_search(item, hrefMatch, hrefPattern)) {
+            href = hrefMatch[1].str();
+        }
+
+        // Ensure both id and href are found before adding to the mapping
+        if (!id.empty() && !href.empty()) {
+            // Ensure href is an XHTML file
+            if (href.find(".xhtml") == std::string::npos) {
+                href += ".xhtml";
+            }
+
+            idToFileMapping.emplace_back(id, href);
+        }
+    }
+
+    // Print the extracted id-to-file mapping
+    for (const auto& pair : idToFileMapping) {
+        std::cout << "ID: " << pair.first << ", File: " << pair.second << std::endl;
+    }
+
+    return idToFileMapping;
+}
+
+
+
 
 std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::parseManifestAndSpine(const std::vector<std::string>& content) 
 {
@@ -674,10 +713,6 @@ void EpubTranslator::removeUnwantedTags(xmlNodePtr node) {
         current = nextNode;  // Move to the next sibling
     }
 }
-
-
-
-
 
 std::string EpubTranslator::readChapterFile(const std::filesystem::path& chapterPath) {
     std::ifstream file(chapterPath);
@@ -1247,6 +1282,60 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         return 1;
     }
 
+    std::ifstream inputFile(contentOpfPath);
+    if (!inputFile.is_open()) {
+        std::cerr << "Failed to open content.opf file!" << "\n";
+        return 1;
+    }
+
+    std::vector<std::string> fileContent;
+    std::string fileline;
+
+    while (std::getline(inputFile, fileline)) {
+        fileContent.push_back(fileline);
+    }
+    inputFile.close();
+
+
+    // Extract spine and manifest from the OPF file
+    std::pair<std::vector<std::string>, std::vector<std::string>> spineAndManifest = parseManifestAndSpine(fileContent);
+
+
+    // Print the spine and manifest
+    std::cout << "Manifest:" << "\n";
+    for (const auto& item : spineAndManifest.first) {
+        std::cout << item << "\n";
+    }
+
+    std::cout << "Spine:" << "\n";
+    for (const auto& item : spineAndManifest.second) {
+        std::cout << item << "\n";
+    }
+
+    if (spineAndManifest.first.empty() || spineAndManifest.second.empty()) {
+        std::cerr << "Failed to extract spine and manifest from the OPF file." << "\n";
+        return 1;
+    }
+
+    std::cout << "After extractSpineAndManifest" << "\n";
+
+    // extract ids from the manifest
+    std::vector<std::pair<std::string, std::string>> manifestMappingIds = extractManifestIds(spineAndManifest.first);
+
+    if (manifestMappingIds.empty()) {
+        std::cerr << "Failed to extract manifest ids." << "\n";
+        return 1;
+    }
+
+    // Print the manifest ids
+    std::cout << "Manifest IDs:" << "\n";
+    for (const auto& item : manifestMappingIds) {
+        std::cout << item.first << " : " << item.second << "\n";
+    }
+
+    std::cout << "After extractManifestIds" << "\n";
+
+    
 
     std::vector<std::filesystem::path> xhtmlFiles = getAllXHTMLFiles(std::filesystem::path(unzippedPath));
     if (xhtmlFiles.empty()) {
