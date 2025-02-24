@@ -78,7 +78,12 @@ std::vector<std::filesystem::path> EpubTranslator::getAllXHTMLFiles(const std::f
     try {
         // Iterate through the directory and its subdirectories
         for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".xhtml") {
+            if (entry.is_regular_file() && (entry.path().extension() == ".xhtml")  ) {
+                xhtmlFiles.push_back(entry.path());
+            }
+
+            // Check for html files
+            if (entry.is_regular_file() && (entry.path().extension() == ".html")  ) {
                 xhtmlFiles.push_back(entry.path());
             }
         }
@@ -135,6 +140,16 @@ std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifest
         // Extract href attribute
         if (std::regex_search(item, hrefMatch, hrefPattern)) {
             href = hrefMatch[1].str();
+            // // Find the last occurence of . get the substring for the file extention check if its html change it to xhtml
+            // std::string hrefTemp = hrefMatch[1].str();
+
+            // if(hrefTemp.substr(hrefTemp.find_last_of(".") + 1) == "html") {
+            //     href = hrefTemp.substr(0, hrefTemp.find_last_of(".")) + ".xhtml";
+            // } else {
+            //     href = hrefTemp;
+            // }
+
+            
         }
 
         // Ensure both id and href are found before adding to the mapping
@@ -225,6 +240,8 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::p
 
         if (filename.size() > 6 && filename.compare(filename.size() - 6, 6, ".xhtml") == 0) {
             updatedPath = "Text/" + filename;
+        } else if (filename.size() > 5 && filename.compare(filename.size() - 5, 5, ".html") == 0) {
+            updatedPath = "Text/" + filename;
         } else if (filename.size() > 4 && 
                    (filename.compare(filename.size() - 4, 4, ".jpg") == 0 ||
                     filename.compare(filename.size() - 5, 5, ".jpeg") == 0 ||
@@ -257,6 +274,11 @@ std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::stri
     for (const auto& [id, file] : manifestMappingIds) {
         // Check if the file is an XHTML file
         if (file.size() > 6 && file.compare(file.size() - 6, 6, ".xhtml") == 0) {
+            std::string spineEntry = "  <itemref idref=\"" + id + "\" />\n";
+            updatedSpine.push_back(spineEntry);
+        }
+        // Check if the file is an html file
+        if (file.size() > 5 && file.compare(file.size() - 5, 5, ".html") == 0) {
             std::string spineEntry = "  <itemref idref=\"" + id + "\" />\n";
             updatedSpine.push_back(spineEntry);
         }
@@ -403,10 +425,8 @@ bool EpubTranslator::unzip_file(const std::string& zipPath, const std::string& o
         return false;
     }
 
-    // Get the number of entries (files) in the archive
     zip_int64_t numEntries = zip_get_num_entries(archive, 0);
     for (zip_uint64_t i = 0; i < numEntries; ++i) {
-        // Get the file name
         const char* name = zip_get_name(archive, i, 0);
         if (name == nullptr) {
             std::cerr << "Error getting file name in ZIP archive." << "\n";
@@ -414,49 +434,42 @@ bool EpubTranslator::unzip_file(const std::string& zipPath, const std::string& o
             return false;
         }
 
-        // Create the full output path for this file
         std::filesystem::path outputPath = std::filesystem::path(outputDir) / name;
 
-        // Check if the file is in a directory (ends with '/')
-        if (outputPath.filename().string().back() == '/') {
-            // Create directory
-            make_directory(outputPath);
-        } else {
-            // Ensure the directory for the output file exists
-            make_directory(outputPath.parent_path());
-
-            // Open the file inside the ZIP archive
-            zip_file* file = zip_fopen_index(archive, i, 0);
-            if (file == nullptr) {
-                std::cerr << "Error opening file in ZIP archive: " << name << "\n";
-                zip_close(archive);
-                return false;
-            }
-
-            // Open the output file
-            std::ofstream outputFile(outputPath, std::ios::binary);
-            if (!outputFile.is_open()) {
-                std::cerr << "Error creating output file: " << outputPath << "\n";
-                zip_fclose(file);
-                zip_close(archive);
-                return false;
-            }
-
-            // Read from the ZIP file and write to the output file
-            char buffer[4096];
-            zip_int64_t bytesRead;
-            while ((bytesRead = zip_fread(file, buffer, sizeof(buffer))) > 0) {
-                outputFile.write(buffer, bytesRead);
-            }
-
-            outputFile.close();
-
-            // Close the current file in the ZIP archive
-            zip_fclose(file);
+        // If the entry is a directory, create it and continue
+        if (name[strlen(name) - 1] == '/') {
+            std::filesystem::create_directories(outputPath);
+            continue;  // Skip file extraction
         }
+
+        // Ensure the parent directory exists
+        std::filesystem::create_directories(outputPath.parent_path());
+
+        zip_file* file = zip_fopen_index(archive, i, 0);
+        if (file == nullptr) {
+            std::cerr << "Error opening file in ZIP archive: " << name << "\n";
+            zip_close(archive);
+            return false;
+        }
+
+        std::ofstream outputFile(outputPath, std::ios::binary);
+        if (!outputFile.is_open()) {
+            std::cerr << "Error creating output file: " << outputPath << "\n";
+            zip_fclose(file);
+            zip_close(archive);
+            return false;
+        }
+
+        char buffer[4096];
+        zip_int64_t bytesRead;
+        while ((bytesRead = zip_fread(file, buffer, sizeof(buffer))) > 0) {
+            outputFile.write(buffer, bytesRead);
+        }
+
+        outputFile.close();
+        zip_fclose(file);
     }
 
-    // Close the ZIP archive
     zip_close(archive);
     return true;
 }
@@ -1768,28 +1781,28 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Zip export directory to create the final EPUB file
     exportEpub(templatePath, outputEpubPath);
 
-    // Remove the unzipped and export directories
-    std::filesystem::remove_all(unzippedPath);
-    std::filesystem::remove_all(templatePath);
+    // // Remove the unzipped and export directories
+    // std::filesystem::remove_all(unzippedPath);
+    // std::filesystem::remove_all(templatePath);
 
 
-    // Remove the temp text files
-    try {
-        if (std::filesystem::exists(encodedTagsPathString)) {
-            std::filesystem::remove(encodedTagsPathString);
-            std::cout << "Deleted file: " << encodedTagsPathString << "\n";
-        }
-        if (std::filesystem::exists(translatedTagsPathString)) {
-            std::filesystem::remove(translatedTagsPathString);
-            std::cout << "Deleted file: " << translatedTagsPathString << "\n";
-        }
-        if (std::filesystem::exists(rawTagsPathString)) {
-            std::filesystem::remove(rawTagsPathString);
-            std::cout << "Deleted file: " << rawTagsPathString << "\n";
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << "\n";
-    }
+    // // Remove the temp text files
+    // try {
+    //     if (std::filesystem::exists(encodedTagsPathString)) {
+    //         std::filesystem::remove(encodedTagsPathString);
+    //         std::cout << "Deleted file: " << encodedTagsPathString << "\n";
+    //     }
+    //     if (std::filesystem::exists(translatedTagsPathString)) {
+    //         std::filesystem::remove(translatedTagsPathString);
+    //         std::cout << "Deleted file: " << translatedTagsPathString << "\n";
+    //     }
+    //     if (std::filesystem::exists(rawTagsPathString)) {
+    //         std::filesystem::remove(rawTagsPathString);
+    //         std::cout << "Deleted file: " << rawTagsPathString << "\n";
+    //     }
+    // } catch (const std::filesystem::filesystem_error& e) {
+    //     std::cerr << "Filesystem error: " << e.what() << "\n";
+    // }
 
     // End timer
     auto end = std::chrono::high_resolution_clock::now();
