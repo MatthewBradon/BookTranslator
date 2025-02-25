@@ -776,11 +776,36 @@ tagData EpubTranslator::processImgTag(xmlNodePtr node, int position, int chapter
     tag.position = position;
     tag.chapterNum = chapterNum;
 
-    xmlChar* src = xmlGetProp(node, reinterpret_cast<const xmlChar*>("src"));
-    if (src) {
-        tag.text = std::filesystem::path(reinterpret_cast<char*>(src)).filename().string();
-        xmlFree(src);
+    // Set of attributes that could contain image references
+    std::unordered_set<std::string> imageAttributes = {"src", "xlink:href", "href", "data", "srcset", "poster"};
+
+    xmlAttr* attr = node->properties;
+    while (attr) {
+        if (attr->children && attr->children->content) {
+            std::string attrName = reinterpret_cast<const char*>(attr->name);
+            std::string attrValue = reinterpret_cast<char*>(attr->children->content);
+
+            std::cout << "Attribute name: " << attrName << " | Value: " << attrValue << std::endl;
+
+            // Check if the attribute is in the imageAttributes set
+            if (imageAttributes.find(attrName) != imageAttributes.end()) {
+                if (attrValue.find(".jpg") != std::string::npos || 
+                    attrValue.find(".jpeg") != std::string::npos || 
+                    attrValue.find(".png") != std::string::npos || 
+                    attrValue.find(".gif") != std::string::npos || 
+                    attrValue.find(".bmp") != std::string::npos || 
+                    attrValue.find(".svg") != std::string::npos) {
+                    
+                    // Extract only the filename
+                    tag.text = std::filesystem::path(attrValue).filename().string();
+                    std::cout << "Extracted filename: " << tag.text << std::endl;
+                    break; // Stop after finding the first valid image reference
+                }
+            }
+        }
+        attr = attr->next;
     }
+
     return tag;
 }
 
@@ -818,7 +843,17 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
             htmlDocPtr doc = parseHtmlDocument(data);
             if (!doc) continue;
 
-            xmlNodeSetPtr nodes = extractNodesFromDoc(doc);
+
+            xmlXPathContextPtr xpathCtx = xmlXPathNewContext(doc);
+            if (!xpathCtx) {
+                xmlFreeDoc(doc);
+                continue;
+            }
+        
+            xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(reinterpret_cast<const xmlChar*>("//*"), xpathCtx);
+            xmlXPathFreeContext(xpathCtx);
+        
+            xmlNodeSetPtr nodes = (xpathObj) ? xpathObj->nodesetval : nullptr;
             if (!nodes) {
                 xmlFreeDoc(doc);
                 continue;
@@ -830,7 +865,7 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
                     if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
                         tagData tag = processPTag(node, i, chapterNum);
                         if (!tag.text.empty()) bookTags.push_back(tag);
-                    } else if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("img")) == 0) {
+                    } else {
                         tagData tag = processImgTag(node, i, chapterNum);
                         if (!tag.text.empty()) bookTags.push_back(tag);
                     }
@@ -838,6 +873,7 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
             }
 
             xmlFreeDoc(doc);
+            xmlXPathFreeObject(xpathObj);
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << "\n";
         }
@@ -1763,6 +1799,12 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
 
         // Write pre-built header
         outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
+
+        if (i > chapterTags.size()) {
+            outFile << htmlFooter;
+            outFile.close();
+            continue;
+        }
 
         // Write content-specific parts
         for (const auto& tag : chapterTags[i]) {

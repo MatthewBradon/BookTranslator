@@ -23,6 +23,7 @@
 #include <curl/curl.h>
 #include "Translator.h"
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 
 #define P_TAG 0
