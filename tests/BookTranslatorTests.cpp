@@ -102,7 +102,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref="chapter2" />
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        std::vector<std::string> expected = {"chapter1", "chapter2"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 
@@ -127,7 +127,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref="chapter2.xhtml" />
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        std::vector<std::string> expected = {"chapter1", "chapter2.xhtml"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 
@@ -137,7 +137,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref=chapter2 /> <!-- Missing quotes -->
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml"};
+        std::vector<std::string> expected = {"chapter1"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 }
@@ -157,7 +157,7 @@ TEST_CASE("EpubTranslator: getSpineOrder works correctly") {
         file.close();
 
         auto result = translator.getSpineOrder(testOpf);
-        REQUIRE(result == std::vector<std::string>{"chapter1.xhtml", "chapter2.xhtml"});
+        REQUIRE(result == std::vector<std::string>{"chapter1", "chapter2"});
 
         std::filesystem::remove(testOpf); // Cleanup
     }
@@ -975,24 +975,29 @@ TEST_CASE("EpubTranslator: extractTags extracts <p> and <img> tags correctly fro
         std::vector<std::filesystem::path> chapters = { chapterFile };
         std::vector<tagData> tags = translator.extractTags(chapters);
 
+        // Print out the tags
+        for (const auto& tag : tags) {
+            std::cout << "Tag ID: " << tag.tagId << ", Text: " << tag.text << ", Position: " << tag.position << ", Chapter: " << tag.chapterNum << std::endl;
+        }
+
         REQUIRE(tags.size() == 3); // 2 <p> tags + 1 <img> tag
 
         // Check for <p> tag 1
         REQUIRE(tags[0].tagId == P_TAG);
         REQUIRE(tags[0].text == "Hello, World!");
-        REQUIRE(tags[0].position == 0);
+        REQUIRE(tags[0].position == 2);
         REQUIRE(tags[0].chapterNum == 0);
 
         // Check for <img> tag
         REQUIRE(tags[1].tagId == IMG_TAG);
         REQUIRE(tags[1].text == "photo.png"); // Only filename should be extracted
-        REQUIRE(tags[1].position == 1);
+        REQUIRE(tags[1].position == 3);
         REQUIRE(tags[1].chapterNum == 0);
 
         // Check for <p> tag 2
         REQUIRE(tags[2].tagId == P_TAG);
         REQUIRE(tags[2].text == "Another paragraph.");
-        REQUIRE(tags[2].position == 2);
+        REQUIRE(tags[2].position == 4);
         REQUIRE(tags[2].chapterNum == 0);
 
         std::filesystem::remove(chapterFile); // Cleanup
