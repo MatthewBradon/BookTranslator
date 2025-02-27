@@ -58,8 +58,9 @@ protected:
     std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder, std::vector<std::pair<std::string, std::string>> manifestMappingIds);
     std::pair<std::vector<std::string>, std::vector<std::string>> parseManifestAndSpine(const std::vector<std::string>& content);
     std::vector<std::string> updateManifest(const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
-    std::vector<std::string> updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
-    void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds, std::vector<std::string> manifest, std::vector<std::string> spine);    bool make_directory(const std::filesystem::path& path);
+    std::vector<std::string> updateSpine(const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
+    void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
+    bool make_directory(const std::filesystem::path& path);
     bool unzip_file(const std::string& zipPath, const std::string& outputDir);
     void exportEpub(const std::string& exportPath, const std::string& outputDir);
     void updateNavXHTML(std::filesystem::path navXHTMLPath, const std::vector<std::string>& epubChapterList);

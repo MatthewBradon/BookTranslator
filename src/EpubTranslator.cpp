@@ -264,7 +264,7 @@ std::vector<std::string> EpubTranslator::updateManifest(const std::vector<std::p
 
 
 // Update spine section with new chapters
-std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds) {
+std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds) {
     std::vector<std::string> updatedSpine;
     
     // Start the spine block
@@ -321,7 +321,7 @@ void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentO
     outputFile.close();
 }
 
-void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds, std::vector<std::string> manifest, std::vector<std::string> spine) {
+void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds) {
     std::ifstream inputFile(contentOpfPath);
     if (!inputFile.is_open()) {
         std::cerr << "Failed to open content.opf file!" << "\n";
@@ -344,7 +344,7 @@ void EpubTranslator::updateContentOpf(const std::vector<std::string>& epubChapte
             std::cout << line << std::endl;
         }
 
-        std::vector<std::string> updatedSpine = updateSpine(spine, epubChapterList, manifestMappingIds);
+        std::vector<std::string> updatedSpine = updateSpine(epubChapterList, manifestMappingIds);
 
         std::ostringstream updatedContentStream;
         bool insideManifest = false, insideSpine = false;
@@ -1469,7 +1469,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     // Update the spine and manifest in the templates OPF file
     std::filesystem::path templateContentOpfPath = "export/OEBPS/content.opf";
 
-    updateContentOpf(spineOrder, templateContentOpfPath, manifestMappingIds, manifest, spine);
+    updateContentOpf(spineOrder, templateContentOpfPath, manifestMappingIds);
 
     std::cout << "After updateContentOpf" << "\n";
 
