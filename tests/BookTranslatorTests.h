@@ -34,7 +34,6 @@ public:
     using EpubTranslator::extractTags;
     using EpubTranslator::removeSection0001Tags;
     using EpubTranslator::exportEpub;
-    using EpubTranslator::formatHTML;
     using EpubTranslator::removeUnwantedTags;
 };
 

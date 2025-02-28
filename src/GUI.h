@@ -21,8 +21,13 @@ public:
     void newFrame();
     void handleFileDrop(int count, const char** paths);
 protected:
-    char inputFile[256] = "";
-    char outputPath[256] = "";
+    char inputFile[1024] = "";
+    char outputPath[1024] = "";
+    char titleBuffer[1024] = "";
+    char authorBuffer[1024] = "";
+    bool showPopup = false;
+    std::string bookTitle = "";
+    std::string bookAuthor = "";
     int localModel = 0;
     char deepLKey[256] = "";  // Ensure it is zero-initialized
     std::thread workerThread;
@@ -37,4 +42,5 @@ protected:
     void setCustomLightStyle();
     void renderMenuBar();
     void ShowSpinner(float radius = 10.0f, int numSegments = 12, float thickness = 2.0f);
+    void renderEditBookPopup();
 };

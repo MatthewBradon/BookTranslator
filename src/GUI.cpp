@@ -111,6 +111,12 @@ void GUI::update(std::ostringstream& logStream) {
     }
     ImGui::PopID(); // End unique ID for the second button
 
+    // add a button to edit book details if the inputFile has an epub file extension
+    std::string inputFileStr(inputFile);
+    if (inputFileStr.substr(inputFileStr.find_last_of(".") + 1) == "epub") {
+        renderEditBookPopup();
+    }
+    
     // Check if both fields are filled
     bool enableButton = strlen(inputFile) > 0 && strlen(outputPath) > 0;
 
@@ -145,6 +151,14 @@ void GUI::update(std::ostringstream& logStream) {
                 try {
                     if (fileExtension == "epub") {
                         translator = TranslatorFactory::createTranslator("epub");
+                        // Write book details to a text file
+                        std::ofstream bookDetails("book_details.txt");
+                        if (bookDetails.is_open()) {
+                            bookDetails << bookTitle << "\n" << bookAuthor;
+                            bookDetails.close();
+                        } else {
+                            throw std::runtime_error("Failed to open book details file for writing");
+                        }
                     } else if (fileExtension == "pdf") {
                         translator = TranslatorFactory::createTranslator("pdf");
                     } else if (fileExtension == "docx") {
@@ -155,6 +169,12 @@ void GUI::update(std::ostringstream& logStream) {
 
                     // Run the translator
                     result = translator->run(inputFile, outputPath, localModel, deepLKey);
+                    
+                    if (std::filesystem::exists("book_details.txt")) {
+                        std::filesystem::remove("book_details.txt");
+                    }
+                    
+
                 } catch (const std::exception& e) {
                     logStream << "Error: " << e.what() << "\n";
                     result = -1;
@@ -246,8 +266,13 @@ void GUI::setCustomDarkStyle() {
     colors[ImGuiCol_Separator] = ImVec4(0.35f, 0.35f, 0.37f, 1.0f);
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.0f);
     colors[ImGuiCol_TextDisabled] = ImVec4(0.75f, 0.75f, 0.78f, 1.0f);
-}
+    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.5f);
+    colors[ImGuiCol_TitleBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
 
+
+}
 
 void GUI::setCustomLightStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -269,7 +294,12 @@ void GUI::setCustomLightStyle() {
     colors[ImGuiCol_Separator] = ImVec4(0.80f, 0.80f, 0.83f, 1.0f);
     colors[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.15f, 1.0f);
     colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.55f, 1.0f);
+    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.5f);
+    colors[ImGuiCol_TitleBg] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.85f, 0.85f, 0.90f, 1.0f);
 }
+
 
 
 void GUI::renderMenuBar() {
@@ -356,5 +386,42 @@ void GUI::ShowSpinner(float radius, int numSegments, float thickness) {
         }
 
         drawList->AddLine(startPos, endPos, color, thickness);
+    }
+}
+
+void GUI::renderEditBookPopup() {
+
+
+    // Show the button
+    if (ImGui::Button("Edit Book")) {
+        showPopup = true;
+        strncpy(titleBuffer, bookTitle.c_str(), sizeof(titleBuffer) - 1);
+        strncpy(authorBuffer, bookAuthor.c_str(), sizeof(authorBuffer) - 1);
+    }
+
+    // Open the pop-up
+    if (showPopup) {
+        ImGui::OpenPopup("Edit Book Details");
+    }
+
+    // Pop-up logic
+    if (ImGui::BeginPopupModal("Edit Book Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::InputText("Title", titleBuffer, sizeof(titleBuffer));
+        ImGui::InputText("Author", authorBuffer, sizeof(authorBuffer));
+
+        if (ImGui::Button("Done")) {
+            bookTitle = titleBuffer;
+            bookAuthor = authorBuffer;
+            showPopup = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            showPopup = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 }

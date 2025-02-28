@@ -23,6 +23,7 @@
 #include <curl/curl.h>
 #include "Translator.h"
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 
 #define P_TAG 0
@@ -54,11 +55,11 @@ protected:
     std::vector<std::string> extractIdrefs(const std::string& spineContent);
     std::vector<std::string> getSpineOrder(const std::filesystem::path& directory);
     std::vector<std::filesystem::path> getAllXHTMLFiles(const std::filesystem::path& directory);
-    std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder);
+    std::vector<std::filesystem::path> sortXHTMLFilesBySpineOrder(const std::vector<std::filesystem::path>& xhtmlFiles, const std::vector<std::string>& spineOrder, std::vector<std::pair<std::string, std::string>> manifestMappingIds);
     std::pair<std::vector<std::string>, std::vector<std::string>> parseManifestAndSpine(const std::vector<std::string>& content);
-    std::vector<std::string> updateManifest(const std::vector<std::string>& manifest, const std::vector<std::string>& chapters);
-    std::vector<std::string> updateSpine(const std::vector<std::string>& spine, const std::vector<std::string>& chapters);
-    void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath);
+    std::vector<std::string> updateManifest(const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
+    std::vector<std::string> updateSpine(const std::vector<std::string>& chapters, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
+    void updateContentOpf(const std::vector<std::string>& epubChapterList, const std::filesystem::path& contentOpfPath, const std::vector<std::pair<std::string, std::string>>& manifestMappingIds);
     bool make_directory(const std::filesystem::path& path);
     bool unzip_file(const std::string& zipPath, const std::string& outputDir);
     void exportEpub(const std::string& exportPath, const std::string& outputDir);
@@ -74,7 +75,6 @@ protected:
     std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::vector<tagData>& bookTags, const std::vector<std::filesystem::path>& spineOrderXHTMLFiles, std::string deepLKey);
     void removeSection0001Tags(const std::filesystem::path& contentOpfPath);
-    std::string formatHTML(const std::string& input);
     std::string readFileUtf8(const std::filesystem::path& filePath);
     htmlDocPtr parseHtmlDocument(const std::string& data);
     xmlNodeSetPtr extractNodesFromDoc(htmlDocPtr doc);
@@ -84,6 +84,6 @@ protected:
     std::string serializeDocument(htmlDocPtr doc);
     std::string readChapterFile(const std::filesystem::path& chapterPath);
     void writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content);
-
-
+    std::vector<std::pair<std::string, std::string>> extractManifestIds(const std::vector<std::string>& manifestItems);
+    void addTitleAndAuthor(const char* filename, const std::string& title, const std::string& author);
 };

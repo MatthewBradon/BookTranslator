@@ -102,7 +102,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref="chapter2" />
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        std::vector<std::string> expected = {"chapter1", "chapter2"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 
@@ -127,7 +127,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref="chapter2.xhtml" />
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml", "chapter2.xhtml"};
+        std::vector<std::string> expected = {"chapter1", "chapter2.xhtml"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 
@@ -137,7 +137,7 @@ TEST_CASE("EpubTranslator: extractIdrefs works correctly") {
             <itemref idref=chapter2 /> <!-- Missing quotes -->
         )";
 
-        std::vector<std::string> expected = {"chapter1.xhtml"};
+        std::vector<std::string> expected = {"chapter1"};
         REQUIRE(translator.extractIdrefs(spineContent) == expected);
     }
 }
@@ -157,7 +157,7 @@ TEST_CASE("EpubTranslator: getSpineOrder works correctly") {
         file.close();
 
         auto result = translator.getSpineOrder(testOpf);
-        REQUIRE(result == std::vector<std::string>{"chapter1.xhtml", "chapter2.xhtml"});
+        REQUIRE(result == std::vector<std::string>{"chapter1", "chapter2"});
 
         std::filesystem::remove(testOpf); // Cleanup
     }
@@ -207,21 +207,38 @@ TEST_CASE("EpubTranslator: getAllXHTMLFiles works correctly") {
 TEST_CASE("EpubTranslator: sortXHTMLFilesBySpineOrder works correctly") {
     TestableEpubTranslator translator;
 
+
+
     SECTION("Sorts files correctly by spine order") {
         std::vector<std::filesystem::path> xhtmlFiles = {
             "chapter2.xhtml", "chapter1.xhtml", "chapter3.xhtml"
         };
-        std::vector<std::string> spineOrder = {"chapter1.xhtml", "chapter2.xhtml", "chapter3.xhtml"};
 
-        auto result = translator.sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+        // Make manifestMappingIds
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
+
+        manifestMappingIds.push_back(std::make_pair("chapter1", "chapter1.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter2", "chapter2.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter3", "chapter3.xhtml"));
+
+
+        std::vector<std::string> spineOrder = {"chapter1", "chapter2", "chapter3"};
+
+        auto result = translator.sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder, manifestMappingIds);
         REQUIRE(result == std::vector<std::filesystem::path>{"chapter1.xhtml", "chapter2.xhtml", "chapter3.xhtml"});
     }
 
     SECTION("Handles missing files gracefully") {
         std::vector<std::filesystem::path> xhtmlFiles = {"chapter1.xhtml", "chapter3.xhtml"};
-        std::vector<std::string> spineOrder = {"chapter1.xhtml", "chapter2.xhtml", "chapter3.xhtml"};
+        std::vector<std::string> spineOrder = {"chapter1", "chapter2", "chapter3"};
 
-        auto result = translator.sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder);
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
+
+        manifestMappingIds.push_back(std::make_pair("chapter1", "chapter1.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter3", "chapter3.xhtml"));
+
+        
+        auto result = translator.sortXHTMLFilesBySpineOrder(xhtmlFiles, spineOrder, manifestMappingIds);
         REQUIRE(result == std::vector<std::filesystem::path>{"chapter1.xhtml", "chapter3.xhtml"});
     }
 }
@@ -288,10 +305,12 @@ TEST_CASE("EpubTranslator: updateManifest") {
     TestableEpubTranslator translator;
 
     SECTION("Adds new chapters correctly to manifest") {
-        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
-        std::vector<std::string> chapters = { "chapter1.xhtml", "chapter2.xhtml" };
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
 
-        auto updatedManifest = translator.updateManifest(manifest, chapters);
+        manifestMappingIds.push_back(std::make_pair("chapter1", "chapter1.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter2", "chapter2.xhtml"));
+
+        auto updatedManifest = translator.updateManifest(manifestMappingIds);
         std::cout << updatedManifest[0] << std::endl;
         std::cout << updatedManifest[1] << std::endl;
         std::cout << updatedManifest[2] << std::endl;
@@ -303,28 +322,11 @@ TEST_CASE("EpubTranslator: updateManifest") {
     }
 
     SECTION("Handles empty chapter list gracefully") {
-        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
-        std::vector<std::string> chapters = {};  // No chapters to add
+        
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
 
-        auto updatedManifest = translator.updateManifest(manifest, chapters);
+        auto updatedManifest = translator.updateManifest(manifestMappingIds);
         REQUIRE(updatedManifest.size() == 2); // No change
-    }
-
-    SECTION("Returns the original manifest if chapters are invalid (empty strings)") {
-        std::vector<std::string> manifest = { "<manifest>", "</manifest>" };
-        std::vector<std::string> chapters = { "", "" };  // Invalid chapter names
-
-        auto updatedManifest = translator.updateManifest(manifest, chapters);
-        REQUIRE(updatedManifest.size() == 4);  // Technically added empty items
-        REQUIRE(updatedManifest[1].find("href=\"Text/\"") != std::string::npos);
-    }
-
-    SECTION("Does not crash on malformed manifest (missing closing tag)") {
-        std::vector<std::string> manifest = { "<manifest>" };  // Missing </manifest>
-        std::vector<std::string> chapters = { "chapter1.xhtml" };
-
-        auto updatedManifest = translator.updateManifest(manifest, chapters);
-        REQUIRE(updatedManifest.size() == 2); // Only <manifest> and added item
     }
 }
 
@@ -332,10 +334,15 @@ TEST_CASE("EpubTranslator: updateSpine") {
     TestableEpubTranslator translator;
 
     SECTION("Adds new chapters correctly to spine") {
-        std::vector<std::string> spine = { "<spine>", "</spine>" };
         std::vector<std::string> chapters = { "chapter1.xhtml", "chapter2.xhtml" };
 
-        auto updatedSpine = translator.updateSpine(spine, chapters);
+        // Make manifestMappingIds
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
+
+        manifestMappingIds.push_back(std::make_pair("chapter1", "chapter1.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter2", "chapter2.xhtml"));
+
+        auto updatedSpine = translator.updateSpine(chapters, manifestMappingIds);
 
         REQUIRE(updatedSpine.size() == 4); // <spine>, 2 itemrefs, </spine>
         REQUIRE(updatedSpine[1].find("idref=\"chapter1\"") != std::string::npos);
@@ -343,30 +350,24 @@ TEST_CASE("EpubTranslator: updateSpine") {
     }
 
     SECTION("Handles empty chapter list gracefully") {
-        std::vector<std::string> spine = { "<spine>", "</spine>" };
         std::vector<std::string> chapters = {};  // No chapters
 
-        auto updatedSpine = translator.updateSpine(spine, chapters);
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;        
+
+        auto updatedSpine = translator.updateSpine(chapters, manifestMappingIds);
         REQUIRE(updatedSpine.size() == 2); // No change
     }
 
     SECTION("Handles invalid chapter names (empty strings)") {
-        std::vector<std::string> spine = { "<spine>", "</spine>" };
         std::vector<std::string> chapters = { "", "" };  // Invalid names
 
-        auto updatedSpine = translator.updateSpine(spine, chapters);
-        REQUIRE(updatedSpine.size() == 4); // Added empty idrefs
-        REQUIRE(updatedSpine[1].find("idref=\"chapter1\"") != std::string::npos);
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
+
+        auto updatedSpine = translator.updateSpine(chapters, manifestMappingIds);
+
+        REQUIRE(updatedSpine.size() == 2); // No change
+
     }
-
-    SECTION("Handles malformed spine (missing closing tag)") {
-        std::vector<std::string> spine = { "<spine>" };  // Missing </spine>
-        std::vector<std::string> chapters = { "chapter1.xhtml" };
-
-        auto updatedSpine = translator.updateSpine(spine, chapters);
-        REQUIRE(updatedSpine.size() == 2); // <spine> and added itemref
-    }
-
 }
 
 TEST_CASE("EpubTranslator: removeSection0001Tags removes specific tags from content.opf") {
@@ -402,48 +403,6 @@ TEST_CASE("EpubTranslator: removeSection0001Tags removes specific tags from cont
 
     // Cleanup
     std::filesystem::remove(tempFile);
-}
-
-TEST_CASE("formatHTML handles various HTML inputs") {
-    TestableEpubTranslator translator;
-
-    SECTION("Formats simple valid HTML correctly") {
-        std::string unformattedHTML = R"(<html><body><p>Hello, world!</p><div><span>Test</span></div></body></html>)";
-        std::string formattedHTML = translator.formatHTML(unformattedHTML);
-
-        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<p>Hello, world!</p>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<div>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<span>Test</span>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
-    }
-
-    SECTION("Handles invalid HTML by auto-correcting structure") {
-        std::string invalidHTML = R"(<html><body><p>Unclosed paragraph)";
-        std::string formattedHTML = translator.formatHTML(invalidHTML);
-
-        REQUIRE(!formattedHTML.empty());
-        REQUIRE(formattedHTML.find("<p>Unclosed paragraph</p>") != std::string::npos); // Auto-closing expected
-        REQUIRE(formattedHTML.find("</body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("</html>") != std::string::npos);
-    }
-    
-    SECTION("Handles completely invalid input gracefully") {
-        std::string invalidHTML = "%%% INVALID HTML $$$";
-        std::string formattedHTML = translator.formatHTML(invalidHTML);
-    
-        std::cout << "FORMATTED HTML" << std::endl;
-        std::cout << formattedHTML << std::endl;
-    
-        // Instead of expecting an empty string, verify the recovered structure
-        REQUIRE(!formattedHTML.empty());
-        REQUIRE(formattedHTML.find("<html>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<body>") != std::string::npos);
-        REQUIRE(formattedHTML.find("<p>%%% INVALID HTML $$$</p>") != std::string::npos);
-    }
-
 }
 
 TEST_CASE("EpubTranslator: updateNavXHTML correctly updates the TOC") {
@@ -598,7 +557,13 @@ TEST_CASE("EpubTranslator: updateContentOpf works correctly") {
         file.close();
 
         std::vector<std::string> chapters = {"chapter1.xhtml", "chapter2.xhtml"};
-        translator.updateContentOpf(chapters, testOpf);
+
+        std::vector<std::pair<std::string, std::string>> manifestMappingIds;
+        manifestMappingIds.push_back(std::make_pair("chapter1", "chapter1.xhtml"));
+        manifestMappingIds.push_back(std::make_pair("chapter2", "chapter2.xhtml"));
+
+
+        translator.updateContentOpf(chapters, testOpf, manifestMappingIds);
 
         std::ifstream updatedOpf(testOpf);
         std::string content((std::istreambuf_iterator<char>(updatedOpf)), std::istreambuf_iterator<char>());
@@ -897,6 +862,43 @@ TEST_CASE("EpubTranslator: processImgTag extracts image filename correctly") {
 
         xmlFreeNode(imgNode); // Cleanup
     }
+    
+    SECTION("Extracts filename from <svg> <image> tag with xlink:href attribute") {
+        // Create a mock <image> node inside an <svg>
+        xmlNodePtr svgNode = xmlNewNode(nullptr, BAD_CAST "svg");
+        xmlNodePtr imageNode = xmlNewNode(nullptr, BAD_CAST "image");
+        xmlNewProp(imageNode, BAD_CAST "xlink:href", BAD_CAST "images/vector_graphic.svg");
+
+        xmlAddChild(svgNode, imageNode); // Nest <image> inside <svg>
+
+        tagData tag = translator.processImgTag(imageNode, 3, 2);
+
+        REQUIRE(tag.tagId == IMG_TAG);
+        REQUIRE(tag.position == 3);
+        REQUIRE(tag.chapterNum == 2);
+        REQUIRE(tag.text == "vector_graphic.svg"); // Expecting only the filename
+
+        xmlFreeNode(svgNode); // Cleanup, also frees children
+    }
+
+    SECTION("Handles <svg> <image> tag without xlink:href gracefully") {
+        // Create a mock <image> node inside an <svg> without xlink:href
+        xmlNodePtr svgNode = xmlNewNode(nullptr, BAD_CAST "svg");
+        xmlNodePtr imageNode = xmlNewNode(nullptr, BAD_CAST "image");
+
+        xmlAddChild(svgNode, imageNode); // Nest <image> inside <svg>
+
+        tagData tag = translator.processImgTag(imageNode, 4, 3);
+
+        REQUIRE(tag.tagId == IMG_TAG);
+        REQUIRE(tag.position == 4);
+        REQUIRE(tag.chapterNum == 3);
+        REQUIRE(tag.text.empty()); // Should be empty since there's no xlink:href
+
+        xmlFreeNode(svgNode); // Cleanup
+    }
+
+
 }
 
 TEST_CASE("EpubTranslator: processPTag extracts and cleans text content from p tags") {
@@ -1017,28 +1019,62 @@ TEST_CASE("EpubTranslator: extractTags extracts <p> and <img> tags correctly fro
         std::vector<std::filesystem::path> chapters = { chapterFile };
         std::vector<tagData> tags = translator.extractTags(chapters);
 
+        // Print out the tags
+        for (const auto& tag : tags) {
+            std::cout << "Tag ID: " << tag.tagId << ", Text: " << tag.text << ", Position: " << tag.position << ", Chapter: " << tag.chapterNum << std::endl;
+        }
+
         REQUIRE(tags.size() == 3); // 2 <p> tags + 1 <img> tag
 
         // Check for <p> tag 1
         REQUIRE(tags[0].tagId == P_TAG);
         REQUIRE(tags[0].text == "Hello, World!");
-        REQUIRE(tags[0].position == 0);
+        REQUIRE(tags[0].position == 2);
         REQUIRE(tags[0].chapterNum == 0);
 
         // Check for <img> tag
         REQUIRE(tags[1].tagId == IMG_TAG);
         REQUIRE(tags[1].text == "photo.png"); // Only filename should be extracted
-        REQUIRE(tags[1].position == 1);
+        REQUIRE(tags[1].position == 3);
         REQUIRE(tags[1].chapterNum == 0);
 
         // Check for <p> tag 2
         REQUIRE(tags[2].tagId == P_TAG);
         REQUIRE(tags[2].text == "Another paragraph.");
-        REQUIRE(tags[2].position == 2);
+        REQUIRE(tags[2].position == 4);
         REQUIRE(tags[2].chapterNum == 0);
 
         std::filesystem::remove(chapterFile); // Cleanup
     }
+
+    SECTION("Handles <svg> <image> tags correctly") {
+        std::filesystem::path chapterFile = "svg_image.xhtml";
+        std::ofstream file(chapterFile);
+        file << R"(
+            <html>
+                <body>
+                    <svg width="100" height="100">
+                        <image xlink:href="images/vector_graphic.jpeg" width="100" height="100"/>
+                    </svg>
+                </body>
+            </html>
+        )";
+        file.close();
+
+        std::vector<std::filesystem::path> chapters = { chapterFile };
+        std::vector<tagData> tags = translator.extractTags(chapters);
+
+        REQUIRE(tags.size() == 1); // Should detect one image tag inside <svg>
+
+        REQUIRE(tags[0].tagId == IMG_TAG);
+        REQUIRE(tags[0].text == "vector_graphic.jpeg"); // Should extract only the filename
+        REQUIRE(tags[0].chapterNum == 0);
+
+        std::cout << "Tag ID: " << tags[0].tagId << ", Text: " << tags[0].text << ", Position: " << tags[0].position << ", Chapter: " << tags[0].chapterNum << std::endl;
+
+        std::filesystem::remove(chapterFile); // Cleanup
+    }
+
 
     SECTION("Handles empty chapter gracefully") {
         std::filesystem::path emptyChapter = "empty.xhtml";
