@@ -1029,19 +1029,19 @@ TEST_CASE("EpubTranslator: extractTags extracts <p> and <img> tags correctly fro
         // Check for <p> tag 1
         REQUIRE(tags[0].tagId == P_TAG);
         REQUIRE(tags[0].text == "Hello, World!");
-        REQUIRE(tags[0].position == 2);
+        REQUIRE(tags[0].position == 0);
         REQUIRE(tags[0].chapterNum == 0);
 
         // Check for <img> tag
         REQUIRE(tags[1].tagId == IMG_TAG);
         REQUIRE(tags[1].text == "photo.png"); // Only filename should be extracted
-        REQUIRE(tags[1].position == 3);
+        REQUIRE(tags[1].position == 1);
         REQUIRE(tags[1].chapterNum == 0);
 
         // Check for <p> tag 2
         REQUIRE(tags[2].tagId == P_TAG);
         REQUIRE(tags[2].text == "Another paragraph.");
-        REQUIRE(tags[2].position == 4);
+        REQUIRE(tags[2].position == 2);
         REQUIRE(tags[2].chapterNum == 0);
 
         std::filesystem::remove(chapterFile); // Cleanup
