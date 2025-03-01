@@ -29,6 +29,11 @@ struct TextNode {
     std::string text;
 };
 
+struct DocumentInfo {
+    std::string id;
+    std::string key;
+};
+
 class DocxTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface
@@ -37,9 +42,8 @@ public:
 
 
 protected:
-    std::string uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
+    DocumentInfo uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey);
     std::string checkDocumentStatus(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
-    std::string downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey);
     int handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey);
     bool unzip_file(const std::string& zipPath, const std::string& outputDir);
     bool make_directory(const std::filesystem::path& path);
@@ -54,4 +58,5 @@ protected:
     void exportDocx(const std::string& exportPath, const std::string& outputDir);
     std::string escapeForDocx(const std::string& input);
     void escapeTranslations(std::unordered_multimap<std::string, std::string>& translations);
+    bool downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey, const std::string& outputPath);
 };

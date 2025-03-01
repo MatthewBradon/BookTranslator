@@ -4,7 +4,17 @@
 int DocxTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
     //Disabling DeepL for now
     if (localModel == 1) {
-        int result = handleDeepLRequest(inputPath, outputPath+"output.docx", deepLKey);
+
+        std::filesystem::path outputDir = outputPath;
+
+        outputDir = outputDir / "output.docx";
+
+        std::string outputPathString = outputDir.string();
+
+        std::cout << "outputPath: " << outputPathString << "\n";
+
+        int result = handleDeepLRequest(inputPath, outputPathString, deepLKey);
+
 
         if (result != 0) {
             std::cerr << "Failed to handle DeepL request." << std::endl;
@@ -603,7 +613,7 @@ size_t DocxTranslator::writeCallback(void* contents, size_t size, size_t nmemb, 
     return totalSize;
 }
 
-std::string DocxTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
+DocumentInfo DocxTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
     CURL* curl;
     CURLcode res;
     std::string response_string;
@@ -645,16 +655,16 @@ std::string DocxTranslator::uploadDocumentToDeepL(const std::string& filePath, c
     }
     curl_global_cleanup();
 
-    // Assuming the response contains document_id and document_key, extract them
     try {
         std::cout << "Document upload response: " << response_string << std::endl;
         nlohmann::json jsonResponse = nlohmann::json::parse(response_string);
-        std::string document_id = jsonResponse["document_id"];
-        std::string document_key = jsonResponse["document_key"];
-        return document_id + "|" + document_key;
+        DocumentInfo docInfo;
+        docInfo.id = jsonResponse["document_id"];
+        docInfo.key = jsonResponse["document_key"];
+        return docInfo;
     } catch (const nlohmann::json::exception& e) {
         std::cerr << "Error parsing document upload response: " << e.what() << std::endl;
-        return "";
+        return {};
     }
 }
 
@@ -702,96 +712,89 @@ std::string DocxTranslator::checkDocumentStatus(const std::string& document_id, 
     return response_string;  // You can parse this response to check if status == "done"
 }
 
-std::string DocxTranslator::downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey) {
-    CURL* curl;
-    CURLcode res;
-    std::string response_string;
-    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id + "/result";
-    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
-
-    curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
-
-    if (curl) {
-        struct curl_slist* headers = nullptr;
-        headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
-        headers = curl_slist_append(headers, "Content-Type: application/json");
-
-        // Create JSON payload
-        nlohmann::json jsonPayload;
-        jsonPayload["document_key"] = document_key;
-        std::string json_data = jsonPayload.dump();
-
-        curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-
-        // Perform the request
-        res = curl_easy_perform(curl);
-
-        if (res != CURLE_OK) {
-            std::cerr << "Curl download request failed: " << curl_easy_strerror(res) << std::endl;
-        }
-
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
-    }
-    curl_global_cleanup();
-
-    return response_string;
-}
-
-
 int DocxTranslator::handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey) {
     // Upload the document to DeepL
-    std::string document_info = uploadDocumentToDeepL(inputPath, deepLKey);
-    if (document_info.empty()) {
+    DocumentInfo document = uploadDocumentToDeepL(inputPath, deepLKey);
+    if (document.id.empty() || document.key.empty()) {
         std::cerr << "Failed to upload document to DeepL." << std::endl;
         return 1;
     }
 
-    // Extract the document_id and document_key
-    size_t separator_pos = document_info.find('|');
-    std::string document_id = document_info.substr(0, separator_pos);
-    std::string document_key = document_info.substr(separator_pos + 1);
-
-
-    std::string status;
-    bool isTranslationComplete = false;
-
-    while (!isTranslationComplete) {
-        status = checkDocumentStatus(document_id, document_key, deepLKey);
-        // Parse the JSON response to check if status == "done"
+    // Poll the status until translation is complete
+    while (true) {
+        std::string status = checkDocumentStatus(document.id, document.key, deepLKey);
         nlohmann::json jsonResponse = nlohmann::json::parse(status);
         if (jsonResponse["status"] == "done") {
-            isTranslationComplete = true;
-        } else {
-            std::cout << "Translation in progress..." << "\n";
-            std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
+            break;
         }
+        std::cout << "Translation in progress... Retrying in 5 seconds." << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 
-    // Download the translated document
-    std::string download_response = downloadTranslatedDocument(document_id, document_key, deepLKey);
-    if (download_response.empty()) {
+    // Download and save the translated document
+    if (!downloadTranslatedDocument(document.id, document.key, deepLKey, outputPath)) {
         std::cerr << "Failed to download translated document." << std::endl;
         return 1;
     }
 
-    // Write out the downloaded document to a text file
+    std::cout << "Translated document saved to: " << outputPath << std::endl;
+    return 0;
 
-    // Save the translated document to the output path
-    std::ofstream output_file(outputPath);
-    if (!output_file.is_open()) {
-        std::cerr << "Failed to open output file: " << outputPath << std::endl;
-        return 1;
+}
+
+bool DocxTranslator::downloadTranslatedDocument(const std::string& document_id, const std::string& document_key, const std::string& deepLKey, const std::string& outputPath) {
+    CURL* curl;
+    CURLcode res;
+    std::string api_url = "https://api-free.deepl.com/v2/document/" + document_id + "/result";
+    std::string auth_key = "DeepL-Auth-Key " + deepLKey;
+
+    curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Failed to initialize CURL." << std::endl;
+        return false;
     }
 
-    output_file << download_response;
-    output_file.close();
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, ("Authorization: " + auth_key).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
 
-    return 0;
+    // Create JSON payload
+    nlohmann::json jsonPayload;
+    jsonPayload["document_key"] = document_key;
+    std::string json_data = jsonPayload.dump();
+
+    // Open file to write the binary content
+    FILE* file = fopen(outputPath.c_str(), "wb");
+    if (!file) {
+        std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        fclose(file);
+
+        return false;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, api_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POST, 1);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+
+    // Write response as binary to file
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+
+    res = curl_easy_perform(curl);
+
+    fclose(file);  // Ensure file is closed even on failure
+
+    if (res != CURLE_OK) {
+        std::cerr << "Curl download request failed: " << curl_easy_strerror(res) << std::endl;
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    return true;  // Successfully downloaded and saved the document
 }
