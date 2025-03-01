@@ -1265,6 +1265,46 @@ TEST_CASE("EpubTranslator: removeUnwantedTags removes specific tags while preser
     }
 }
 
+TEST_CASE("translator.containsJapanese", "[containsJapanese]") {
+    TestableEpubTranslator translator;
+    SECTION("Positive cases - Contains Japanese") {
+        REQUIRE(translator.containsJapanese("こんにちは") == true); // Hiragana
+        REQUIRE(translator.containsJapanese("カタカナ") == true);  // Katakana
+        REQUIRE(translator.containsJapanese("漢字") == true);      // Kanji
+        REQUIRE(translator.containsJapanese("ｶﾀｶﾅ") == true);      // Half-width Katakana
+        REQUIRE(translator.containsJapanese("Hello こんにちは") == true); // Mixed English and Japanese
+        REQUIRE(translator.containsJapanese("テストです") == true);  // Mixed Katakana and Hiragana
+        REQUIRE(translator.containsJapanese("これは日本語のテストです。") == true); // Full Japanese sentence
+    }
+
+    SECTION("Negative cases - No Japanese") {
+        REQUIRE(translator.containsJapanese("Hello, world!") == false);  // Pure English
+        REQUIRE(translator.containsJapanese("1234567890") == false);    // Numbers
+        REQUIRE(translator.containsJapanese("!@#$%^&*()") == false);    // Special characters
+        REQUIRE(translator.containsJapanese("Español Français") == false); // Other Latin languages
+        REQUIRE(translator.containsJapanese("한글") == false); // Korean
+        REQUIRE(translator.containsJapanese("中文") == true); // Chinese
+        REQUIRE(translator.containsJapanese("Привет") == false); // Cyrillic (Russian)
+    }
+
+    SECTION("Edge cases - Empty and mixed inputs") {
+        REQUIRE(translator.containsJapanese("") == false); // Empty string
+        REQUIRE(translator.containsJapanese(" ") == false); // Only whitespace
+        REQUIRE(translator.containsJapanese("💖🎵🚀") == false); // Emojis
+        REQUIRE(translator.containsJapanese("こんにちは!") == true); // Japanese with punctuation
+        REQUIRE(translator.containsJapanese("テスト😃") == true); // Japanese with emoji
+        REQUIRE(translator.containsJapanese("𠀋") == false); // Rare CJK character (outside usual range)
+    }
+
+    SECTION("Malformed UTF-8") {
+        REQUIRE(translator.containsJapanese("\xE3\x81") == false); // Incomplete UTF-8 sequence (should return false)
+        REQUIRE(translator.containsJapanese("\xC3\x28") == false); // Invalid UTF-8 sequence
+        REQUIRE(translator.containsJapanese("\xF0\x28\x8C\xBC") == false); // Overlong encoding (invalid)
+        REQUIRE(translator.containsJapanese("\xED\xA0\x80") == false); // UTF-16 surrogate pair (invalid UTF-8)
+    }
+}
+
+
 // ------ GUI -------
 
 TEST_CASE("GUI: Font Loading") {

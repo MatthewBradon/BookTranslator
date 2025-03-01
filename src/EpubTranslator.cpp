@@ -20,6 +20,76 @@ std::filesystem::path EpubTranslator::searchForOPFFiles(const std::filesystem::p
     return std::filesystem::path();
 }
 
+
+bool EpubTranslator::containsJapanese(const std::string& text) {
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(text.c_str());
+    size_t length = text.size();
+
+    // UTF-8 encoding rules:
+    // 1-byte ASCII characters: 0xxxxxxx
+    // 2-byte characters: 110xxxxx 10xxxxxx
+    // 3-byte characters: 1110xxxx 10xxxxxx 10xxxxxx
+    // 4-byte characters: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+
+    for (size_t i = 0; i < length; ) {
+        uint32_t codepoint = 0; // codepoint is a unique number assigned to each character
+        size_t numBytes = 0; // Number of bytes in the UTF-8 character
+
+        // Determine number of bytes in this UTF-8 character
+        if (bytes[i] < 0x80) { // 1-byte ASCII
+            codepoint = bytes[i];
+
+            numBytes = 1;
+
+        }  else if ((bytes[i] & 0xE0) == 0xC0) { // 2-byte sequence
+            if (i + 1 >= length) return false; // Invalid UTF-8 because of missing bytes
+
+            codepoint = ((bytes[i] & 0x1F) << 6) | // Take the last 5 bits of the first byte
+                        (bytes[i + 1] & 0x3F); // Take the last 6 bits of the second byte
+            
+            numBytes = 2;
+
+        } else if ((bytes[i] & 0xF0) == 0xE0) { // 3-byte sequence (Most Japanese )
+            
+            if (i + 2 >= length) return false; // Invalid UTF-8 because of missing bytes
+
+            codepoint = ((bytes[i] & 0x0F) << 12) | // Take the last 4 bits of the first byte
+                        ((bytes[i + 1] & 0x3F) << 6) |  // Take the last 6 bits of the second byte
+                        (bytes[i + 2] & 0x3F); // Take the last 6 bits of the third byte
+            
+            
+            numBytes = 3;
+
+        } else if ((bytes[i] & 0xF8) == 0xF0) { // 4-byte sequence (Rare for Japanese)
+            
+            if (i + 3 >= length) return false; // Invalid UTF-8 because of missing bytes
+
+            codepoint = ((bytes[i] & 0x07) << 18) | // Take the last 3 bits of the first byte
+                        ((bytes[i + 1] & 0x3F) << 12) | // Take the last 6 bits of the second byte
+                        ((bytes[i + 2] & 0x3F) << 6) | // Take the last 6 bits of the third byte
+                        (bytes[i + 3] & 0x3F); // Take the last 6 bits of the fourth byte
+            
+                        
+            numBytes = 4;
+
+        } else {
+            return false; // Invalid UTF-8
+        }
+
+        // Check if the codepoint is in Japanese ranges
+        if ((codepoint >= 0x3040 && codepoint <= 0x309F) ||  // Hiragana
+            (codepoint >= 0x30A0 && codepoint <= 0x30FF) ||  // Katakana
+            (codepoint >= 0x4E00 && codepoint <= 0x9FFF) ||  // CJK Unified (Kanji)
+            (codepoint >= 0xFF66 && codepoint <= 0xFF9F)) {  // Half-width Katakana
+            return true;
+        }
+
+        i += numBytes; // Move to next UTF-8 character
+    }
+
+    return false;
+}
+
 std::string EpubTranslator::extractSpineContent(const std::string& content) {
     std::regex spinePattern(R"(<spine\b[^>]*>([\s\S]*?)<\/spine>)");
     std::smatch match;
@@ -1118,88 +1188,93 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
         }
     }
 
-    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
-        std::cout << "Inside for loop" << "\n";
-        if (!htmlContainsPTagsVector[i]) {
-            continue;
-        }
+    // for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+    //     std::cout << "Inside for loop" << "\n";
+    //     if (!htmlContainsPTagsVector[i]) {
+    //         continue;
+    //     }
 
-        std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
+    //     std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
 
-        std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
+    //     // return 0;
 
-        if (uploadResult.empty()) {
-            std::cerr << "Failed to upload document to DeepL." << "\n";
-            return 1;
-        }
+    //     std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
 
-        std::string document_id = uploadResult.substr(0, uploadResult.find('|'));
-        std::string document_key = uploadResult.substr(uploadResult.find('|') + 1);
+    //     if (uploadResult.empty()) {
+    //         std::cerr << "Failed to upload document to DeepL." << "\n";
+    //         return 1;
+    //     }
 
-        std::cout << "Uploaded document. Document ID: " << document_id << ", Document Key: " << document_key << "\n";
+    //     std::string document_id = uploadResult.substr(0, uploadResult.find('|'));
+    //     std::string document_key = uploadResult.substr(uploadResult.find('|') + 1);
 
-        std::string status;
-        bool isTranslationComplete = false;
+    //     std::cout << "Uploaded document. Document ID: " << document_id << ", Document Key: " << document_key << "\n";
 
-        while (!isTranslationComplete) {
-            status = checkDocumentStatus(document_id, document_key, deepLKey);
-            // Parse the JSON response to check if status == "done"
-            nlohmann::json jsonResponse = nlohmann::json::parse(status);
-            if (jsonResponse["status"] == "done") {
-                isTranslationComplete = true;
-            } else {
-                std::cout << "Translation in progress..." << "\n";
-                std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
-            }
-        }
+    //     std::string status;
+    //     bool isTranslationComplete = false;
 
-        std::string responseHTMLString = downloadTranslatedDocument(document_id, document_key, deepLKey);
+    //     while (!isTranslationComplete) {
+    //         status = checkDocumentStatus(document_id, document_key, deepLKey);
+    //         // Parse the JSON response to check if status == "done"
+    //         nlohmann::json jsonResponse = nlohmann::json::parse(status);
+    //         if (jsonResponse["status"] == "done") {
+    //             isTranslationComplete = true;
+    //         } else {
+    //             std::cout << "Translation in progress..." << "\n";
+    //             std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
+    //         }
+    //     }
 
-        std::cout << responseHTMLString << "\n";
+    //     std::string responseHTMLString = downloadTranslatedDocument(document_id, document_key, deepLKey);
 
-        htmlStringVector[i] = responseHTMLString;
-        // Limit the number of translations for testing
-        if (i == 9 ) {
-            break;
-        }
-    }
+    //     std::cout << responseHTMLString << "\n";
 
-    // Create testHTML directory if it doesn't exist
-    if (!make_directory("translatedHTML")) {
-        std::cerr << "Failed to create testHTML directory." << "\n";
-        return 1;
-    }
+    //     htmlStringVector[i] = responseHTMLString;
+    //     // Limit the number of translations for testing
+    //     if (i == 9 ) {
+    //         break;
+    //     }
+    // }
 
-    // Write the updated content to the XHTML files in directory testHTML
-    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+    // // Create testHTML directory if it doesn't exist
+    // if (!make_directory("translatedHTML")) {
+    //     std::cerr << "Failed to create testHTML directory." << "\n";
+    //     return 1;
+    // }
+
+    // // Write the updated content to the XHTML files in directory testHTML
+    // for (size_t i = 0; i < htmlStringVector.size(); ++i) {
         
-        std::ofstream outFile("translatedHTML/" + std::to_string(i) + ".xhtml");
-        if (!outFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
-            return 1;
-        }
-        outFile << htmlStringVector[i];
-        outFile.close();
-    }
+    //     std::ofstream outFile("translatedHTML/" + std::to_string(i) + ".xhtml");
+    //     if (!outFile.is_open()) {
+    //         std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
+    //         return 1;
+    //     }
+    //     outFile << htmlStringVector[i];
+    //     outFile.close();
+    // }
 
-    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        // Copy the contents of each of the xhtml  files in the translatedHTML directory to the corresponding xhtml files in the export directory
-        std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
+    // for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+    //     // Copy the contents of each of the xhtml  files in the translatedHTML directory to the corresponding xhtml files in the export directory
+    //     std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
 
-        if (!std::filesystem::exists(translatedFilePath)) {
-            std::cerr << "Translated file not found: " << translatedFilePath << "\n";
-            return 1;
-        }
+    //     if (!std::filesystem::exists(translatedFilePath)) {
+    //         std::cerr << "Translated file not found: " << translatedFilePath << "\n";
+    //         return 1;
+    //     }
 
-        std::filesystem::path exportFilePath = std::filesystem::path("export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string());
-        if (!std::filesystem::exists(exportFilePath)) {
-            std::cerr << "Export file not found: " << exportFilePath << "\n";
-            return 1;
-        }
-        std::filesystem::copy(translatedFilePath, exportFilePath, std::filesystem::copy_options::overwrite_existing);
-        std::cout << "Translated file copied successfully: " << translatedFilePath << "\n";
+    //     std::filesystem::path exportFilePath = std::filesystem::path("export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string());
+    //     if (!std::filesystem::exists(exportFilePath)) {
+    //         std::cerr << "Export file not found: " << exportFilePath << "\n";
+    //         return 1;
+    //     }
+    //     std::filesystem::copy(translatedFilePath, exportFilePath, std::filesystem::copy_options::overwrite_existing);
+    //     std::cout << "Translated file copied successfully: " << translatedFilePath << "\n";
 
-    }
+    // }
+
+    // Go through all the translate XHTML and detect if there is any japanese text
+    std::cout << "Detecting Japanese text in translated XHTML files..." << "\n";
 
     return 0; 
 }
@@ -1535,13 +1610,12 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         }
 
 
-
-        exportEpub(templatePath, outputEpubPath);
+        // exportEpub(templatePath, outputEpubPath);
         
         // // Remove the unzipped and export directories
-        std::filesystem::remove_all(unzippedPath);
-        std::filesystem::remove_all(templatePath);
-        std::filesystem::remove_all("translatedHTML");
+        // std::filesystem::remove_all(unzippedPath);
+        // std::filesystem::remove_all(templatePath);
+        // std::filesystem::remove_all("translatedHTML");
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
