@@ -949,7 +949,6 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
             }
 
             xmlFreeDoc(doc);
-            xmlXPathFreeObject(xpathObj);
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << "\n";
         }
@@ -1262,7 +1261,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
         translatedXHTMLFiles.push_back(translatedFilePath);
     }
 
-    std::vector<tagData>& translatedTags = extractTags(translatedXHTMLFiles);
+    std::vector<tagData> translatedTags = extractTags(translatedXHTMLFiles);
 
     std::vector<tagData> notTranslatedTags;
 
