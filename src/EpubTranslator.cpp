@@ -928,16 +928,22 @@ std::vector<tagData> EpubTranslator::extractTags(const std::vector<std::filesyst
                 xmlFreeDoc(doc);
                 continue;
             }
-
+            int position = 0;
             for (int i = 0; i < nodes->nodeNr; ++i) {
                 xmlNodePtr node = nodes->nodeTab[i];
                 if (node->type == XML_ELEMENT_NODE) {
                     if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar*>("p")) == 0) {
-                        tagData tag = processPTag(node, i, chapterNum);
-                        if (!tag.text.empty()) bookTags.push_back(tag);
+                        tagData tag = processPTag(node, position, chapterNum);
+                        if (!tag.text.empty()) {
+                            bookTags.push_back(tag);
+                            position++;
+                        }
                     } else {
-                        tagData tag = processImgTag(node, i, chapterNum);
-                        if (!tag.text.empty()) bookTags.push_back(tag);
+                        tagData tag = processImgTag(node, position, chapterNum);
+                        if (!tag.text.empty()) {
+                            bookTags.push_back(tag);
+                            position++;
+                        }
                     }
                 }
             }
@@ -1121,18 +1127,6 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
         }
     }
 
-    // Update chapterTags using bookTags
-    for (const auto& tag : bookTags) {
-        auto chapterIt = positionMap.find(tag.chapterNum);
-        if (chapterIt != positionMap.end()) {
-            auto& positionTags = chapterIt->second;
-            auto tagIt = positionTags.find(tag.position);
-            if (tagIt != positionTags.end()) {
-                tagIt->second->text = tag.text;
-            }
-        }
-    }
-
     // Write out to the template EPUB
     std::string htmlHeader = R"(
 <!DOCTYPE html>
@@ -1188,93 +1182,388 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
         }
     }
 
-    // for (size_t i = 0; i < htmlStringVector.size(); ++i) {
-    //     std::cout << "Inside for loop" << "\n";
-    //     if (!htmlContainsPTagsVector[i]) {
-    //         continue;
-    //     }
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+        std::cout << "Inside for loop" << "\n";
+        if (!htmlContainsPTagsVector[i]) {
+            continue;
+        }
 
-    //     std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
+        std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
 
-    //     // return 0;
+        // return 0;
 
-    //     std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
+        std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
 
-    //     if (uploadResult.empty()) {
-    //         std::cerr << "Failed to upload document to DeepL." << "\n";
-    //         return 1;
-    //     }
+        if (uploadResult.empty()) {
+            std::cerr << "Failed to upload document to DeepL." << "\n";
+            return 1;
+        }
 
-    //     std::string document_id = uploadResult.substr(0, uploadResult.find('|'));
-    //     std::string document_key = uploadResult.substr(uploadResult.find('|') + 1);
+        std::string document_id = uploadResult.substr(0, uploadResult.find('|'));
+        std::string document_key = uploadResult.substr(uploadResult.find('|') + 1);
 
-    //     std::cout << "Uploaded document. Document ID: " << document_id << ", Document Key: " << document_key << "\n";
+        std::cout << "Uploaded document. Document ID: " << document_id << ", Document Key: " << document_key << "\n";
 
-    //     std::string status;
-    //     bool isTranslationComplete = false;
+        std::string status;
+        bool isTranslationComplete = false;
 
-    //     while (!isTranslationComplete) {
-    //         status = checkDocumentStatus(document_id, document_key, deepLKey);
-    //         // Parse the JSON response to check if status == "done"
-    //         nlohmann::json jsonResponse = nlohmann::json::parse(status);
-    //         if (jsonResponse["status"] == "done") {
-    //             isTranslationComplete = true;
-    //         } else {
-    //             std::cout << "Translation in progress..." << "\n";
-    //             std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
-    //         }
-    //     }
+        while (!isTranslationComplete) {
+            status = checkDocumentStatus(document_id, document_key, deepLKey);
+            // Parse the JSON response to check if status == "done"
+            nlohmann::json jsonResponse = nlohmann::json::parse(status);
+            if (jsonResponse["status"] == "done") {
+                isTranslationComplete = true;
+            } else {
+                std::cout << "Translation in progress..." << "\n";
+                std::this_thread::sleep_for(std::chrono::seconds(5));  // Wait for 5 seconds before checking again
+            }
+        }
 
-    //     std::string responseHTMLString = downloadTranslatedDocument(document_id, document_key, deepLKey);
+        std::string responseHTMLString = downloadTranslatedDocument(document_id, document_key, deepLKey);
 
-    //     std::cout << responseHTMLString << "\n";
+        std::cout << responseHTMLString << "\n";
 
-    //     htmlStringVector[i] = responseHTMLString;
-    //     // Limit the number of translations for testing
-    //     if (i == 9 ) {
-    //         break;
-    //     }
-    // }
+        htmlStringVector[i] = responseHTMLString;
+        // Limit the number of translations for testing because of DeepL API limits
+        // if (i == 9 ) {
+        //     break;
+        // }
+    }
 
-    // // Create testHTML directory if it doesn't exist
-    // if (!make_directory("translatedHTML")) {
-    //     std::cerr << "Failed to create testHTML directory." << "\n";
-    //     return 1;
-    // }
+    // Create testHTML directory if it doesn't exist
+    if (!make_directory("translatedHTML")) {
+        std::cerr << "Failed to create testHTML directory." << "\n";
+        return 1;
+    }
 
-    // // Write the updated content to the XHTML files in directory testHTML
-    // for (size_t i = 0; i < htmlStringVector.size(); ++i) {
+    // Write the updated content to the XHTML files in directory testHTML
+    for (size_t i = 0; i < htmlStringVector.size(); ++i) {
         
-    //     std::ofstream outFile("translatedHTML/" + std::to_string(i) + ".xhtml");
-    //     if (!outFile.is_open()) {
-    //         std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
-    //         return 1;
-    //     }
-    //     outFile << htmlStringVector[i];
-    //     outFile.close();
-    // }
-
-    // for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-    //     // Copy the contents of each of the xhtml  files in the translatedHTML directory to the corresponding xhtml files in the export directory
-    //     std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
-
-    //     if (!std::filesystem::exists(translatedFilePath)) {
-    //         std::cerr << "Translated file not found: " << translatedFilePath << "\n";
-    //         return 1;
-    //     }
-
-    //     std::filesystem::path exportFilePath = std::filesystem::path("export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string());
-    //     if (!std::filesystem::exists(exportFilePath)) {
-    //         std::cerr << "Export file not found: " << exportFilePath << "\n";
-    //         return 1;
-    //     }
-    //     std::filesystem::copy(translatedFilePath, exportFilePath, std::filesystem::copy_options::overwrite_existing);
-    //     std::cout << "Translated file copied successfully: " << translatedFilePath << "\n";
-
-    // }
+        std::ofstream outFile("translatedHTML/" + std::to_string(i) + ".xhtml");
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << i << ".xhtml" << "\n";
+            return 1;
+        }
+        outFile << htmlStringVector[i];
+        outFile.close();
+    }
 
     // Go through all the translate XHTML and detect if there is any japanese text
     std::cout << "Detecting Japanese text in translated XHTML files..." << "\n";
+
+    std::vector<std::filesystem::path> translatedXHTMLFiles;
+
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
+        if (!std::filesystem::exists(translatedFilePath)) {
+            std::cerr << "Translated file not found: " << translatedFilePath << "\n";
+            return 1;
+        }
+        translatedXHTMLFiles.push_back(translatedFilePath);
+    }
+
+    std::vector<tagData>& translatedTags = extractTags(translatedXHTMLFiles);
+
+    std::vector<tagData> notTranslatedTags;
+
+    for (const auto& tag : translatedTags) {
+        if (tag.tagId == IMG_TAG) continue;
+
+        if (containsJapanese(tag.text)) {
+            notTranslatedTags.push_back(tag);
+        }
+    }
+
+    if (notTranslatedTags.empty()) {
+        std::cout << "No Japanese text detected in translated XHTML files." << "\n";
+        return 0;
+    } else {
+        std::cout << "Japanese text detected in translated XHTML files:" << "\n";
+        for (const auto& tag : notTranslatedTags) {
+            std::cout << "Chapter: " << tag.chapterNum << " | Position: " << tag.position << " | Text: " << tag.text << "\n";
+        }
+    }
+
+    std::cout << "Running local model translation for Japanese text" << "\n";
+
+    std::string rawTagsPathString = "rawTags.txt";
+    std::string encodedTagsPathString = "encodedTags.txt";
+    std::string translatedTagsPathString = "translatedTags.txt";
+
+    // Write out a file of the raw tags
+    std::filesystem::path rawTagsPath = rawTagsPathString;
+    std::ofstream rawTagsFile(rawTagsPath);
+    if (!rawTagsFile.is_open()) {
+        std::cerr << "Failed to open file for writing: " << rawTagsPath << "\n";
+        return 1;
+    }
+
+    std::cout << "Writing raw tags to file: " << rawTagsPath << "\n";
+    for (const auto& tag : notTranslatedTags) {
+        auto chapterIt = positionMap.find(tag.chapterNum);
+        if (chapterIt != positionMap.end()) {  // Check if chapter exists
+            auto positionIt = chapterIt->second.find(tag.position);
+            if (positionIt != chapterIt->second.end() && positionIt->second != nullptr) {  // Check if position exists
+                std::string originalText = positionIt->second->text;
+                rawTagsFile << tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << originalText << "\n";
+            } else {
+                std::cerr << "Warning: Missing position in positionMap for Chapter: " 
+                          << tag.chapterNum << ", Position: " << tag.position << "\n";
+            }
+        } else {
+            std::cerr << "Warning: Missing chapter in positionMap for Chapter: " << tag.chapterNum << "\n";
+        }
+    }
+    
+    std::cout << "Raw tags written to file: " << rawTagsPath << "\n";
+
+    rawTagsFile.close();
+
+
+    std::cout << "Before call to tokenizeRawTags.exe" << '\n';
+    boost::filesystem::path exePath;
+    #if defined(__APPLE__)
+        exePath = "tokenizeRawTags";
+
+    #elif defined(_WIN32)
+        exePath = "tokenizeRawTags.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+    boost::filesystem::path inputFilePath = "rawTags.txt";  // Path to the input file
+    std::string chapterNumberMode = "0";
+    // Ensure the .exe exists
+    if (!boost::filesystem::exists(exePath)) {
+        std::cerr << "Executable not found: " << exePath << std::endl;
+        return 1;
+    }
+
+    // Ensure the input file exists
+    if (!boost::filesystem::exists(inputFilePath)) {
+        std::cerr << "Input file not found: " << inputFilePath << std::endl;
+        return 1;
+    }
+
+    // Create pipes for capturing stdout and stderr
+    boost::process::ipstream encodeTagspipe_stdout;
+    boost::process::ipstream encodeTagspipe_stderr;
+
+    try {
+        // Start the .exe process with arguments
+        boost::process::child c(
+            exePath.string(),                 // Executable path
+            inputFilePath.string(),           // Argument: path to input file
+            chapterNumberMode,                // Argument: chapter number mode
+            boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
+            boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
+        );
+
+        // Read stdout
+        std::string line;
+        while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
+        }
+
+        // Read any remaining stdout
+        while (std::getline(encodeTagspipe_stdout, line)) {
+            std::cout << line << std::endl;
+        }
+
+        // Read stderr
+        while (std::getline(encodeTagspipe_stderr, line)) {
+            std::cerr << "Error: " << line << std::endl;
+        }
+
+        // Wait for the process to exit
+        c.wait();
+
+        // Check the exit code
+        if (c.exit_code() == 0) {
+            std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
+        } else {
+            std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << std::endl;
+        return 1;
+    }
+
+    std::cout << "After call to tokenizeRawTags.exe" << '\n';
+
+
+    //Start the multiprocessing translaton
+    std::filesystem::path multiprocessExe;
+
+    #if defined(__APPLE__)
+        multiprocessExe = "multiprocessTranslation";
+
+    #elif defined(_WIN32)
+        multiprocessExe = "multiprocessTranslation.exe";
+    #else
+        std::cerr << "Unsupported platform!" << std::endl;
+        return 1; // Or some other error handling
+    #endif
+
+    if (!std::filesystem::exists(multiprocessExe)) {
+        std::cerr << "Executable not found: " << multiprocessExe << std::endl;
+        return 1;
+    }
+
+    std::string multiprocessExePath = multiprocessExe.string();
+    
+
+    std::cout << "Before call to multiprocessTranslation.py" << '\n';
+
+    boost::process::ipstream pipe_stdout, pipe_stderr;
+
+    try {
+
+        boost::process::child c(
+            multiprocessExePath,
+            chapterNumberMode,
+            boost::process::std_out > pipe_stdout, 
+            boost::process::std_err > pipe_stderr
+        );
+
+        // Threads to handle asynchronous reading
+        std::thread stdout_thread([&pipe_stdout]() {
+            std::string line;
+            while (std::getline(pipe_stdout, line)) {
+                std::cout << "Python stdout: " << line << "\n";
+            }
+        });
+
+        std::thread stderr_thread([&pipe_stderr]() {
+            std::string line;
+            while (std::getline(pipe_stderr, line)) {
+                std::cerr << "Python stderr: " << line << "\n";
+            }
+        });
+
+        c.wait(); // Wait for process completion
+
+        stdout_thread.join();
+        stderr_thread.join();
+
+        if (c.exit_code() == 0) {
+            std::cout << "Translation Python script executed successfully." << "\n";
+        } else {
+            std::cerr << "Translation Python script exited with code: " << c.exit_code() << "\n";
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
+    }
+
+    std::cout << "After call to multiprocessTranslation.py" << '\n';
+
+    std::vector<decodedData> decodedDataVector;
+    std::ifstream file(translatedTagsPathString);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << translatedTagsPathString << "\n";
+        return 1;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream lineStream(line);
+        std::string chapterNumStr, positionStr, text;
+
+        // Extract chapterNum (first value)
+        if (!std::getline(lineStream, chapterNumStr, ',')) continue;
+
+        // Extract position (second value)
+        if (!std::getline(lineStream, positionStr, ',')) continue;
+
+        // The rest of the line is text
+        std::getline(lineStream, text);
+
+        // Convert chapterNum and position to integers
+        try {
+            decodedData data;
+            data.chapterNum = std::stoi(chapterNumStr);
+            data.position = std::stoi(positionStr);
+            data.output = text;
+            // Store the extracted data
+            decodedDataVector.push_back(data);
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing line: " << line << " - " << e.what() << "\n";
+        }
+    }
+    file.close();
+
+    // Create translatedPositionsMap out of translatedTags
+    std::vector<std::vector<tagData>> translatedChapterTags;
+    std::unordered_map<int, std::unordered_map<int, tagData*>> translatedPositionMap;
+
+
+
+    for (auto& tag : translatedTags) {
+        if (tag.chapterNum >= translatedChapterTags.size()) {
+            translatedChapterTags.resize(tag.chapterNum + 1);
+        }
+        translatedChapterTags[tag.chapterNum].push_back(tag);
+    }
+
+    for (size_t chapterNum = 0; chapterNum < translatedChapterTags.size(); ++chapterNum) {
+        for (auto& tag : translatedChapterTags[chapterNum]) {
+            translatedPositionMap[chapterNum][tag.position] = &tag;
+        }
+    }
+
+    for (const auto& data : decodedDataVector) {
+        auto chapterIt = translatedPositionMap.find(data.chapterNum);
+        if (chapterIt != translatedPositionMap.end()) {
+            auto positionIt = chapterIt->second.find(data.position);
+            if (positionIt != chapterIt->second.end() && positionIt->second != nullptr) {
+                positionIt->second->text = data.output;
+            }
+        }
+    }
+
+    // Looop through translatedChapterTags and check if there is any untranslated text
+    for (size_t i = 0; i < translatedChapterTags.size(); ++i) {
+        for (const auto& tag : translatedChapterTags[i]) {
+            if (tag.tagId == P_TAG && containsJapanese(tag.text)) {
+                std::cerr << "Untranslated Japanese text detected in Chapter: " << i << " | Position: " << tag.position << " | Text: " << tag.text << "\n";
+            }
+        }
+    }
+
+    std::cout << "Writing translated XHTML files..." << "\n";
+
+    // Write out to the template EPUB
+    for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
+        std::filesystem::path outputPath = "export/OEBPS/Text/" + spineOrderXHTMLFiles[i].filename().string();
+        std::ofstream outFile(outputPath);
+        std::cout << "Writing to: " << outputPath << "\n";
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing: " << outputPath << "\n";
+            return 1;
+        }
+
+        // Write pre-built header
+        outFile << htmlHeader << spineOrderXHTMLFiles[i].filename().string() << "</title>\n</head>\n<body>\n";
+
+        if (i > translatedChapterTags.size()) {
+            outFile << htmlFooter;
+            outFile.close();
+            continue;
+        }
+
+        // Write content-specific parts
+        for (const auto& tag : translatedChapterTags[i]) {
+            if (tag.tagId == P_TAG) {
+                outFile << "<p>" << tag.text << "</p>\n";
+            } else if (tag.tagId == IMG_TAG) {
+                outFile << "<img src=\"../Images/" << tag.text << "\" alt=\"\"/>\n";
+            }
+        }
+
+        // Write pre-built footer
+        outFile << htmlFooter;
+        outFile.close();
+    }
 
     return 0; 
 }
@@ -1610,12 +1899,16 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         }
 
 
-        // exportEpub(templatePath, outputEpubPath);
+        exportEpub(templatePath, outputEpubPath);
         
         // // Remove the unzipped and export directories
-        // std::filesystem::remove_all(unzippedPath);
-        // std::filesystem::remove_all(templatePath);
-        // std::filesystem::remove_all("translatedHTML");
+        std::filesystem::remove_all(unzippedPath);
+        std::filesystem::remove_all(templatePath);
+        std::filesystem::remove_all("translatedHTML");
+        std::filesystem::remove_all("testHTML");
+        std::filesystem::remove("rawTags.txt");
+        std::filesystem::remove("encodedTags.txt");
+        std::filesystem::remove("translatedTags.txt");
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
