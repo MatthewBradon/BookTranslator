@@ -35,6 +35,7 @@ public:
     using EpubTranslator::removeSection0001Tags;
     using EpubTranslator::exportEpub;
     using EpubTranslator::removeUnwantedTags;
+    using EpubTranslator::containsJapanese;
 };
 
 class TestableGUI : public GUI {

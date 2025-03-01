@@ -19,6 +19,15 @@ If using VSCode make sure to include in your settings
     "cmake.configureArgs": ["-DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake"],
 ```
 
+If on windows and want to statically link make sure VCPKG gets the static triplet
+```
+    "cmake.configureArgs": [
+        "-DCMAKE_TOOLCHAIN_FILE=C:/Users/Matt/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+    ],
+```
+
+
 
 The following commands need to be ran as they are runtime dependencies for the application:
 

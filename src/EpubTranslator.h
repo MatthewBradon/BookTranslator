@@ -86,4 +86,5 @@ protected:
     void writeChapterFile(const std::filesystem::path& chapterPath, const std::string& content);
     std::vector<std::pair<std::string, std::string>> extractManifestIds(const std::vector<std::string>& manifestItems);
     void addTitleAndAuthor(const char* filename, const std::string& title, const std::string& author);
+    bool containsJapanese(const std::string& text);
 };

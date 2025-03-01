@@ -14,7 +14,7 @@ int main() {
         std::streambuf* originalBuffer = std::cout.rdbuf();
         std::ostringstream captureOutput;
         // DEBUG: Comment out this line if you want the couts to be in the terminal for debugging purposes
-        // std::cout.rdbuf(captureOutput.rdbuf());
+        std::cout.rdbuf(captureOutput.rdbuf());
         
         // Setup window
         if (!glfwInit())
