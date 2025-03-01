@@ -1639,10 +1639,9 @@ void EpubTranslator::addTitleAndAuthor(const char* filename, const std::string& 
     xmlCleanupParser();
 }
 
-int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey) {
-    
+int EpubTranslator::run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey, std::string langcode) {
+    std::cout << "langcode: " << langcode << "\n";
     std::cout << "localModel: " << localModel << "\n";
-
     std::filesystem::path currentDirPath = std::filesystem::current_path();
 
     std::cout << "Running the EPUB conversion process..." << "\n";
@@ -1930,7 +1929,11 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     }
 
     for (auto& tag : bookTags) {
-        rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
+        if (tag.tagId == IMG_TAG) {
+            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
+        } else if (tag.tagId == P_TAG) {
+            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << ">>" << langcode << "<<" << tag.text << "\n";
+        }
     }
     rawTagsFile.close();
     

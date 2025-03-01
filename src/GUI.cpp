@@ -50,6 +50,8 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
         }
     }
 
+    populateLanguages();
+
     running = false;   // Initialize flags
     finished = false;
 }
@@ -79,6 +81,17 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::Text("Note: DeepL Translator is higher quality but requires a DeepL API key");
         ImGui::InputText("DeepL API Key", deepLKey, sizeof(deepLKey));
     }
+
+    populateLanguages();
+
+    if (localModelStr == "Application's Translator") {
+        ImGui::Text("Source Language:");
+        ImGui::Combo("##source_language", &selectedLanguageIndex, languageNamesCStr.data(), languageNamesCStr.size());
+
+        std::string selectedLanguage = languageNames[selectedLanguageIndex];
+        sourceLanguageCode = language_code_map.at(selectedLanguage);
+    }
+    
 
     // Input fields for directories
     ImGui::InputText("Original Book", inputFile, sizeof(inputFile));
@@ -168,7 +181,7 @@ void GUI::update(std::ostringstream& logStream) {
                     }
 
                     // Run the translator
-                    result = translator->run(inputFile, outputPath, localModel, deepLKey);
+                    result = translator->run(inputFile, outputPath, localModel, deepLKey, sourceLanguageCode);
                     
                     if (std::filesystem::exists("book_details.txt")) {
                         std::filesystem::remove("book_details.txt");
@@ -423,5 +436,23 @@ void GUI::renderEditBookPopup() {
         }
 
         ImGui::EndPopup();
+    }
+}
+
+void GUI::populateLanguages() {
+    if (!languageNames.empty()) return;
+
+    // Extract language names from the unordered_map
+    for (const auto& entry : language_code_map) {
+        languageNames.push_back(entry.first);
+    }
+
+    // Sort alphabetically
+    std::sort(languageNames.begin(), languageNames.end());
+
+    // Convert to const char* format for ImGui
+    languageNamesCStr.clear();
+    for (const auto& name : languageNames) {
+        languageNamesCStr.push_back(name.c_str());
     }
 }

@@ -4,7 +4,7 @@
 #include <stb_image_write.h>
 #include "PDFTranslator.h"
 
-int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
+int PDFTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode) {
     // Check if the main temp files exist and delete them
     const std::string rawTextFilePath = "pdftext.txt";
     const std::string extractedTextPath = "extractedPDFtext.txt";

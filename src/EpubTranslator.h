@@ -46,7 +46,7 @@ struct decodedData {
 
 class EpubTranslator : public Translator {
 public:
-    int run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey);
+    int run(const std::string& epubToConvert, const std::string& outputEpubPath, int localModel, const std::string& deepLKey, std::string langcode);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 protected:

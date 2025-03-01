@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 
 # Initialize tokenizer once
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-ja-en')
+tokenizer = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-mul-en')
 
 # Tokenize text and return tensors
 def tokenize_text(text):

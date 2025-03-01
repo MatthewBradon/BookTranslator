@@ -16,7 +16,7 @@
       "single_word": false,
       "special": true
     },
-    "60715": {
+    "64171": {
       "content": "<pad>",
       "lstrip": false,
       "normalized": false,
@@ -31,9 +31,9 @@
   "model_max_length": 512,
   "pad_token": "<pad>",
   "separate_vocabs": false,
-  "source_lang": "ja",
+  "source_lang": "mul",
   "sp_model_kwargs": {},
-  "target_lang": "en",
+  "target_lang": "eng",
   "tokenizer_class": "MarianTokenizer",
   "unk_token": "<unk>"
 }

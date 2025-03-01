@@ -37,7 +37,7 @@ struct DocumentInfo {
 class DocxTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface
-    int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey);
+    int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 

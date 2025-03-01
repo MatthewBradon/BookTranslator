@@ -1,7 +1,7 @@
 #include "DocxTranslator.h"
 
 
-int DocxTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey) {
+int DocxTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode) {
     //Disabling DeepL for now
     if (localModel == 1) {
 
