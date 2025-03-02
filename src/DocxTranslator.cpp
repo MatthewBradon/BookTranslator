@@ -79,7 +79,7 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::string textFilePath = "extracted_text.txt";
     std::string positionFilePath = "position_tags.txt";
 
-    saveTextToFile(textNodes, positionFilePath, textFilePath);
+    saveTextToFile(textNodes, positionFilePath, textFilePath, langcode);
 
     std::string chapterNumberMode = "1";
     
@@ -309,7 +309,7 @@ std::vector<TextNode> DocxTranslator::extractTextNodes(xmlNode *root) {
 }
 
 
-void DocxTranslator::saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename) {
+void DocxTranslator::saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename, const std::string &langcode) {
     std::ofstream positionFile(positionFilename);
     std::ofstream textFile(textFilename);
 
@@ -323,7 +323,7 @@ void DocxTranslator::saveTextToFile(const std::vector<TextNode> &nodes, const st
         // Write to positionTags.txt: "counterNum,node.path"
         positionFile << counterNum << "," << node.path << "\n";
         // Write to extracted_text.txt: "counterNum,node.text"
-        textFile << counterNum << "," << node.text << "\n";
+        textFile << counterNum << ",>>" << langcode << "<< " << node.text << "\n";
         ++counterNum;
     }
 

@@ -1859,7 +1859,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         if (tag.tagId == IMG_TAG) {
             rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << tag.text << "\n";
         } else if (tag.tagId == P_TAG) {
-            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << ">>" << langcode << "<<" << tag.text << "\n";
+            rawTagsFile <<  tag.tagId << "," << tag.chapterNum << "," << tag.position << "," << ">>" << langcode << "<< " << tag.text << "\n";
         }
     }
     rawTagsFile.close();

@@ -1,0 +1,11 @@
+{
+    "Model_name": "Helsinki-NLP/opus-mt-mul-en",
+    "params": {
+        "max_new_tokens": 512,
+        "num_beams": 4,
+        "no_repeat_ngram_size": 3,
+        "repetition_penalty": 0.6,
+        "temperature": 0,
+        "early_stopping": true
+    }
+}

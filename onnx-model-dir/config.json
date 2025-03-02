@@ -1,6 +1,6 @@
 {
   "_attn_implementation_autoset": true,
-  "_name_or_path": "Helsinki-NLP/opus-mt-mul-en",
+  "_name_or_path": "./fine_tuned_model",
   "activation_dropout": 0.0,
   "activation_function": "swish",
   "add_bias_logits": false,
