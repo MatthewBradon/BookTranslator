@@ -81,109 +81,38 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
 
     saveTextToFile(textNodes, positionFilePath, textFilePath);
 
-
-    
-    std::cout << "Before call to tokenizeRawTags.exe" << '\n';
-    boost::filesystem::path exePath;
-    #if defined(__APPLE__)
-        exePath = "tokenizeRawTags";
-
-    #elif defined(_WIN32)
-        exePath = "tokenizeRawTags.exe";
-    #else
-        std::cerr << "Unsupported platform!" << std::endl;
-        return 1; // Or some other error handling
-    #endif
-    boost::filesystem::path inputFilePath = textFilePath;  // Path to the input file
     std::string chapterNumberMode = "1";
-    // Ensure the .exe exists
-    if (!boost::filesystem::exists(exePath)) {
-        std::cerr << "Executable not found: " << exePath << std::endl;
-        return 1;
-    }
-
-    // Ensure the input file exists
-    if (!boost::filesystem::exists(inputFilePath)) {
-        std::cerr << "Input file not found: " << inputFilePath << std::endl;
-        return 1;
-    }
-
-    // Create pipes for capturing stdout and stderr
-    boost::process::ipstream encodeTagspipe_stdout;
-    boost::process::ipstream encodeTagspipe_stderr;
-
-    try {
-        // Start the .exe process with arguments
-        boost::process::child c(
-            exePath.string(),                 // Executable path
-            inputFilePath.string(),           // Argument: path to input file
-            chapterNumberMode,                // Argument: chapter number mode
-            boost::process::std_out > encodeTagspipe_stdout,        // Redirect stdout
-            boost::process::std_err > encodeTagspipe_stderr         // Redirect stderr
-        );
-
-        // Read stdout
-        std::string line;
-        while (c.running() && std::getline(encodeTagspipe_stdout, line)) {
-            std::cout << line << std::endl;
-        }
-
-        // Read any remaining stdout
-        while (std::getline(encodeTagspipe_stdout, line)) {
-            std::cout << line << std::endl;
-        }
-
-        // Read stderr
-        while (std::getline(encodeTagspipe_stderr, line)) {
-            std::cerr << "Error: " << line << std::endl;
-        }
-
-        // Wait for the process to exit
-        c.wait();
-
-        // Check the exit code
-        if (c.exit_code() == 0) {
-            std::cout << "tokenizeRawTags.exe executed successfully." << std::endl;
-        } else {
-            std::cerr << "tokenizeRawTags.exe exited with code: " << c.exit_code() << std::endl;
-        }
-    } catch (const std::exception& ex) {
-        std::cerr << "Exception: " << ex.what() << std::endl;
-        return 1;
-    }
-
-    std::cout << "After call to tokenizeRawTags.exe" << '\n';
-
-
+    
     //Start the multiprocessing translaton
-    std::filesystem::path multiprocessExe;
+    std::filesystem::path translationExe;
 
     #if defined(__APPLE__)
-        multiprocessExe = "multiprocessTranslation";
+        translationExe = "translation";
 
     #elif defined(_WIN32)
-        multiprocessExe = "multiprocessTranslation.exe";
+        translationExe = "translation.exe";
     #else
         std::cerr << "Unsupported platform!" << std::endl;
         return 1; // Or some other error handling
     #endif
 
-    if (!std::filesystem::exists(multiprocessExe)) {
-        std::cerr << "Executable not found: " << multiprocessExe << std::endl;
+    if (!std::filesystem::exists(translationExe)) {
+        std::cerr << "Executable not found: " << translationExe << std::endl;
         return 1;
     }
 
-    std::string multiprocessExePath = multiprocessExe.string();
+    std::string translationExePath = translationExe.string();
     
 
-    std::cout << "Before call to multiprocessTranslation.py" << '\n';
+    std::cout << "Before call to translation.exe" << '\n';
 
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
 
         boost::process::child c(
-            multiprocessExePath,
+            translationExePath,
+            textFilePath,
             chapterNumberMode,
             boost::process::std_out > pipe_stdout, 
             boost::process::std_err > pipe_stderr
@@ -218,7 +147,7 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
         std::cerr << "Exception: " << ex.what() << "\n";
     }
 
-    std::cout << "After call to multiprocessTranslation.py" << '\n';
+    std::cout << "After call to translation.exe" << '\n';
 
     // Load the translations
     std::unordered_multimap<std::string, std::string> translations = loadTranslations(positionFilePath, "translatedTags.txt");

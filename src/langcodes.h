@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <string>
-
+// https://github.com/huggingface/transformers/blob/main/src/transformers/models/marian/convert_marian_tatoeba_to_pytorch.py
+// https://huggingface.co/Helsinki-NLP/opus-mt-mul-en
 static const std::unordered_map<std::string, std::string> language_code_map = {
     {"Arabic", "ara"},
     {"Azerbaijani", "aze"},
