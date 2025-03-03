@@ -1346,14 +1346,24 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
-        boost::process::child c(
-            translationExePath,
-            rawTagsPathString,
-            chapterNumberMode,
-            boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr,
-            boost::process::windows::hide
-        );
+        #if defined(_WIN32)
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr,
+                boost::process::windows::hide
+            );
+        #else
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+        #endif
 
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {
@@ -1895,15 +1905,24 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
-
-        boost::process::child c(
-            translationExePath,
-            rawTagsPathString,
-            chapterNumberMode,
-            boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr,
-            boost::process::windows::hide
-        );
+        #if defined(_WIN32)
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr,
+                boost::process::windows::hide
+            );
+        #else
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+        #endif
 
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {

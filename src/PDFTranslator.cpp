@@ -185,16 +185,25 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
-
-        boost::process::child c(
-            translationExePath,
-            rawTextFilePath,
-            chapterNumberMode,
-            boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr,
-            boost::process::windows::hide
-        );
-
+        #if defined(_WIN32)
+            boost::process::child c(
+                translationExePath,
+                rawTextFilePath,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr,
+                boost::process::windows::hide
+            );
+        #else
+            boost::process::child c(
+                translationExePath,
+                rawTextFilePath,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+        #endif
+        
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {
             std::string line;
