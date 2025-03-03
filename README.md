@@ -38,7 +38,7 @@ pyinstaller --onefile --nam translation --distpath ./ ./translation.py
 
 To create the AI model use optimum-cli to export the model to the ONNX format and to the onnx-model-dir
 ```
-optimum-cli export onnx --model Helsinki-NLP/opus-mt-ja-en ./onnx-model-dir
+optimum-cli export onnx --model Helsinki-NLP/opus-mt-mul-en ./onnx-model-dir
 ```
 To export the fine tuned model with past key values use this command
 ```
@@ -54,6 +54,8 @@ For testing run
 ```
 ctest -V -C Release --test-dir build
 ```
+
+If you wish to change some of the model parameters while generating change the values in the `translationConfig.json`
 
 
 

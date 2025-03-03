@@ -45,12 +45,11 @@ target_include_directories(BookTranslator PRIVATE src)
 if(APPLE)
     add_custom_command(TARGET BookTranslator POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_SOURCE_DIR}/tokenizeRawTags"
+            "${CMAKE_SOURCE_DIR}/translation"
             "$<TARGET_FILE_DIR:BookTranslator>/../Resources"
         COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_SOURCE_DIR}/multiprocessTranslation"
+            "${CMAKE_SOURCE_DIR}/translationConfig.json"
             "$<TARGET_FILE_DIR:BookTranslator>/../Resources"
-
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/rawEpub"
             "$<TARGET_FILE_DIR:BookTranslator>/../Resources/rawEpub/"
