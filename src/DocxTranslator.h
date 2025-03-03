@@ -37,7 +37,7 @@ struct DocumentInfo {
 class DocxTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface
-    int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey);
+    int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 
@@ -50,7 +50,7 @@ protected:
     std::string getNodePath(xmlNode *node);
     void extractTextNodesRecursive(xmlNode *node, std::vector<TextNode> &nodes);
     std::vector<TextNode> extractTextNodes(xmlNode *root);
-    void saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename);
+    void saveTextToFile(const std::vector<TextNode> &nodes, const std::string &positionFilename, const std::string &textFilename, const std::string &langcode);
     std::unordered_multimap<std::string, std::string> loadTranslations(const std::string &positionFilename, const std::string &textFilename);
     void updateNodeWithTranslation(xmlNode *node, const std::string &translation);
     void traverseAndReinsert(xmlNode *node, std::unordered_multimap<std::string, std::string> &translations, std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator> &lastUsed);

@@ -1,7 +1,6 @@
 {
   "_attn_implementation_autoset": true,
   "_name_or_path": "./fine_tuned_model",
-  "_num_labels": 3,
   "activation_dropout": 0.0,
   "activation_function": "swish",
   "add_bias_logits": false,
@@ -18,14 +17,15 @@
   "decoder_ffn_dim": 2048,
   "decoder_layerdrop": 0.0,
   "decoder_layers": 6,
-  "decoder_start_token_id": 60715,
-  "decoder_vocab_size": 60716,
+  "decoder_start_token_id": 64171,
+  "decoder_vocab_size": 64172,
   "dropout": 0.1,
   "encoder_attention_heads": 8,
   "encoder_ffn_dim": 2048,
   "encoder_layerdrop": 0.0,
   "encoder_layers": 6,
   "eos_token_id": 0,
+  "extra_pos_embeddings": 64172,
   "forced_eos_token_id": 0,
   "id2label": {
     "0": "LABEL_0",
@@ -46,11 +46,11 @@
   "normalize_embedding": false,
   "num_beams": null,
   "num_hidden_layers": 6,
-  "pad_token_id": 60715,
+  "pad_token_id": 64171,
   "scale_embedding": true,
   "share_encoder_decoder_embeddings": true,
   "static_position_embeddings": true,
   "transformers_version": "4.48.3",
   "use_cache": true,
-  "vocab_size": 60716
+  "vocab_size": 64172
 }

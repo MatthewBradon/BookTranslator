@@ -1986,13 +1986,14 @@ TEST_CASE("extractTextNodes: Extracts <w:t> nodes from DOCX XML", "[extractTextN
 TEST_CASE("saveTextToFile: Saves extracted text to files", "[saveTextToFile]") {
     TestableDocxTranslator translator;
 
+    std::string langcode = "jpn";
 
     std::vector<TextNode> nodes = {
         {"path1", "Hello"},
         {"path2", "World"}
     };
 
-    translator.saveTextToFile(nodes, "test_positions.txt", "test_texts.txt");
+    translator.saveTextToFile(nodes, "test_positions.txt", "test_texts.txt", langcode);
 
     std::ifstream posFile("test_positions.txt");
     std::ifstream textFile("test_texts.txt");
@@ -2002,13 +2003,13 @@ TEST_CASE("saveTextToFile: Saves extracted text to files", "[saveTextToFile]") {
     std::getline(textFile, textLine);
 
     REQUIRE(posLine == "1,path1");
-    REQUIRE(textLine == "1,Hello");
+    REQUIRE(textLine == "1,>>jpn<< Hello");
 
     std::getline(posFile, posLine);
     std::getline(textFile, textLine);
 
     REQUIRE(posLine == "2,path2");
-    REQUIRE(textLine == "2,World");
+    REQUIRE(textLine == "2,>>jpn<< World");
 
     posFile.close();
     textFile.close();

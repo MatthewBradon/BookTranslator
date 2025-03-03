@@ -11,6 +11,7 @@
 #include <atomic>
 #include <mutex>
 #include "imgui_internal.h"
+#include "langcodes.h"
 
 class GUI {
 public:
@@ -38,9 +39,14 @@ protected:
     int result = -1;
     bool isDarkTheme = true;
     std::string themeFile = "theme.txt";
+    int selectedLanguageIndex = 0;
+    std::vector<std::string> languageNames;
+    std::vector<const char*> languageNamesCStr;
+    std::string sourceLanguageCode;
     void setCustomDarkStyle();
     void setCustomLightStyle();
     void renderMenuBar();
     void ShowSpinner(float radius = 10.0f, int numSegments = 12, float thickness = 2.0f);
     void renderEditBookPopup();
+    void populateLanguages();
 };

@@ -1,3 +1,6 @@
+# This is old redundant code that was used to test the multiprocessing capabilities of the model. It is not used in the final implementation of the model.
+# The code is used to test the model's performance in a single process and compare it to the performance of the model in a multi-process environment.
+
 import sys
 import transformers.generation as generation
 sys.modules['transformers.generation_utils'] = generation
@@ -5,7 +8,6 @@ from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import multiprocessing as mp
 from functools import partial
-
 from readEncodedData import readEncodedData
 
 # Global variable to store the model in each worker
