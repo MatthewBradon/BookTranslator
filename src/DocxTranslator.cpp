@@ -115,14 +115,15 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
             textFilePath,
             chapterNumberMode,
             boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr
+            boost::process::std_err > pipe_stderr,
+            boost::process::windows::hide
         );
 
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {
             std::string line;
             while (std::getline(pipe_stdout, line)) {
-                std::cout << "Python stdout: " << line << "\n";
+                std::cout << line << "\n";
             }
         });
 

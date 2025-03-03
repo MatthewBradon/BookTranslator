@@ -28,8 +28,9 @@ if(APPLE)
     )
 
 else()
-    add_executable(BookTranslator
-        src/main.cpp
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mwindows")
+    add_executable(BookTranslator WIN32
+        src/main.cpp 
         src/GUI.cpp
         src/PDFTranslator.cpp
         src/EpubTranslator.cpp

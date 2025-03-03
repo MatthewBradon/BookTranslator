@@ -8,6 +8,9 @@ void fileDropCallback(GLFWwindow* window, int count, const char** paths) {
     }
 }
 
+
+
+
 int main() {
     try{
         // All the couts are redirected to captureOutput so we can use it in our GUI
@@ -84,3 +87,13 @@ int main() {
 
     return 0;
 }
+
+#ifdef _WIN32
+#include <windows.h>
+
+// Entry point for a Windows GUI application
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    return main();
+}
+
+#endif

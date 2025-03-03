@@ -24,6 +24,11 @@
 #include "Translator.h"
 #include <nlohmann/json.hpp>
 
+#ifdef _WIN32
+#include <boost/process/windows.hpp>
+#endif
+
+
 struct TextNode {
     std::string path;
     std::string text;

@@ -6,11 +6,16 @@ void GUI::init(GLFWwindow *window, const char *glsl_version) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
 
-    // Load a font that supports Japanese characters
+    // Load the Japanese font as primary
     ImFont* font = io.Fonts->AddFontFromFileTTF("fonts/NotoSansCJKjp-Regular.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
     if (font == nullptr) {
         std::cout << "Failed to load font!" << std::endl;
     }
+    ImFontConfig defaultFontConfig;
+    defaultFontConfig.SizePixels = 22.0f;
+    defaultFontConfig.MergeMode = true;
+    // Merge the default font to provide missing glyphs (e.g., double quotes)
+    io.Fonts->AddFontDefault(&defaultFontConfig);
 
     // Rebuild the font atlas after adding the new font
     io.Fonts->Build();
@@ -229,6 +234,8 @@ void GUI::update(std::ostringstream& logStream) {
 
     ImGui::Text("Logs:");
     ImGui::BeginChild("LogChild", ImVec2(0, logHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImGui::PushTextWrapPos();
 
     std::string logContents = logStream.str();
     ImGui::TextUnformatted(logContents.c_str());
