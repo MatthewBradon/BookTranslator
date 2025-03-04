@@ -641,9 +641,14 @@ void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::st
         fz_page* page = fz_load_page(ctx, doc, pageNum);
         fz_rect bounds = fz_bound_page(ctx, page);
 
-        fz_pixmap* pixmap = fz_new_pixmap_with_bbox(ctx, fz_device_rgb(ctx), fz_round_rect(bounds), nullptr, 0);
-        fz_device* dev = fz_new_draw_device(ctx, fz_identity, pixmap);
-        fz_run_page(ctx, page, dev, fz_identity, nullptr);
+        fz_pixmap* pixmap = fz_new_pixmap_from_page_number(ctx, doc, pageNum, fz_identity, fz_device_rgb(ctx), 1);
+
+        if (!pixmap) {
+            std::cerr << "Failed to create pixmap for page " << pageNum << std::endl;
+            fz_drop_page(ctx, page);
+            continue;
+        }
+        
 
         // Save the image temporarily
         char tempPath[1024];
@@ -660,7 +665,6 @@ void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::st
             std::filesystem::remove(tempPath); // Delete temporary image
         }
 
-        fz_drop_device(ctx, dev);
         fz_drop_pixmap(ctx, pixmap);
         fz_drop_page(ctx, page);
     }
