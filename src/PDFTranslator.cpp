@@ -10,23 +10,28 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
     const std::string extractedTextPath = "extractedPDFtext.txt";
     const std::string imagesDir = "FilteredImages";
     std::string outputPdfPath = outputPath + "/output.pdf";
+    std::string translatedTagsPath = "translatedTags.txt";
+
+    std::filesystem::path rawTextFilePathPath = std::filesystem::u8path(rawTextFilePath);
+    std::filesystem::path extractedTextPathPath = std::filesystem::u8path(extractedTextPath);
+    std::filesystem::path imagesDirPath = std::filesystem::u8path(imagesDir);
+    std::filesystem::path translatedTagsPathPath = std::filesystem::u8path(translatedTagsPath);
+
 
     // Check if the temp files exist and delete them
-    if (std::filesystem::exists(rawTextFilePath)) {
-        std::filesystem::remove(rawTextFilePath);
+    if (std::filesystem::exists(rawTextFilePathPath)) {
+        std::filesystem::remove(rawTextFilePathPath);
+    }
+    if (std::filesystem::exists(extractedTextPathPath)) {
+        std::filesystem::remove(extractedTextPathPath);
+    }
+    if (std::filesystem::exists(imagesDirPath)) {
+        std::filesystem::remove_all(imagesDirPath);
+    }
+    if (std::filesystem::exists(translatedTagsPathPath)) {
+        std::filesystem::remove(translatedTagsPathPath);
     }
 
-    if (std::filesystem::exists(extractedTextPath)) {
-        std::filesystem::remove(extractedTextPath);
-    }
-
-    if (std::filesystem::exists("encodedTags.txt")) {
-        std::filesystem::remove("encodedTags.txt");
-    }
-
-    if (std::filesystem::exists("translatedTags.txt")) {
-        std::filesystem::remove("translatedTags.txt");
-    }
 
     // Ensure the images directory exists
     if (!std::filesystem::exists(imagesDir)) {
@@ -138,6 +143,18 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
             
             createPDF(outputPdfPath, translatedTextPath, imagesDir);
             
+            if (std::filesystem::exists(rawTextFilePathPath)) {
+                std::filesystem::remove(rawTextFilePathPath);
+            }
+            if (std::filesystem::exists(extractedTextPathPath)) {
+                std::filesystem::remove(extractedTextPathPath);
+            }
+            if (std::filesystem::exists(imagesDirPath)) {
+                std::filesystem::remove_all(imagesDirPath);
+            }
+            if (std::filesystem::exists(translatedTagsPathPath)) {
+                std::filesystem::remove(translatedTagsPathPath);
+            }
 
             return 0;
 
@@ -245,27 +262,17 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
         return 1;
     }
 
-    // Clean up the temp files
-    if (std::filesystem::exists(rawTextFilePath)) {
-        std::filesystem::remove(rawTextFilePath);
+    if (std::filesystem::exists(rawTextFilePathPath)) {
+        std::filesystem::remove(rawTextFilePathPath);
     }
-
-    if (std::filesystem::exists(extractedTextPath)) {
-        std::filesystem::remove(extractedTextPath);
+    if (std::filesystem::exists(extractedTextPathPath)) {
+        std::filesystem::remove(extractedTextPathPath);
     }
-
-    if (std::filesystem::exists("encodedTags.txt")) {
-        std::filesystem::remove("encodedTags.txt");
+    if (std::filesystem::exists(imagesDirPath)) {
+        std::filesystem::remove_all(imagesDirPath);
     }
-
-    if (std::filesystem::exists("translatedTags.txt")) {
-        std::filesystem::remove("translatedTags.txt");
-    }
-    
-    if (std::filesystem::exists(imagesDir)) {
-        for (const auto& entry : std::filesystem::directory_iterator(imagesDir)) {
-            std::filesystem::remove(entry.path());
-        }
+    if (std::filesystem::exists(translatedTagsPathPath)) {
+        std::filesystem::remove(translatedTagsPathPath);
     }
 
     std::cout << "Finished" << std::endl;
@@ -368,6 +375,13 @@ void PDFTranslator::extractTextFromChars(fz_stext_line* line, std::ofstream& out
 void PDFTranslator::processPDF(fz_context* ctx, const std::string& inputPath, std::ofstream& outputFile) {
     fz_document* doc = nullptr;
 
+    // Check if the PDF file exists
+    std::filesystem::path inputPDFPath = std::filesystem::u8path(inputPath);
+
+    if (!std::filesystem::exists(inputPDFPath)) {
+        throw std::runtime_error("PDF file does not exist: " + inputPDFPath.string());
+    }
+
     fz_try(ctx) {
         doc = fz_open_document(ctx, inputPath.c_str());
         if (!doc) {
@@ -395,8 +409,10 @@ void PDFTranslator::extractTextFromPDF(const std::string& inputPath, const std::
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    if (!std::filesystem::exists(inputPath)) {
-        throw std::runtime_error("PDF file does not exist: " + inputPath);
+    std::filesystem::path pdfPath = std::filesystem::u8path(inputPath);
+
+    if (!std::filesystem::exists(pdfPath)) {
+        throw std::runtime_error("PDF file does not exist: " + pdfPath.string());
     }
 
     fz_context* ctx = createMuPDFContext();
@@ -578,6 +594,13 @@ std::vector<std::string> PDFTranslator::splitJapaneseText(const std::string& tex
 }
 
 std::vector<std::string> PDFTranslator::processAndSplitText(const std::string& inputFilePath, size_t maxLength) {
+    
+    std::filesystem::path inputPath = std::filesystem::u8path(inputFilePath);
+    // Check if the input file exists
+    if (!std::filesystem::exists(inputPath)) {
+        throw std::runtime_error("Input file does not exist: " + inputPath.string());
+    }
+
     // Open the input file
     std::ifstream inputFile(inputFilePath);
     if (!inputFile.is_open()) {
@@ -593,6 +616,15 @@ std::vector<std::string> PDFTranslator::processAndSplitText(const std::string& i
 }
 
 void PDFTranslator::convertPdfToImages(const std::string &pdfPath, const std::string &outputFolder, float stdDevThreshold) {
+    // Check if the PDF file exists
+    std::filesystem::path pdfFilePath = std::filesystem::u8path(pdfPath);
+
+    if (!std::filesystem::exists(pdfFilePath)) {
+        std::cerr << "PDF file does not exist: " << pdfFilePath.string() << std::endl;
+        return;
+    }
+
+
     fz_context* ctx = createMuPDFContext();
 
     fz_document* doc = fz_open_document(ctx, pdfPath.c_str());
@@ -815,6 +847,15 @@ void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const st
 }
 
 void PDFTranslator::createPDF(const std::string &output_file, const std::string &input_file, const std::string &images_dir) {
+    // Check if the input file exists
+    std::filesystem::path inputPath = std::filesystem::u8path(input_file);
+
+    if (!std::filesystem::exists(inputPath)) {
+        std::cerr << "Input file does not exist: " << inputPath.string() << std::endl;
+        return;
+    }
+    
+    
     // Page dimensions in points (A4: 612x792 points)
     const double page_width = 612.0;
     const double page_height = 792.0;
@@ -852,6 +893,15 @@ size_t PDFTranslator::writeCallback(void* contents, size_t size, size_t nmemb, s
 }
 
 std::string PDFTranslator::uploadDocumentToDeepL(const std::string& filePath, const std::string& deepLKey) {
+    
+    // Check if the file exists
+    std::filesystem::path inputPath = std::filesystem::u8path(filePath);
+
+    if (!std::filesystem::exists(inputPath)) {
+        std::cerr << "File does not exist: " << inputPath.string() << std::endl;
+        return "";
+    }
+    
     CURL* curl;
     CURLcode res;
     std::string response_string;
@@ -993,6 +1043,15 @@ std::string PDFTranslator::downloadTranslatedDocument(const std::string& documen
 }
 
 int PDFTranslator::handleDeepLRequest(const std::string& inputPath, const std::string& outputPath, const std::string& deepLKey) {
+    // Check if the input file exists
+    std::filesystem::path inputPDFPath = std::filesystem::u8path(inputPath);
+
+    if (!std::filesystem::exists(inputPDFPath)) {
+        std::cerr << "Input file does not exist: " << inputPDFPath.string() << std::endl;
+        return 1;
+    }
+    
+    
     // Upload the document to DeepL
     std::string document_info = uploadDocumentToDeepL(inputPath, deepLKey);
     if (document_info.empty()) {

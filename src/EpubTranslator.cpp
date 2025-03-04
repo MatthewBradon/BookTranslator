@@ -545,14 +545,16 @@ bool EpubTranslator::unzip_file(const std::string& zipPath, const std::string& o
 }
 
 void EpubTranslator::exportEpub(const std::string& exportPath, const std::string& outputDir) {
+    std::filesystem::path exportDir = std::filesystem::u8path(exportPath);
+    std::filesystem::path outputDirectory = std::filesystem::u8path(outputDir);
     // Check if the exportPath directory exists
-    if (!std::filesystem::exists(exportPath)) {
-        std::cerr << "Export directory does not exist: " << exportPath << "\n";
+    if (!std::filesystem::exists(exportDir)) {
+        std::cerr << "Export directory does not exist: " << exportDir.string() << "\n";
         return;
     }
 
-    if (!std::filesystem::exists(outputDir)) {
-        std::cerr << "Ouput path does not exist: " << outputDir << "\n";
+    if (!std::filesystem::exists(outputDirectory)) {
+        std::cerr << "Ouput path does not exist: " << outputDirectory.string() << "\n";
         return;
     }
 
@@ -1253,7 +1255,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     std::vector<std::filesystem::path> translatedXHTMLFiles;
 
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
+        std::filesystem::path translatedFilePath = std::filesystem::u8path("translatedHTML/" + std::to_string(i) + ".xhtml");
         if (!std::filesystem::exists(translatedFilePath)) {
             std::cerr << "Translated file not found: " << translatedFilePath << "\n";
             return 1;

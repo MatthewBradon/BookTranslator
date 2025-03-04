@@ -3,10 +3,14 @@ A Japanese to English Book Translator application using local AI models.
 
 All the packages except MUPDF are installed and managed by VCPKG
 
+**PDFTranslator does not support OCR and only works with text based PDFs.**
+
 MUPDF is included as a submodule for this repository after cloning run this command to have all of the submodules so you can build MUPDF
 ```
 git submodule update --init --recursive
 ```
+
+
 
 I built this using cmake and the Visual Studio Community 2022 Build Tools
 

@@ -2,7 +2,15 @@
 
 
 int DocxTranslator::run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode) {
-    //Disabling DeepL for now
+
+    // Check if the input file exists
+    std::filesystem::path inputDocxPath = std::filesystem::u8path(inputPath);
+
+    if (!std::filesystem::exists(inputDocxPath)) {
+        std::cerr << "Input file does not exist: " << inputDocxPath.string() << std::endl;
+        return 1;
+    }
+
     if (localModel == 1) {
 
         std::filesystem::path outputDir = outputPath;
@@ -28,10 +36,12 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     // Unzip the DOCX file
     std::string unzippedPath = "unzipped";
 
+    std::filesystem::path unzipppedPathU8 = std::filesystem::u8path(unzippedPath);
+
     // Check if the unzipped directory already exists
-    if (std::filesystem::exists(unzippedPath)) {
+    if (std::filesystem::exists(unzipppedPathU8)) {
         std::cout << "Unzipped directory already exists. Deleting it..." << "\n";
-        std::filesystem::remove_all(unzippedPath);
+        std::filesystem::remove_all(unzipppedPathU8);
     }
 
     // Start the timer
@@ -55,8 +65,10 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     // Get the path to the document.xml file
     std::string documentXmlPath = unzippedPath + "/word/document.xml";
 
+    std::filesystem::path documentXmlPathU8 = std::filesystem::u8path(documentXmlPath);
+
     // Check if the document.xml file exists
-    if (!std::filesystem::exists(documentXmlPath)) {
+    if (!std::filesystem::exists(documentXmlPathU8)) {
         std::cerr << "document.xml file not found in DOCX archive." << "\n";
         return 1;
     }
@@ -199,7 +211,6 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::filesystem::remove(positionFilePath);
     std::filesystem::remove(textFilePath);
     std::filesystem::remove("translatedTags.txt");
-    std::filesystem::remove("encodedTags.txt");
 
     return 0;
 }
