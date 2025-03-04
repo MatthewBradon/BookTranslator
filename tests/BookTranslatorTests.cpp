@@ -1887,12 +1887,8 @@ TEST_CASE("PDFTranslator: createPDF") {
             translator.createPDF(outputPdf, badInput, imagesDir.string())
         );
 
-        // PDF may still exist (with images only) or be empty
-        {
-            std::ifstream ifs(outputPdf, std::ios::ate | std::ios::binary);
-            REQUIRE(ifs.is_open()); // Confirms it was created
-            // Could check size if you like, but the main point is it got created.
-        }
+        // Confirm PDF was not created
+        REQUIRE_FALSE(std::filesystem::exists(outputPdf));
 
         // Cleanup
         std::filesystem::remove(outputPdf);

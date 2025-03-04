@@ -545,14 +545,16 @@ bool EpubTranslator::unzip_file(const std::string& zipPath, const std::string& o
 }
 
 void EpubTranslator::exportEpub(const std::string& exportPath, const std::string& outputDir) {
+    std::filesystem::path exportDir = std::filesystem::u8path(exportPath);
+    std::filesystem::path outputDirectory = std::filesystem::u8path(outputDir);
     // Check if the exportPath directory exists
-    if (!std::filesystem::exists(exportPath)) {
-        std::cerr << "Export directory does not exist: " << exportPath << "\n";
+    if (!std::filesystem::exists(exportDir)) {
+        std::cerr << "Export directory does not exist: " << exportDir.string() << "\n";
         return;
     }
 
-    if (!std::filesystem::exists(outputDir)) {
-        std::cerr << "Ouput path does not exist: " << outputDir << "\n";
+    if (!std::filesystem::exists(outputDirectory)) {
+        std::cerr << "Ouput path does not exist: " << outputDirectory.string() << "\n";
         return;
     }
 
@@ -1253,7 +1255,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     std::vector<std::filesystem::path> translatedXHTMLFiles;
 
     for (size_t i = 0; i < spineOrderXHTMLFiles.size(); ++i) {
-        std::filesystem::path translatedFilePath = std::filesystem::path("translatedHTML/" + std::to_string(i) + ".xhtml");
+        std::filesystem::path translatedFilePath = std::filesystem::u8path("translatedHTML/" + std::to_string(i) + ".xhtml");
         if (!std::filesystem::exists(translatedFilePath)) {
             std::cerr << "Translated file not found: " << translatedFilePath << "\n";
             return 1;
@@ -1346,19 +1348,30 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
-        boost::process::child c(
-            translationExePath,
-            rawTagsPathString,
-            chapterNumberMode,
-            boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr
-        );
+        #if defined(_WIN32)
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr,
+                boost::process::windows::hide
+            );
+        #else
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+        #endif
 
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {
             std::string line;
             while (std::getline(pipe_stdout, line)) {
-                std::cout << "Python stdout: " << line << "\n";
+                std::cout << line << "\n";
             }
         });
 
@@ -1580,6 +1593,8 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     std::string unzippedPath = "unzipped";
     std::string templatePath = "export";
     std::string templateEpub = "rawEpub/template.epub";
+    std::string rawTagsPathString = "rawTags.txt";
+    std::string translatedTagsPathString = "translatedTags.txt";
 
     // Check if the unzipped directory already exists
     if (std::filesystem::exists(unzippedPath)) {
@@ -1833,8 +1848,9 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         std::filesystem::remove_all(templatePath);
         std::filesystem::remove_all("translatedHTML");
         std::filesystem::remove_all("testHTML");
-        std::filesystem::remove("rawTags.txt");
-        std::filesystem::remove("translatedTags.txt");
+        std::filesystem::remove(rawTagsPathString);
+        std::filesystem::remove(translatedTagsPathString);
+        std::filesystem::remove(bookDetailsPath);
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
@@ -1844,8 +1860,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     }
 
 
-    std::string rawTagsPathString = "rawTags.txt";
-    std::string translatedTagsPathString = "translatedTags.txt";
+
 
     // Write out a file of the raw tags
     std::filesystem::path rawTagsPath = rawTagsPathString;
@@ -1892,20 +1907,30 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     boost::process::ipstream pipe_stdout, pipe_stderr;
 
     try {
-
-        boost::process::child c(
-            translationExePath,
-            rawTagsPathString,
-            chapterNumberMode,
-            boost::process::std_out > pipe_stdout, 
-            boost::process::std_err > pipe_stderr
-        );
+        #if defined(_WIN32)
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr,
+                boost::process::windows::hide
+            );
+        #else
+            boost::process::child c(
+                translationExePath,
+                rawTagsPathString,
+                chapterNumberMode,
+                boost::process::std_out > pipe_stdout, 
+                boost::process::std_err > pipe_stderr
+            );
+        #endif
 
         // Threads to handle asynchronous reading
         std::thread stdout_thread([&pipe_stdout]() {
             std::string line;
             while (std::getline(pipe_stdout, line)) {
-                std::cout << "Python stdout: " << line << "\n";
+                std::cout <<  line << "\n";
             }
         });
 
@@ -2063,6 +2088,10 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         if (std::filesystem::exists(rawTagsPathString)) {
             std::filesystem::remove(rawTagsPathString);
             std::cout << "Deleted file: " << rawTagsPathString << "\n";
+        }
+        if (std::filesystem::exists(bookDetailsPath)) {
+            std::filesystem::remove(bookDetailsPath);
+            std::cout << "Deleted file: " << bookDetailsPath << "\n";
         }
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Filesystem error: " << e.what() << "\n";

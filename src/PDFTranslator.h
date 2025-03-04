@@ -23,6 +23,11 @@
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
 
+#ifdef _WIN32
+#include <boost/process/windows.hpp>
+#endif
+
+
 class PDFTranslator : public Translator {
 public:
     // Implement the run method from the Translator interface

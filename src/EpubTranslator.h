@@ -25,6 +25,10 @@
 #include <nlohmann/json.hpp>
 #include <unordered_set>
 
+#ifdef _WIN32
+#include <boost/process/windows.hpp>
+#endif
+
 
 #define P_TAG 0
 #define IMG_TAG 1
