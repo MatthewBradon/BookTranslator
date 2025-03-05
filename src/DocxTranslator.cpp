@@ -207,10 +207,10 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
 
     // // Cleanup
-    // std::filesystem::remove_all(unzippedPath);
-    // std::filesystem::remove(positionFilePath);
-    // std::filesystem::remove(textFilePath);
-    // std::filesystem::remove("translatedTags.txt");
+    std::filesystem::remove_all(unzippedPath);
+    std::filesystem::remove(positionFilePath);
+    std::filesystem::remove(textFilePath);
+    std::filesystem::remove("translatedTags.txt");
 
     return 0;
 }
