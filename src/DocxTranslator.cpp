@@ -206,11 +206,11 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
 
-    // Cleanup
-    std::filesystem::remove_all(unzippedPath);
-    std::filesystem::remove(positionFilePath);
-    std::filesystem::remove(textFilePath);
-    std::filesystem::remove("translatedTags.txt");
+    // // Cleanup
+    // std::filesystem::remove_all(unzippedPath);
+    // std::filesystem::remove(positionFilePath);
+    // std::filesystem::remove(textFilePath);
+    // std::filesystem::remove("translatedTags.txt");
 
     return 0;
 }
@@ -470,7 +470,7 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
     }
 
     if (!std::filesystem::exists(outputDir)) {
-        std::cerr << "Ouput path does not exist: " << outputDir << "\n";
+        std::cerr << "Output path does not exist: " << outputDir << "\n";
         return;
     }
 
@@ -484,15 +484,31 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
         return;
     }
 
+    // Store created directories to avoid duplicates
+    std::unordered_set<std::string> createdDirs;
+
     // Add all files in the exportPath directory to the ZIP archive
     for (const auto& entry : std::filesystem::recursive_directory_iterator(exportPath)) {
         if (entry.is_regular_file()) {
             std::filesystem::path filePath = entry.path();
             std::filesystem::path relativePath = filePath.lexically_relative(exportPath);
 
-            // Convert file paths to UTF-8 encoded strings
+            // Convert to UTF-8 strings and use forward slashes
             std::string filePathUtf8 = filePath.u8string();
             std::string relativePathUtf8 = relativePath.u8string();
+            std::replace(relativePathUtf8.begin(), relativePathUtf8.end(), '\\', '/');
+
+            std::cout << "Adding file to DOCX: " << relativePathUtf8 << "\n";
+
+            // Ensure parent directories exist in ZIP archive
+            std::filesystem::path parentDir = relativePath.parent_path();
+            std::string parentDirUtf8 = parentDir.u8string();
+            std::replace(parentDirUtf8.begin(), parentDirUtf8.end(), '\\', '/');
+
+            if (!parentDirUtf8.empty() && createdDirs.find(parentDirUtf8) == createdDirs.end()) {
+                zip_dir_add(archive, parentDirUtf8.c_str(), ZIP_FL_ENC_UTF_8);
+                createdDirs.insert(parentDirUtf8);
+            }
 
             // Create a zip_source_t from the file
             zip_source_t* source = zip_source_file(archive, filePathUtf8.c_str(), 0, 0);
@@ -502,7 +518,7 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
                 return;
             }
 
-            // Add the file to the ZIP archive with UTF-8 encoding
+            // Add the file to the ZIP archive
             zip_int64_t index = zip_file_add(archive, relativePathUtf8.c_str(), source, ZIP_FL_ENC_UTF_8);
             if (index < 0) {
                 std::cerr << "Error adding file to ZIP archive: " << filePath << "\n";
@@ -521,6 +537,7 @@ void DocxTranslator::exportDocx(const std::string& exportPath, const std::string
 
     std::cout << "DOCX file created: " << docxPath << "\n";
 }
+
 std::string DocxTranslator::escapeForDocx(const std::string& input) {
     std::string escaped;
     escaped.reserve(input.size());
