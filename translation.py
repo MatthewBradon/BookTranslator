@@ -7,6 +7,7 @@ from optimum.onnxruntime import ORTModelForSeq2SeqLM
 import torch
 import json
 import os
+import onnxruntime as ort
 
 # Force UTF-8 for stdout and stderr to prevent encoding issues
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
@@ -17,6 +18,12 @@ global Model_name, params
 global tokenizer, model
 
 onnx_model_path = 'onnx-model-dir'
+providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+sess_options = ort.SessionOptions()
+sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+sess_options.intra_op_num_threads = 4
+sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
 
 def load_translation_config():
     """Load translation configuration from JSON file."""
@@ -44,7 +51,7 @@ def load_translation_config():
 print("Loading model...", flush=True)
 load_translation_config()  # Load config before initializing model/tokenizer
 tokenizer = AutoTokenizer.from_pretrained(Model_name)
-model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path)
+model = ORTModelForSeq2SeqLM.from_pretrained(onnx_model_path, sess_options=sess_options, providers=providers)
 print("Model loaded successfully.", flush=True)
 
 def create_tasks(input_file_path="rawTags.txt", chapter_num_mode=0):
@@ -71,6 +78,7 @@ def create_tasks(input_file_path="rawTags.txt", chapter_num_mode=0):
 def process_task(task, chapter_num_mode):
     """Process a single task and return translation results."""
     try:
+
         if chapter_num_mode == 0:
             chapterNum, position, text = task
         elif chapter_num_mode == 1:
@@ -151,6 +159,7 @@ if __name__ == "__main__":
     # Print loaded parameters
     print(f"Model name: {Model_name}", flush=True)
     print("Translation parameters:", json.dumps(params, indent=4), flush=True)
-    
+    print(providers, flush=True)
+    print(sess_options, flush=True)
     # Run the main function
     sys.exit(main(input_file_path, chapter_num_mode))

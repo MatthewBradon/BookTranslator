@@ -37,7 +37,7 @@ The following commands need to be ran as they are runtime dependencies for the a
 
 For the translation and tokenizing EpubTranslator.cpp and PDFTranslator.cpp uses standalone executable files to create them uses these commands
 ```
-pyinstaller --onefile --nam translation --distpath ./ ./translation.py
+pyinstaller --onefile --name translation --distpath ./ ./translation.py
 ```
 
 To create the AI model use optimum-cli to export the model to the ONNX format and to the onnx-model-dir
