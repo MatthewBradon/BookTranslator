@@ -1,0 +1,181 @@
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+library(tidyr)
+library(plotly)  # Load plotly for interactivity
+
+# Load the dataset
+df <- read_csv("C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/full_translation_scores.csv")
+
+# Convert 'Parameters' to a factor for better visualization
+df$Parameters <- factor(df$Parameters, levels = df$Parameters)
+
+# Wrap long labels for readability
+df$Parameters <- str_wrap(df$Parameters, width = 50)
+
+# Reshape the data into long format for BLEU scores (for overlapping bars)
+df_long_bleu <- df %>%
+  pivot_longer(cols = c(`Helsinki-NLP BLEU Score`, `Fine-tuned Model BLEU Score`),
+               names_to = "Model",
+               values_to = "BLEU_Score") %>%
+  mutate(Model = recode(Model, 
+                        "Helsinki-NLP BLEU Score" = "Helsinki-NLP/opus-mt-ja-en", 
+                        "Fine-tuned Model BLEU Score" = "Fine-tuned Model"),
+         text = paste("Model:", Model, "<br>BLEU Score:", BLEU_Score, "<br>Parameters:", Parameters))  # Add hover text
+
+# Reshape the data into long format for METEOR scores (for overlapping bars)
+df_long_meteor <- df %>%
+  pivot_longer(cols = c(`Helsinki-NLP METEOR Score`, `Fine-tuned Model METEOR Score`),
+               names_to = "Model",
+               values_to = "METEOR_Score") %>%
+  mutate(Model = recode(Model, 
+                        "Helsinki-NLP METEOR Score" = "Helsinki-NLP/opus-mt-ja-en", 
+                        "Fine-tuned Model METEOR Score" = "Fine-tuned Model"),
+         text = paste("Model:", Model, "<br>METEOR Score:", METEOR_Score, "<br>Parameters:", Parameters))  # Add hover text
+
+# Define a factor for the fill aesthetic to ensure order
+fill_levels <- c("Helsinki-NLP/opus-mt-ja-en", "Fine-tuned Model")
+
+# Plot BLEU Score (Overlapping, Interactive)
+p1 <- ggplot(df_long_bleu, aes(x = Parameters, y = BLEU_Score, fill = Model, alpha = Model, text = text)) +
+  geom_bar(stat = "identity", position = "identity") +  # Overlapping bars
+  scale_fill_manual(values = c("Helsinki-NLP/opus-mt-ja-en" = "blue", "Fine-tuned Model" = "red"), limits = fill_levels) +
+  scale_alpha_manual(values = c("Helsinki-NLP/opus-mt-ja-en" = 0.9, "Fine-tuned Model" = 0.5), guide = "none") +  # Adjust transparency
+  labs(title = "Comparison of BLEU Scores",
+       x = "Translation Settings",
+       y = "BLEU Score",
+       fill = "Model") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_blank()) +  # Remove y-axis text labels
+  coord_flip()  # Swap axes for readability
+
+# Convert BLEU plot to interactive
+p1_interactive <- ggplotly(p1, tooltip = "text")
+
+# Plot METEOR Score (Overlapping, Interactive)
+p2 <- ggplot(df_long_meteor, aes(x = Parameters, y = METEOR_Score, fill = Model, alpha = Model, text = text)) +
+  geom_bar(stat = "identity", position = "identity") +  # Overlapping bars
+  scale_fill_manual(values = c("Helsinki-NLP/opus-mt-ja-en" = "blue", "Fine-tuned Model" = "red"), limits = fill_levels) +
+  scale_alpha_manual(values = c("Helsinki-NLP/opus-mt-ja-en" = 0.9, "Fine-tuned Model" = 0.5), guide = "none") +  # Adjust transparency
+  labs(title = "Comparison of METEOR Scores",
+       x = "Translation Settings",
+       y = "METEOR Score",
+       fill = "Model") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_blank()) +  # Remove y-axis text labels
+  coord_flip()  # Swap axes for readability
+
+# Convert METEOR plot to interactive
+p2_interactive <- ggplotly(p2, tooltip = "text")
+
+# Display interactive plots
+p1_interactive
+p2_interactive
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+library(tidyr)
+library(plotly)  # Load plotly for interactivity
+
+# Load the dataset
+df <- read_csv("C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/translation_score_mul.csv")
+
+# Convert 'Parameters' to a factor for better visualization
+df$Parameters <- factor(df$Parameters, levels = df$Parameters)
+
+# Wrap long labels for readability
+df$Parameters <- str_wrap(df$Parameters, width = 50)
+
+# Reshape the data into long format for BLEU scores (for overlapping bars)
+df_long_bleu <- df %>%
+  pivot_longer(cols = c(`Helsinki-NLP BLEU Score`, `Fine-tuned Model BLEU Score`),
+               names_to = "Model",
+               values_to = "BLEU_Score") %>%
+  mutate(Model = recode(Model, 
+                        "Helsinki-NLP BLEU Score" = "Helsinki-NLP/opus-mt-mul-en", 
+                        "Fine-tuned Model BLEU Score" = "Fine-tuned Model"),
+         text = paste("Model:", Model, "<br>BLEU Score:", BLEU_Score, "<br>Parameters:", Parameters))  # Add hover text
+
+# Reshape the data into long format for METEOR scores (for overlapping bars)
+df_long_meteor <- df %>%
+  pivot_longer(cols = c(`Helsinki-NLP METEOR Score`, `Fine-tuned Model METEOR Score`),
+               names_to = "Model",
+               values_to = "METEOR_Score") %>%
+  mutate(Model = recode(Model, 
+                        "Helsinki-NLP METEOR Score" = "Helsinki-NLP/opus-mt-mul-en", 
+                        "Fine-tuned Model METEOR Score" = "Fine-tuned Model"),
+         text = paste("Model:", Model, "<br>METEOR Score:", METEOR_Score, "<br>Parameters:", Parameters))  # Add hover text
+
+# Define a factor for the fill aesthetic to ensure order
+fill_levels <- c("Helsinki-NLP/opus-mt-mul-en", "Fine-tuned Model")
+
+# Plot BLEU Score (Overlapping, Interactive)
+p1 <- ggplot(df_long_bleu, aes(x = Parameters, y = BLEU_Score, fill = Model, alpha = Model, text = text)) +
+  geom_bar(stat = "identity", position = "identity") +  # Overlapping bars
+  scale_fill_manual(values = c("Helsinki-NLP/opus-mt-mul-en" = "blue", "Fine-tuned Model" = "red"), limits = fill_levels) +
+  scale_alpha_manual(values = c("Helsinki-NLP/opus-mt-mul-en" = 1.0, "Fine-tuned Model" = 0.6), guide = "none") +  # Adjust transparency
+  labs(title = "Comparison of BLEU Scores",
+       x = "Translation Settings",
+       y = "BLEU Score",
+       fill = "Model") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_blank()) +  # Remove y-axis text labels
+  coord_flip()  # Swap axes for readability
+
+# Convert BLEU plot to interactive
+p1_interactive <- ggplotly(p1, tooltip = "text")
+
+# Plot METEOR Score (Overlapping, Interactive)
+p2 <- ggplot(df_long_meteor, aes(x = Parameters, y = METEOR_Score, fill = Model, alpha = Model, text = text)) +
+  geom_bar(stat = "identity", position = "identity") +  # Overlapping bars
+  scale_fill_manual(values = c("Helsinki-NLP/opus-mt-mul-en" = "blue", "Fine-tuned Model" = "red"), limits = fill_levels) +
+  scale_alpha_manual(values = c("Helsinki-NLP/opus-mt-mul-en" = 1.0, "Fine-tuned Model" = 0.6), guide = "none") +  # Adjust transparency
+  labs(title = "Comparison of METEOR Scores",
+       x = "Translation Settings",
+       y = "METEOR Score",
+       fill = "Model") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_blank()) +  # Remove y-axis text labels
+  coord_flip()  # Swap axes for readability
+
+# Convert METEOR plot to interactive
+p2_interactive <- ggplotly(p2, tooltip = "text")
+
+# Display interactive plots
+p1_interactive
+p2_interactive
+
+```
+
+# Japanese to English
+```{r}
+df <- read_csv("C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/full_translation_scores.csv")
+str(df)  # Displays structure of the dataset
+summary(df)  # Provides summary statistics for each column
+dim(df)  # Shows dimensions (rows, columns)
+nrow(df)  # Number of rows
+ncol(df)  # Number of columns
+colnames(df)  # Column names
+
+```
+
+# Multi to English
+```{r}
+df <- read_csv("C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/translation_score_mul.csv")
+str(df)  # Displays structure of the dataset
+summary(df)  # Provides summary statistics for each column
+dim(df)  # Shows dimensions (rows, columns)
+nrow(df)  # Number of rows
+ncol(df)  # Number of columns
+colnames(df)  # Column names
+
+```
