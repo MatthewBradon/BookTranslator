@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.40">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>fyp</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="FYP_files/libs/clipboard/clipboard.min.js"></script>
+<script src="FYP_files/libs/quarto-html/quarto.js"></script>
+<script src="FYP_files/libs/quarto-html/popper.min.js"></script>
+<script src="FYP_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="FYP_files/libs/quarto-html/anchor.min.js"></script>
+<link href="FYP_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="FYP_files/libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="FYP_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="FYP_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="FYP_files/libs/bootstrap/bootstrap-8a79a254b8e706d3c925cde0a310d4f0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="FYP_files/libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+
+<script src="FYP_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<script src="FYP_files/libs/plotly-binding-4.10.4/plotly.js"></script>
+
+<script src="FYP_files/libs/typedarray-0.1/typedarray.min.js"></script>
+
+<script src="FYP_files/libs/jquery-3.5.1/jquery.min.js"></script>
+
+<link href="FYP_files/libs/crosstalk-1.2.1/css/crosstalk.min.css" rel="stylesheet">
+
+<script src="FYP_files/libs/crosstalk-1.2.1/js/crosstalk.min.js"></script>
+
+<link href="FYP_files/libs/plotly-htmlwidgets-css-2.11.1/plotly-htmlwidgets.css" rel="stylesheet">
+
+<script src="FYP_files/libs/plotly-main-2.11.1/plotly-latest.min.js"></script>
+
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load necessary libraries</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'dplyr'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    filter, lag</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)  <span class="co"># Load plotly for interactivity</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'plotly'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:ggplot2':
+
+    last_plot</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:stats':
+
+    filter</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:graphics':
+
+    layout</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the dataset</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/full_translation_scores.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 19 Columns: 5</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): Parameters
+dbl (4): Helsinki-NLP BLEU Score, Helsinki-NLP METEOR Score, Fine-tuned Mode...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert 'Parameters' to a factor for better visualization</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>Parameters <span class="ot">&lt;-</span> <span class="fu">factor</span>(df<span class="sc">$</span>Parameters, <span class="at">levels =</span> df<span class="sc">$</span>Parameters)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrap long labels for readability</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>Parameters <span class="ot">&lt;-</span> <span class="fu">str_wrap</span>(df<span class="sc">$</span>Parameters, <span class="at">width =</span> <span class="dv">50</span>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Reshape the data into long format for BLEU scores (for overlapping bars)</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>df_long_bleu <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">`</span><span class="at">Helsinki-NLP BLEU Score</span><span class="st">`</span>, <span class="st">`</span><span class="at">Fine-tuned Model BLEU Score</span><span class="st">`</span>),</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>               <span class="at">names_to =</span> <span class="st">"Model"</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>               <span class="at">values_to =</span> <span class="st">"BLEU_Score"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Model =</span> <span class="fu">recode</span>(Model, </span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Helsinki-NLP BLEU Score"</span> <span class="ot">=</span> <span class="st">"Helsinki-NLP/opus-mt-ja-en"</span>, </span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Fine-tuned Model BLEU Score"</span> <span class="ot">=</span> <span class="st">"Fine-tuned Model"</span>),</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>         <span class="at">text =</span> <span class="fu">paste</span>(<span class="st">"Model:"</span>, Model, <span class="st">"&lt;br&gt;BLEU Score:"</span>, BLEU_Score, <span class="st">"&lt;br&gt;Parameters:"</span>, Parameters))  <span class="co"># Add hover text</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Reshape the data into long format for METEOR scores (for overlapping bars)</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>df_long_meteor <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">`</span><span class="at">Helsinki-NLP METEOR Score</span><span class="st">`</span>, <span class="st">`</span><span class="at">Fine-tuned Model METEOR Score</span><span class="st">`</span>),</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>               <span class="at">names_to =</span> <span class="st">"Model"</span>,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>               <span class="at">values_to =</span> <span class="st">"METEOR_Score"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Model =</span> <span class="fu">recode</span>(Model, </span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Helsinki-NLP METEOR Score"</span> <span class="ot">=</span> <span class="st">"Helsinki-NLP/opus-mt-ja-en"</span>, </span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Fine-tuned Model METEOR Score"</span> <span class="ot">=</span> <span class="st">"Fine-tuned Model"</span>),</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>         <span class="at">text =</span> <span class="fu">paste</span>(<span class="st">"Model:"</span>, Model, <span class="st">"&lt;br&gt;METEOR Score:"</span>, METEOR_Score, <span class="st">"&lt;br&gt;Parameters:"</span>, Parameters))  <span class="co"># Add hover text</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Define a factor for the fill aesthetic to ensure order</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>fill_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-ja-en"</span>, <span class="st">"Fine-tuned Model"</span>)</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot BLEU Score (Overlapping, Interactive)</span></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_long_bleu, <span class="fu">aes</span>(<span class="at">x =</span> Parameters, <span class="at">y =</span> BLEU_Score, <span class="at">fill =</span> Model, <span class="at">alpha =</span> Model, <span class="at">text =</span> text)) <span class="sc">+</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"identity"</span>) <span class="sc">+</span>  <span class="co"># Overlapping bars</span></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-ja-en"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="st">"red"</span>), <span class="at">limits =</span> fill_levels) <span class="sc">+</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_alpha_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-ja-en"</span> <span class="ot">=</span> <span class="fl">0.9</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="fl">0.5</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span>  <span class="co"># Adjust transparency</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Comparison of BLEU Scores"</span>,</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Translation Settings"</span>,</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"BLEU Score"</span>,</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Model"</span>) <span class="sc">+</span></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span>  <span class="co"># Remove y-axis text labels</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_flip</span>()  <span class="co"># Swap axes for readability</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert BLEU plot to interactive</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>p1_interactive <span class="ot">&lt;-</span> <span class="fu">ggplotly</span>(p1, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot METEOR Score (Overlapping, Interactive)</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_long_meteor, <span class="fu">aes</span>(<span class="at">x =</span> Parameters, <span class="at">y =</span> METEOR_Score, <span class="at">fill =</span> Model, <span class="at">alpha =</span> Model, <span class="at">text =</span> text)) <span class="sc">+</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"identity"</span>) <span class="sc">+</span>  <span class="co"># Overlapping bars</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-ja-en"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="st">"red"</span>), <span class="at">limits =</span> fill_levels) <span class="sc">+</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_alpha_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-ja-en"</span> <span class="ot">=</span> <span class="fl">0.9</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="fl">0.5</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span>  <span class="co"># Adjust transparency</span></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Comparison of METEOR Scores"</span>,</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Translation Settings"</span>,</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"METEOR Score"</span>,</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Model"</span>) <span class="sc">+</span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span>  <span class="co"># Remove y-axis text labels</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_flip</span>()  <span class="co"># Swap axes for readability</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert METEOR plot to interactive</span></span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>p2_interactive <span class="ot">&lt;-</span> <span class="fu">ggplotly</span>(p2, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a><span class="co"># Display interactive plots</span></span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>p1_interactive</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-7425cdce6acbec927166" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-7425cdce6acbec927166">{"x":{"data":[{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[53.375889999999998,54.285040000000002,52.409709999999997,52.548940000000002,52.600819999999999,54.755899999999997,52.408920000000002,47.580370000000002,52.627360000000003,53.162950000000002,48.741280000000003,49.897030000000001,42.207320000000003,56.721769999999999,52.635620000000003,46.072859999999999,49.897030000000001,52.772370000000002,53.1096],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Fine-tuned Model <br>BLEU Score: 53.37589 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Fine-tuned Model <br>BLEU Score: 54.28504 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Fine-tuned Model <br>BLEU Score: 52.40971 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Fine-tuned Model <br>BLEU Score: 52.54894 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Fine-tuned Model <br>BLEU Score: 52.60082 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Fine-tuned Model <br>BLEU Score: 54.7559 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Fine-tuned Model <br>BLEU Score: 52.40892 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Fine-tuned Model <br>BLEU Score: 47.58037 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Fine-tuned Model <br>BLEU Score: 52.62736 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Fine-tuned Model <br>BLEU Score: 53.16295 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Fine-tuned Model <br>BLEU Score: 48.74128 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Fine-tuned Model <br>BLEU Score: 49.89703 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Fine-tuned Model <br>BLEU Score: 42.20732 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Fine-tuned Model <br>BLEU Score: 56.72177 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Fine-tuned Model <br>BLEU Score: 52.63562 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Fine-tuned Model <br>BLEU Score: 46.07286 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Fine-tuned Model <br>BLEU Score: 49.89703 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Fine-tuned Model <br>BLEU Score: 52.77237 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Fine-tuned Model <br>BLEU Score: 53.1096 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(255,0,0,0.5)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Fine-tuned Model","legendgroup":"Fine-tuned Model","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[1.97645,0.051569999999999998,4.0000000000000003e-05,6.9999999999999994e-05,17.9068,3.35249,2.4347699999999999,0.0099500000000000005,0.92959999999999998,0.48515000000000003,6.0000000000000002e-05,0.017500000000000002,0.54718999999999995,0.00077999999999999999,0.00021000000000000001,29.91367,3.95208,0.015810000000000001,1.88293],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 1.97645 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.05157 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 4e-05 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 7e-05 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 17.9068 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 3.35249 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 2.43477 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.00995 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.9296 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.48515 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 6e-05 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.0175 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.54719 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.00078 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.00021 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 29.91367 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 3.95208 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 0.01581 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Helsinki-NLP/opus-mt-ja-en <br>BLEU Score: 1.88293 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(0,0,255,0.9)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Helsinki-NLP/opus-mt-ja-en","legendgroup":"Helsinki-NLP/opus-mt-ja-en","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.762557077625573,"r":7.3059360730593621,"b":40.182648401826491,"l":25.570776255707766},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"title":{"text":"Comparison of BLEU Scores","font":{"color":"rgba(0,0,0,1)","family":"","size":17.534246575342465},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-2.8360885000000002,59.557858500000002],"tickmode":"array","ticktext":["0","20","40"],"tickvals":[0,20,40],"categoryorder":"array","categoryarray":["0","20","40"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-45,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"BLEU Score","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.40000000000000002,19.600000000000001],"tickmode":"array","ticktext":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"tickvals":[1,2,3,4,5,6.0000000000000009,7,8,9,10,11,12,13,14.000000000000002,15,16,17,18,19],"categoryorder":"array","categoryarray":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":false,"tickfont":{"color":null,"family":null,"size":0},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Translation Settings","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Model","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"27fc2f753bcf":{"x":{},"y":{},"fill":{},"alpha":{},"text":{},"type":"bar"}},"cur_data":"27fc2f753bcf","visdat":{"27fc2f753bcf":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>p2_interactive</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-5d6d3669a99b3a991975" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-5d6d3669a99b3a991975">{"x":{"data":[{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[0.13356000000000001,0.12801000000000001,0.14338000000000001,0.14307,0.14346999999999999,0.13159999999999999,0.14299999999999999,0.13732,0.14213999999999999,0.14224999999999999,0.13905999999999999,0.14338999999999999,0.13531000000000001,0.14304,0.14279,0.13885,0.14276,0.14248,0.14308000000000001],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Fine-tuned Model <br>METEOR Score: 0.13356 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Fine-tuned Model <br>METEOR Score: 0.12801 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Fine-tuned Model <br>METEOR Score: 0.14338 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Fine-tuned Model <br>METEOR Score: 0.14307 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Fine-tuned Model <br>METEOR Score: 0.14347 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Fine-tuned Model <br>METEOR Score: 0.1316 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Fine-tuned Model <br>METEOR Score: 0.143 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Fine-tuned Model <br>METEOR Score: 0.13732 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Fine-tuned Model <br>METEOR Score: 0.14214 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Fine-tuned Model <br>METEOR Score: 0.14225 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Fine-tuned Model <br>METEOR Score: 0.13906 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Fine-tuned Model <br>METEOR Score: 0.14339 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Fine-tuned Model <br>METEOR Score: 0.13531 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Fine-tuned Model <br>METEOR Score: 0.14304 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Fine-tuned Model <br>METEOR Score: 0.14279 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Fine-tuned Model <br>METEOR Score: 0.13885 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Fine-tuned Model <br>METEOR Score: 0.14276 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Fine-tuned Model <br>METEOR Score: 0.14248 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Fine-tuned Model <br>METEOR Score: 0.14308 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(255,0,0,0.5)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Fine-tuned Model","legendgroup":"Fine-tuned Model","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[0.024170000000000001,0.019120000000000002,0.019359999999999999,0.019570000000000001,0.0608,0.023789999999999999,0.042770000000000002,0.017739999999999999,0.021309999999999999,0.031199999999999999,0.01391,0.021389999999999999,0.022259999999999999,0.022329999999999999,0.01984,0.077859999999999999,0.030009999999999998,0.022030000000000001,0.02017],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02417 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01912 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01936 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01957 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.0608 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02379 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.04277 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01774 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02131 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.0312 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01391 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02139 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02226 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02233 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.01984 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.07786 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.03001 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02203 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Helsinki-NLP/opus-mt-ja-en <br>METEOR Score: 0.02017 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(0,0,255,0.9)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Helsinki-NLP/opus-mt-ja-en","legendgroup":"Helsinki-NLP/opus-mt-ja-en","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.762557077625573,"r":7.3059360730593621,"b":42.22428554020037,"l":25.570776255707766},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"title":{"text":"Comparison of METEOR Scores","font":{"color":"rgba(0,0,0,1)","family":"","size":17.534246575342465},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-0.0071734999999999993,0.15064349999999999],"tickmode":"array","ticktext":["0.00","0.05","0.10","0.15"],"tickvals":[0,0.050000000000000003,0.10000000000000001,0.15000000000000002],"categoryorder":"array","categoryarray":["0.00","0.05","0.10","0.15"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-45,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"METEOR Score","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.40000000000000002,19.600000000000001],"tickmode":"array","ticktext":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"tickvals":[1,2,3,4,5,6.0000000000000009,7,8,9,10,11,12,13,14.000000000000002,15,16,17,18,19],"categoryorder":"array","categoryarray":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":false,"tickfont":{"color":null,"family":null,"size":0},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Translation Settings","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Model","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"27fc6ec516fa":{"x":{},"y":{},"fill":{},"alpha":{},"text":{},"type":"bar"}},"cur_data":"27fc6ec516fa","visdat":{"27fc6ec516fa":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load necessary libraries</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)  <span class="co"># Load plotly for interactivity</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the dataset</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/translation_score_mul.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 19 Columns: 5
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): Parameters
+dbl (4): Helsinki-NLP BLEU Score, Helsinki-NLP METEOR Score, Fine-tuned Mode...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert 'Parameters' to a factor for better visualization</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>Parameters <span class="ot">&lt;-</span> <span class="fu">factor</span>(df<span class="sc">$</span>Parameters, <span class="at">levels =</span> df<span class="sc">$</span>Parameters)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrap long labels for readability</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>Parameters <span class="ot">&lt;-</span> <span class="fu">str_wrap</span>(df<span class="sc">$</span>Parameters, <span class="at">width =</span> <span class="dv">50</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Reshape the data into long format for BLEU scores (for overlapping bars)</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>df_long_bleu <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">`</span><span class="at">Helsinki-NLP BLEU Score</span><span class="st">`</span>, <span class="st">`</span><span class="at">Fine-tuned Model BLEU Score</span><span class="st">`</span>),</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>               <span class="at">names_to =</span> <span class="st">"Model"</span>,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>               <span class="at">values_to =</span> <span class="st">"BLEU_Score"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Model =</span> <span class="fu">recode</span>(Model, </span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Helsinki-NLP BLEU Score"</span> <span class="ot">=</span> <span class="st">"Helsinki-NLP/opus-mt-mul-en"</span>, </span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Fine-tuned Model BLEU Score"</span> <span class="ot">=</span> <span class="st">"Fine-tuned Model"</span>),</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>         <span class="at">text =</span> <span class="fu">paste</span>(<span class="st">"Model:"</span>, Model, <span class="st">"&lt;br&gt;BLEU Score:"</span>, BLEU_Score, <span class="st">"&lt;br&gt;Parameters:"</span>, Parameters))  <span class="co"># Add hover text</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Reshape the data into long format for METEOR scores (for overlapping bars)</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>df_long_meteor <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">`</span><span class="at">Helsinki-NLP METEOR Score</span><span class="st">`</span>, <span class="st">`</span><span class="at">Fine-tuned Model METEOR Score</span><span class="st">`</span>),</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>               <span class="at">names_to =</span> <span class="st">"Model"</span>,</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>               <span class="at">values_to =</span> <span class="st">"METEOR_Score"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Model =</span> <span class="fu">recode</span>(Model, </span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Helsinki-NLP METEOR Score"</span> <span class="ot">=</span> <span class="st">"Helsinki-NLP/opus-mt-mul-en"</span>, </span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"Fine-tuned Model METEOR Score"</span> <span class="ot">=</span> <span class="st">"Fine-tuned Model"</span>),</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>         <span class="at">text =</span> <span class="fu">paste</span>(<span class="st">"Model:"</span>, Model, <span class="st">"&lt;br&gt;METEOR Score:"</span>, METEOR_Score, <span class="st">"&lt;br&gt;Parameters:"</span>, Parameters))  <span class="co"># Add hover text</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Define a factor for the fill aesthetic to ensure order</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>fill_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-mul-en"</span>, <span class="st">"Fine-tuned Model"</span>)</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot BLEU Score (Overlapping, Interactive)</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_long_bleu, <span class="fu">aes</span>(<span class="at">x =</span> Parameters, <span class="at">y =</span> BLEU_Score, <span class="at">fill =</span> Model, <span class="at">alpha =</span> Model, <span class="at">text =</span> text)) <span class="sc">+</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"identity"</span>) <span class="sc">+</span>  <span class="co"># Overlapping bars</span></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-mul-en"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="st">"red"</span>), <span class="at">limits =</span> fill_levels) <span class="sc">+</span></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_alpha_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-mul-en"</span> <span class="ot">=</span> <span class="fl">1.0</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="fl">0.6</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span>  <span class="co"># Adjust transparency</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Comparison of BLEU Scores"</span>,</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Translation Settings"</span>,</span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"BLEU Score"</span>,</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Model"</span>) <span class="sc">+</span></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span>  <span class="co"># Remove y-axis text labels</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_flip</span>()  <span class="co"># Swap axes for readability</span></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert BLEU plot to interactive</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>p1_interactive <span class="ot">&lt;-</span> <span class="fu">ggplotly</span>(p1, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot METEOR Score (Overlapping, Interactive)</span></span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_long_meteor, <span class="fu">aes</span>(<span class="at">x =</span> Parameters, <span class="at">y =</span> METEOR_Score, <span class="at">fill =</span> Model, <span class="at">alpha =</span> Model, <span class="at">text =</span> text)) <span class="sc">+</span></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"identity"</span>) <span class="sc">+</span>  <span class="co"># Overlapping bars</span></span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-mul-en"</span> <span class="ot">=</span> <span class="st">"blue"</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="st">"red"</span>), <span class="at">limits =</span> fill_levels) <span class="sc">+</span></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_alpha_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Helsinki-NLP/opus-mt-mul-en"</span> <span class="ot">=</span> <span class="fl">1.0</span>, <span class="st">"Fine-tuned Model"</span> <span class="ot">=</span> <span class="fl">0.6</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span>  <span class="co"># Adjust transparency</span></span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Comparison of METEOR Scores"</span>,</span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Translation Settings"</span>,</span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"METEOR Score"</span>,</span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Model"</span>) <span class="sc">+</span></span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span>  <span class="co"># Remove y-axis text labels</span></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_flip</span>()  <span class="co"># Swap axes for readability</span></span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert METEOR plot to interactive</span></span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>p2_interactive <span class="ot">&lt;-</span> <span class="fu">ggplotly</span>(p2, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a><span class="co"># Display interactive plots</span></span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>p1_interactive</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-0769bd54c072e268d539" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-0769bd54c072e268d539">{"x":{"data":[{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[52.661900000000003,20.904450000000001,52.407400000000003,51.297669999999997,57.393700000000003,19.377949999999998,53.219149999999999,48.983649999999997,52.461370000000002,52.665590000000002,51.309910000000002,54.611510000000003,43.580649999999999,55.423470000000002,54.033000000000001,48.538550000000001,54.611510000000003,51.126719999999999,53.549390000000002],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Fine-tuned Model <br>BLEU Score: 52.6619 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Fine-tuned Model <br>BLEU Score: 20.90445 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Fine-tuned Model <br>BLEU Score: 52.4074 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Fine-tuned Model <br>BLEU Score: 51.29767 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Fine-tuned Model <br>BLEU Score: 57.3937 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Fine-tuned Model <br>BLEU Score: 19.37795 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Fine-tuned Model <br>BLEU Score: 53.21915 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Fine-tuned Model <br>BLEU Score: 48.98365 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Fine-tuned Model <br>BLEU Score: 52.46137 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Fine-tuned Model <br>BLEU Score: 52.66559 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Fine-tuned Model <br>BLEU Score: 51.30991 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Fine-tuned Model <br>BLEU Score: 54.61151 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Fine-tuned Model <br>BLEU Score: 43.58065 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Fine-tuned Model <br>BLEU Score: 55.42347 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Fine-tuned Model <br>BLEU Score: 54.033 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Fine-tuned Model <br>BLEU Score: 48.53855 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Fine-tuned Model <br>BLEU Score: 54.61151 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Fine-tuned Model <br>BLEU Score: 51.12672 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Fine-tuned Model <br>BLEU Score: 53.54939 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(255,0,0,0.6)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Fine-tuned Model","legendgroup":"Fine-tuned Model","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[48.706020000000002,0,0,0,0.034340000000000002,0,0.74938000000000005,0,0.00060999999999999997,0.00011,0,0,0,0,0,0.021569999999999999,0.04122,0,0],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 48.70602 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.03434 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.74938 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.00061 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.00011 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.02157 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0.04122 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Helsinki-NLP/opus-mt-mul-en <br>BLEU Score: 0 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(0,0,255,1)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Helsinki-NLP/opus-mt-mul-en","legendgroup":"Helsinki-NLP/opus-mt-mul-en","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.762557077625573,"r":7.3059360730593621,"b":40.182648401826491,"l":25.570776255707766},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"title":{"text":"Comparison of BLEU Scores","font":{"color":"rgba(0,0,0,1)","family":"","size":17.534246575342465},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-2.8696850000000005,60.263385],"tickmode":"array","ticktext":["0","20","40","60"],"tickvals":[0,20,40,60],"categoryorder":"array","categoryarray":["0","20","40","60"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-45,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"BLEU Score","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.40000000000000002,19.600000000000001],"tickmode":"array","ticktext":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"tickvals":[1,2,3,4,5,6.0000000000000009,7,8,9,10,11,12,13,14.000000000000002,15,16,17,18,19],"categoryorder":"array","categoryarray":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":false,"tickfont":{"color":null,"family":null,"size":0},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Translation Settings","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Model","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"27fcd02756b":{"x":{},"y":{},"fill":{},"alpha":{},"text":{},"type":"bar"}},"cur_data":"27fcd02756b","visdat":{"27fcd02756b":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>p2_interactive</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-52ded1c47fe7d6d07f60" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-52ded1c47fe7d6d07f60">{"x":{"data":[{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[0.11475,0.10118000000000001,0.12540000000000001,0.12648999999999999,0.12379,0.11441999999999999,0.12435,0.13186,0.12528,0.12465,0.13200999999999999,0.1255,0.12684999999999999,0.12291000000000001,0.12479999999999999,0.13311999999999999,0.1255,0.12615000000000001,0.12182],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Fine-tuned Model <br>METEOR Score: 0.11475 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Fine-tuned Model <br>METEOR Score: 0.10118 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Fine-tuned Model <br>METEOR Score: 0.1254 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Fine-tuned Model <br>METEOR Score: 0.12649 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Fine-tuned Model <br>METEOR Score: 0.12379 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Fine-tuned Model <br>METEOR Score: 0.11442 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Fine-tuned Model <br>METEOR Score: 0.12435 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Fine-tuned Model <br>METEOR Score: 0.13186 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Fine-tuned Model <br>METEOR Score: 0.12528 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Fine-tuned Model <br>METEOR Score: 0.12465 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Fine-tuned Model <br>METEOR Score: 0.13201 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Fine-tuned Model <br>METEOR Score: 0.1255 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Fine-tuned Model <br>METEOR Score: 0.12685 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Fine-tuned Model <br>METEOR Score: 0.12291 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Fine-tuned Model <br>METEOR Score: 0.1248 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Fine-tuned Model <br>METEOR Score: 0.13312 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Fine-tuned Model <br>METEOR Score: 0.1255 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Fine-tuned Model <br>METEOR Score: 0.12615 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Fine-tuned Model <br>METEOR Score: 0.12182 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(255,0,0,0.6)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Fine-tuned Model","legendgroup":"Fine-tuned Model","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"orientation":"h","width":[0.89999999999999858,0.89999999999999991,0.90000000000000036,0.90000000000000036,0.89999999999999858,0.90000000000000036,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000013,0.89999999999999858,0.90000000000000036,0.89999999999999947,0.89999999999999858,0.89999999999999858,0.89999999999999858,0.90000000000000036,0.89999999999999858],"base":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"x":[0.0088100000000000001,0.0047299999999999998,0.0072700000000000004,0.0078200000000000006,0.042250000000000003,0.0075799999999999999,0.01813,0.0064400000000000004,0.0083700000000000007,0.016559999999999998,0.00545,0.0076299999999999996,0.0093200000000000002,0.0086700000000000006,0.0078300000000000002,0.040980000000000003,0.01247,0.0081899999999999994,0.0074999999999999997],"y":[13,1,6,7,18,5,9,11,10,19,2,14,4,8,12,17,15,3,16],"text":["Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00881 <br>Parameters: max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00473 <br>Parameters: max_new_tokens=128, num_beams=4,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00727 <br>Parameters: max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00782 <br>Parameters: max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.04225 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00758 <br>Parameters: max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.01813 <br>Parameters: max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00644 <br>Parameters: max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00837 <br>Parameters: max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.01656 <br>Parameters: max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00545 <br>Parameters: max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00763 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00932 <br>Parameters: max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00867 <br>Parameters: max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00783 <br>Parameters: max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.04098 <br>Parameters: max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.01247 <br>Parameters: max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.00819 <br>Parameters: max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","Model: Helsinki-NLP/opus-mt-mul-en <br>METEOR Score: 0.0075 <br>Parameters: max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0"],"type":"bar","textposition":"none","marker":{"autocolorscale":false,"color":"rgba(0,0,255,1)","line":{"width":1.8897637795275593,"color":"transparent"}},"name":"Helsinki-NLP/opus-mt-mul-en","legendgroup":"Helsinki-NLP/opus-mt-mul-en","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.762557077625573,"r":7.3059360730593621,"b":42.22428554020037,"l":25.570776255707766},"plot_bgcolor":"rgba(235,235,235,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724},"title":{"text":"Comparison of METEOR Scores","font":{"color":"rgba(0,0,0,1)","family":"","size":17.534246575342465},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[-0.0066559999999999996,0.13977599999999998],"tickmode":"array","ticktext":["0.00","0.05","0.10"],"tickvals":[0,0.050000000000000003,0.10000000000000001],"categoryorder":"array","categoryarray":["0.00","0.05","0.10"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":11.68949771689498},"tickangle":-45,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"y","title":{"text":"METEOR Score","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":true,"type":"linear","autorange":false,"range":[0.40000000000000002,19.600000000000001],"tickmode":"array","ticktext":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"tickvals":[1,2,3,4,5,6.0000000000000009,7,8,9,10,11,12,13,14.000000000000002,15,16,17,18,19],"categoryorder":"array","categoryarray":["max_new_tokens=128, num_beams=4,<br />early_stopping=True","max_new_tokens=128, num_beams=5,<br />length_penalty=0.8, no_repeat_ngram_size=2,<br />do_sample=False, temperature=0.0","max_new_tokens=200, num_beams=3,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />temperature=0.7, do_sample=True, top_p=0.9,<br />top_k=50","max_new_tokens=256, num_beams=2,<br />no_repeat_ngram_size=2, repetition_penalty=1.0,<br />do_sample=True, top_k=50, temperature=1.3,<br />top_p=0.9","max_new_tokens=256, num_beams=3, do_sample=True,<br />temperature=1.2, top_p=0.7, top_k=100,<br />early_stopping=True, length_penalty=1.1","max_new_tokens=256, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />length_penalty=1.0","max_new_tokens=256, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.1,<br />temperature=0.8","max_new_tokens=256, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.1,<br />length_penalty=1.0, temperature=0.6, top_p=0.95,<br />do_sample=True","max_new_tokens=300, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=1.5","max_new_tokens=350, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.2,<br />do_sample=True, top_k=40, top_p=0.85,<br />temperature=1.1","max_new_tokens=400, num_beams=4,<br />no_repeat_ngram_size=2, early_stopping=True,<br />temperature=0.5, repetition_penalty=1.05","max_new_tokens=400, num_beams=5,<br />no_repeat_ngram_size=3, repetition_penalty=1.25,<br />temperature=0.2, top_p=0.9, top_k=40,<br />early_stopping=False","max_new_tokens=512, num_beams=2, do_sample=True,<br />top_k=50, top_p=0.9, temperature=1.0","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />length_penalty=2.0, temperature=1.0,<br />early_stopping=True","max_new_tokens=512, num_beams=4,<br />no_repeat_ngram_size=3, repetition_penalty=1.3,<br />temperature=1.4, top_k=100, top_p=0.8,<br />length_penalty=1.3","max_new_tokens=512, num_beams=5,<br />no_repeat_ngram_size=5, repetition_penalty=1.3,<br />length_penalty=1.0, temperature=0.0","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=2, repetition_penalty=1.05,<br />length_penalty=2.0, temperature=0.9,<br />do_sample=False","max_new_tokens=512, num_beams=6,<br />no_repeat_ngram_size=4, repetition_penalty=1.2,<br />temperature=0, length_penalty=2.0","max_new_tokens=512, num_beams=8,<br />no_repeat_ngram_size=4, repetition_penalty=1.0,<br />length_penalty=1.2, temperature=0.3,<br />early_stopping=False"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.6529680365296811,"tickwidth":0.66417600664176002,"showticklabels":false,"tickfont":{"color":null,"family":null,"size":0},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(255,255,255,1)","gridwidth":0.66417600664176002,"zeroline":false,"anchor":"x","title":{"text":"Translation Settings","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":null,"line":{"color":null,"width":0,"linetype":[]},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":1.8897637795275593,"font":{"color":"rgba(0,0,0,1)","family":"","size":11.68949771689498},"title":{"text":"Model","font":{"color":"rgba(0,0,0,1)","family":"","size":14.611872146118724}}},"hovermode":"closest","barmode":"relative"},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"source":"A","attrs":{"27fc2c57309d":{"x":{},"y":{},"fill":{},"alpha":{},"text":{},"type":"bar"}},"cur_data":"27fc2c57309d","visdat":{"27fc2c57309d":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<section id="japanese-to-english" class="level1">
+<h1>Japanese to English</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/full_translation_scores.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 19 Columns: 5
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): Parameters
+dbl (4): Helsinki-NLP BLEU Score, Helsinki-NLP METEOR Score, Fine-tuned Mode...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(df)  <span class="co"># Displays structure of the dataset</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>spc_tbl_ [19 × 5] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+ $ Parameters                   : chr [1:19] "max_new_tokens=512, num_beams=2, do_sample=True, top_k=50, top_p=0.9, temperature=1.0" "max_new_tokens=128, num_beams=4, early_stopping=True" "max_new_tokens=256, num_beams=4, no_repeat_ngram_size=3, repetition_penalty=1.2, length_penalty=1.0" "max_new_tokens=256, num_beams=5, no_repeat_ngram_size=3, repetition_penalty=1.1, temperature=0.8" ...
+ $ Helsinki-NLP BLEU Score      : num [1:19] 1.97645 0.05157 0.00004 0.00007 17.9068 ...
+ $ Helsinki-NLP METEOR Score    : num [1:19] 0.0242 0.0191 0.0194 0.0196 0.0608 ...
+ $ Fine-tuned Model BLEU Score  : num [1:19] 53.4 54.3 52.4 52.5 52.6 ...
+ $ Fine-tuned Model METEOR Score: num [1:19] 0.134 0.128 0.143 0.143 0.143 ...
+ - attr(*, "spec")=
+  .. cols(
+  ..   Parameters = col_character(),
+  ..   `Helsinki-NLP BLEU Score` = col_double(),
+  ..   `Helsinki-NLP METEOR Score` = col_double(),
+  ..   `Fine-tuned Model BLEU Score` = col_double(),
+  ..   `Fine-tuned Model METEOR Score` = col_double()
+  .. )
+ - attr(*, "problems")=&lt;externalptr&gt; </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df)  <span class="co"># Provides summary statistics for each column</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  Parameters        Helsinki-NLP BLEU Score Helsinki-NLP METEOR Score
+ Length:19          Min.   : 0.000040       Min.   :0.01391          
+ Class :character   1st Qu.: 0.005365       1st Qu.:0.01971          
+ Mode  :character   Median : 0.485150       Median :0.02203          
+                    Mean   : 3.340901       Mean   :0.02788          
+                    3rd Qu.: 2.205610       3rd Qu.:0.02709          
+                    Max.   :29.913670       Max.   :0.07786          
+ Fine-tuned Model BLEU Score Fine-tuned Model METEOR Score
+ Min.   :42.21               Min.   :0.1280               
+ 1st Qu.:49.90               1st Qu.:0.1381               
+ Median :52.60               Median :0.1425               
+ Mean   :51.46               Mean   :0.1399               
+ 3rd Qu.:53.14               3rd Qu.:0.1431               
+ Max.   :56.72               Max.   :0.1435               </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(df)  <span class="co"># Shows dimensions (rows, columns)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 19  5</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df)  <span class="co"># Number of rows</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 19</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ncol</span>(df)  <span class="co"># Number of columns</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 5</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df)  <span class="co"># Column names</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Parameters"                    "Helsinki-NLP BLEU Score"      
+[3] "Helsinki-NLP METEOR Score"     "Fine-tuned Model BLEU Score"  
+[5] "Fine-tuned Model METEOR Score"</code></pre>
+</div>
+</div>
+</section>
+<section id="multi-to-english" class="level1">
+<h1>Multi to English</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"C:/Users/Matt/Desktop/VisualizingDataRModule/FYP/translation_score_mul.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 19 Columns: 5
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): Parameters
+dbl (4): Helsinki-NLP BLEU Score, Helsinki-NLP METEOR Score, Fine-tuned Mode...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(df)  <span class="co"># Displays structure of the dataset</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>spc_tbl_ [19 × 5] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+ $ Parameters                   : chr [1:19] "max_new_tokens=512, num_beams=2, do_sample=True, top_k=50, top_p=0.9, temperature=1.0" "max_new_tokens=128, num_beams=4, early_stopping=True" "max_new_tokens=256, num_beams=4, no_repeat_ngram_size=3, repetition_penalty=1.2, length_penalty=1.0" "max_new_tokens=256, num_beams=5, no_repeat_ngram_size=3, repetition_penalty=1.1, temperature=0.8" ...
+ $ Helsinki-NLP BLEU Score      : num [1:19] 48.706 0 0 0 0.0343 ...
+ $ Helsinki-NLP METEOR Score    : num [1:19] 0.00881 0.00473 0.00727 0.00782 0.04225 ...
+ $ Fine-tuned Model BLEU Score  : num [1:19] 52.7 20.9 52.4 51.3 57.4 ...
+ $ Fine-tuned Model METEOR Score: num [1:19] 0.115 0.101 0.125 0.126 0.124 ...
+ - attr(*, "spec")=
+  .. cols(
+  ..   Parameters = col_character(),
+  ..   `Helsinki-NLP BLEU Score` = col_double(),
+  ..   `Helsinki-NLP METEOR Score` = col_double(),
+  ..   `Fine-tuned Model BLEU Score` = col_double(),
+  ..   `Fine-tuned Model METEOR Score` = col_double()
+  .. )
+ - attr(*, "problems")=&lt;externalptr&gt; </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df)  <span class="co"># Provides summary statistics for each column</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  Parameters        Helsinki-NLP BLEU Score Helsinki-NLP METEOR Score
+ Length:19          Min.   : 0.00000        Min.   :0.00473          
+ Class :character   1st Qu.: 0.00000        1st Qu.:0.00754          
+ Mode  :character   Median : 0.00000        Median :0.00819          
+                    Mean   : 2.60807        Mean   :0.01242          
+                    3rd Qu.: 0.01109        3rd Qu.:0.01090          
+                    Max.   :48.70602        Max.   :0.04225          
+ Fine-tuned Model BLEU Score Fine-tuned Model METEOR Score
+ Min.   :19.38               Min.   :0.1012               
+ 1st Qu.:50.06               1st Qu.:0.1234               
+ Median :52.46               Median :0.1253               
+ Mean   :48.85               Mean   :0.1237               
+ 3rd Qu.:53.79               3rd Qu.:0.1263               
+ Max.   :57.39               Max.   :0.1331               </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(df)  <span class="co"># Shows dimensions (rows, columns)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 19  5</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df)  <span class="co"># Number of rows</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 19</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ncol</span>(df)  <span class="co"># Number of columns</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 5</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df)  <span class="co"># Column names</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Parameters"                    "Helsinki-NLP BLEU Score"      
+[3] "Helsinki-NLP METEOR Score"     "Fine-tuned Model BLEU Score"  
+[5] "Fine-tuned Model METEOR Score"</code></pre>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
