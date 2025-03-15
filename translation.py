@@ -22,7 +22,7 @@ providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
 sess_options = ort.SessionOptions()
 sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 sess_options.intra_op_num_threads = 4
-sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+sess_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
 
 
 def load_translation_config():
