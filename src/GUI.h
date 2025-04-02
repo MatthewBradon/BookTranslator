@@ -43,6 +43,7 @@ protected:
     std::vector<std::string> languageNames;
     std::vector<const char*> languageNamesCStr;
     std::string sourceLanguageCode;
+    bool showWarning = false;
     void setCustomDarkStyle();
     void setCustomLightStyle();
     void renderMenuBar();

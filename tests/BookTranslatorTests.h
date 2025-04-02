@@ -1,6 +1,7 @@
 #include "EpubTranslator.h"
 #include "PDFTranslator.h"
 #include "DocxTranslator.h"
+#include "HTMLTranslator.h"
 #include "GUI.h"
 #include <sys/stat.h>
 
@@ -92,4 +93,18 @@ class TestableDocxTranslator : public DocxTranslator {
         using DocxTranslator::exportDocx;
         using DocxTranslator::escapeForDocx;
         using DocxTranslator::escapeTranslations;
+};
+
+class TestableHTMLTranslator : public HTMLTranslator {
+public:
+    using HTMLTranslator::getNodePath;
+    using HTMLTranslator::extractTextNodesRecursive;
+    using HTMLTranslator::extractTextNodes;
+    using HTMLTranslator::saveTextToFile;
+    using HTMLTranslator::loadTranslations;
+    using HTMLTranslator::updateNodeWithTranslation;
+    using HTMLTranslator::traverseAndReinsert;
+    using HTMLTranslator::reinsertTranslations;
+    using HTMLTranslator::escapeForHtml;
+    using HTMLTranslator::escapeTranslations;
 };

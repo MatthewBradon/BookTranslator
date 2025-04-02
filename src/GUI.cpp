@@ -105,7 +105,7 @@ void GUI::update(std::ostringstream& logStream) {
     if (ImGui::Button("Browse")) {
         nfdchar_t* outPath = nullptr;
         // Set up filter for EPUB files
-        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF/DOCX Files", "epub,pdf,docx" } };
+        nfdfilteritem_t filterItem[1] = { { "EPUB/PDF/DOCX/HTML Files", "epub,pdf,docx,html" } };
         nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
         if (result == NFD_OKAY) {
             strcpy(inputFile, outPath);
@@ -134,6 +134,18 @@ void GUI::update(std::ostringstream& logStream) {
     if (inputFileStr.substr(inputFileStr.find_last_of(".") + 1) == "epub") {
         renderEditBookPopup();
     }
+
+    
+    if (inputFileStr.substr(inputFileStr.find_last_of(".") + 1) == "html" && localModel == 1) {
+        showWarning = true;            // We want to show the modal
+        localModel = 0;                // Force fallback to "0" translator
+    }
+
+    // Show warning modal if needed
+    if (showWarning) {
+        ImGui::Text("Warning: DeepL Translator is not supported for HTML files.");
+    }
+
     
     // Check if both fields are filled
     bool enableButton = strlen(inputFile) > 0 && strlen(outputPath) > 0;
@@ -143,10 +155,14 @@ void GUI::update(std::ostringstream& logStream) {
         ImGui::BeginDisabled();
     }
 
+
+
+
     // Button to trigger the run function
     if (ImGui::Button("Start Translation") && enableButton && !running) {
         running = true;      // Set the running flag
         finished = false;    // Reset the finished flag
+        showWarning = false; // Reset the warning flag
 
         // Ensure previous thread is joined before starting a new one
         if (workerThread.joinable()) {
@@ -181,6 +197,10 @@ void GUI::update(std::ostringstream& logStream) {
                         translator = TranslatorFactory::createTranslator("pdf");
                     } else if (fileExtension == "docx") {
                         translator = TranslatorFactory::createTranslator("docx");
+                    } else if (fileExtension == "html") {
+                        translator = TranslatorFactory::createTranslator("html");
+
+
                     } else {
                         throw std::runtime_error("Unsupported file type: " + fileExtension);
                     }

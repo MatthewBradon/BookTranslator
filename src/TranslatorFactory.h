@@ -3,7 +3,7 @@
 #include "EpubTranslator.h"
 #include "PDFTranslator.h"
 #include "DocxTranslator.h"
-
+#include "HTMLTranslator.h"
 
 
 class TranslatorFactory {
@@ -16,6 +16,8 @@ public:
             return std::make_unique<PDFTranslator>();
         } else if (translatorType == "docx") {
             return std::make_unique<DocxTranslator>();
+        } else if (translatorType == "html") {
+            return std::make_unique<HTMLTranslator>();
         } else {
             throw std::runtime_error("Invalid translator type: " + translatorType);
         }

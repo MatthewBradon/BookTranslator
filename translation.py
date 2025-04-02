@@ -22,7 +22,7 @@ providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
 sess_options = ort.SessionOptions()
 sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 sess_options.intra_op_num_threads = 4
-sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+sess_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
 
 
 def load_translation_config():
@@ -89,7 +89,7 @@ def process_task(task, chapter_num_mode):
             encoded_data = tokenizer(text, return_tensors="pt")
             generated = model.generate(
                 **encoded_data,
-                **params  # Dynamically unpack parameters from JSON
+                **params
             )
             translated_text = tokenizer.decode(generated[0], skip_special_tokens=True)
 
@@ -109,7 +109,7 @@ def process_task(task, chapter_num_mode):
 def run_model(input_file_path="rawTags.txt", chapter_num_mode=0):
     """Run model inference sequentially."""
     tasks = create_tasks(input_file_path, chapter_num_mode)
-    tasks = tasks[:100]  # Limit to 100 tasks for testing
+    # tasks = tasks[:100]  # Limit to 100 tasks for testing
 
     print(f"Processing {len(tasks)} tasks.", flush=True)
     
