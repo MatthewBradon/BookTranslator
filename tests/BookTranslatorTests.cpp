@@ -1917,8 +1917,8 @@ TEST_CASE("PDFTranslator: isImageFile") {
 
 
 
-// ===================== escapeForDocx() =====================
-TEST_CASE("escapeForDocx: Properly escapes XML special characters", "[escapeForDocx]") {
+
+TEST_CASE("escapeForDocx: Properly escapes XML special characters") {
     TestableDocxTranslator translator;
 
     SECTION("Escapes all XML characters") {
@@ -1941,7 +1941,7 @@ TEST_CASE("escapeForDocx: Properly escapes XML special characters", "[escapeForD
     }
 }
 
-TEST_CASE("getNodePath: Constructs correct XPath from XML node", "[getNodePath]") {
+TEST_CASE("getNodePath: Constructs correct XPath from XML node") {
     TestableDocxTranslator translator;
 
     xmlDocPtr doc = xmlParseDoc(BAD_CAST "<root><child><subchild/></child></root>");
@@ -1953,7 +1953,7 @@ TEST_CASE("getNodePath: Constructs correct XPath from XML node", "[getNodePath]"
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("extractTextNodes: Extracts <w:t> nodes from DOCX XML", "[extractTextNodes]") {
+TEST_CASE("extractTextNodes: Extracts <w:t> nodes from DOCX XML") {
     TestableDocxTranslator translator;
 
 
@@ -1979,7 +1979,7 @@ TEST_CASE("extractTextNodes: Extracts <w:t> nodes from DOCX XML", "[extractTextN
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("saveTextToFile: Saves extracted text to files", "[saveTextToFile]") {
+TEST_CASE("saveTextToFile: Saves extracted text to files") {
     TestableDocxTranslator translator;
 
     std::string langcode = "jpn";
@@ -2013,7 +2013,7 @@ TEST_CASE("saveTextToFile: Saves extracted text to files", "[saveTextToFile]") {
     std::filesystem::remove("test_texts.txt");
 }
 
-TEST_CASE("loadTranslations: Loads translations from files", "[loadTranslations]") {
+TEST_CASE("loadTranslations: Loads translations from files") {
     TestableDocxTranslator translator;
 
     // Prepare test files
@@ -2036,7 +2036,7 @@ TEST_CASE("loadTranslations: Loads translations from files", "[loadTranslations]
     std::filesystem::remove("test_translations.txt");
 }
 
-TEST_CASE("updateNodeWithTranslation: Replaces text content in XML nodes", "[updateNodeWithTranslation]") {
+TEST_CASE("updateNodeWithTranslation: Replaces text content in XML nodes") {
     TestableDocxTranslator translator;
 
     xmlDocPtr doc = xmlParseDoc(BAD_CAST 
@@ -2056,7 +2056,7 @@ TEST_CASE("updateNodeWithTranslation: Replaces text content in XML nodes", "[upd
     xmlFreeDoc(doc);
 }
 
-TEST_CASE("reinsertTranslations: Replaces text nodes with translations from multimap", "[reinsertTranslations]") {
+TEST_CASE("reinsertTranslations: Replaces text nodes with translations from multimap") {
     TestableDocxTranslator translator;
 
     // Sample XML Document (DOCX-like structure)
@@ -2119,7 +2119,7 @@ TEST_CASE("reinsertTranslations: Replaces text nodes with translations from mult
 }
 
 
-TEST_CASE("make_directory: Creates directories", "[make_directory]") {
+TEST_CASE("make_directory: Creates directories") {
     TestableDocxTranslator translator;
 
     std::string dirName = "test_dir";
@@ -2129,7 +2129,7 @@ TEST_CASE("make_directory: Creates directories", "[make_directory]") {
     std::filesystem::remove_all(dirName);
 }
 
-TEST_CASE("unzip_file: Unzips DOCX file", "[unzip_file]") {
+TEST_CASE("unzip_file: Unzips DOCX file") {
     TestableDocxTranslator translator;
 
     // If outputDir exists, remove it
@@ -2146,7 +2146,7 @@ TEST_CASE("unzip_file: Unzips DOCX file", "[unzip_file]") {
     std::filesystem::remove_all(outputDir);
 }
 
-TEST_CASE("exportDocx: Creates DOCX file from directory", "[exportDocx]") {
+TEST_CASE("exportDocx: Creates DOCX file from directory") {
     TestableDocxTranslator translator;
 
     // If outputDir exists, remove it
@@ -2194,4 +2194,413 @@ TEST_CASE("exportDocx: Creates DOCX file from directory", "[exportDocx]") {
 
     std::filesystem::remove_all(unzippedDir);
     std::filesystem::remove_all(outputDocxDir);
+}
+
+TEST_CASE("HTMLTranslator::extractTextNodes") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Simple HTML") {
+        std::string htmlStr = R"(
+            <html>
+              <body>
+                <p>Hello World!</p>
+                <div>Another text node</div>
+              </body>
+            </html>
+        )";
+
+        // Create an in-memory HTML doc without a helper function, all parameters on one line:
+        htmlDocPtr doc = htmlReadMemory(htmlStr.c_str(), static_cast<int>(htmlStr.size()), "testDoc", nullptr, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        REQUIRE(doc != nullptr);
+
+        // Get root node
+        xmlNodePtr root = xmlDocGetRootElement(doc);
+        REQUIRE(root != nullptr);
+
+        // Extract text nodes
+        std::vector<TextNode> textNodes = translator.extractTextNodes(root);
+
+        // We expect two text nodes: "Hello World!" and "Another text node"
+        REQUIRE(textNodes.size() == 2);
+        REQUIRE(textNodes[0].text == "Hello World!");
+        REQUIRE(textNodes[1].text == "Another text node");
+
+        // Free doc in-line without helper:
+        xmlFreeDoc(doc);
+    }
+
+    SECTION("Negative Case: Null root") {
+        // If we pass a null root, we should get an empty vector
+        std::vector<TextNode> textNodes = translator.extractTextNodes(nullptr);
+        REQUIRE(textNodes.empty());
+    }
+}
+
+TEST_CASE("HTMLTranslator::getNodePath") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Valid node path") {
+        std::string htmlStr = R"(
+            <html>
+              <body>
+                <div>
+                  <p>Text in a paragraph</p>
+                </div>
+              </body>
+            </html>
+        )";
+
+        // Create doc (single-line function call):
+        htmlDocPtr doc = htmlReadMemory(htmlStr.c_str(), static_cast<int>(htmlStr.size()), "testDoc", nullptr, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        REQUIRE(doc != nullptr);
+
+        xmlNodePtr root = xmlDocGetRootElement(doc);
+        REQUIRE(root != nullptr);
+
+        // Navigate to <p> manually
+        xmlNodePtr body = root->children;
+        while (body && (body->type != XML_ELEMENT_NODE || xmlStrcmp(body->name, BAD_CAST "body") != 0)) {
+            body = body->next;
+        }
+        REQUIRE(body != nullptr);
+
+        xmlNodePtr div = body->children;
+        while (div && (div->type != XML_ELEMENT_NODE || xmlStrcmp(div->name, BAD_CAST "div") != 0)) {
+            div = div->next;
+        }
+        REQUIRE(div != nullptr);
+
+        xmlNodePtr p = div->children;
+        while (p && (p->type != XML_ELEMENT_NODE || xmlStrcmp(p->name, BAD_CAST "p") != 0)) {
+            p = p->next;
+        }
+        REQUIRE(p != nullptr);
+
+        // Now test getNodePath
+        std::string nodePath = translator.getNodePath(p);
+        REQUIRE(nodePath == "/html/body/div/p");
+
+        xmlFreeDoc(doc);
+    }
+
+    SECTION("Negative Case: Null node") {
+        TestableHTMLTranslator translator;
+        std::string path = translator.getNodePath(nullptr);
+        REQUIRE(path.empty()); // Should return an empty string or some sensible default
+    }
+}
+
+TEST_CASE("HTMLTranslator::escapeForHtml") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Special characters") {
+        std::string input = R"(<&>"')";
+        std::string expected = "&lt;&amp;&gt;&quot;&apos;";
+        std::string output = translator.escapeForHtml(input);
+        REQUIRE(output == expected);
+    }
+
+    SECTION("Positive Case: No special characters") {
+        std::string input = "Hello World!";
+        std::string output = translator.escapeForHtml(input);
+        // Should be unchanged
+        REQUIRE(output == "Hello World!");
+    }
+
+    SECTION("Negative Case: Empty string") {
+        std::string input = "";
+        std::string output = translator.escapeForHtml(input);
+        // Should return empty
+        REQUIRE(output.empty());
+    }
+}
+
+TEST_CASE("HTMLTranslator::escapeTranslations") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Multiple translations with special chars") {
+        std::unordered_multimap<std::string, std::string> translations {
+            {"/html/body/div/p", "<p>Paragraph</p>"},
+            {"/html/body/span",  "&amp; Ampersand"},
+            {"/html/body/b",     "\"Quote\""}
+        };
+
+        translator.escapeTranslations(translations);
+
+        // Check each transformation
+        auto range1 = translations.equal_range("/html/body/div/p");
+        REQUIRE(range1.first->second == "&lt;p&gt;Paragraph&lt;/p&gt;");
+
+        auto range2 = translations.equal_range("/html/body/span");
+        REQUIRE(range2.first->second == "&amp;amp; Ampersand");
+
+        auto range3 = translations.equal_range("/html/body/b");
+        REQUIRE(range3.first->second == "&quot;Quote&quot;");
+    }
+
+    SECTION("Negative Case: Empty map") {
+        std::unordered_multimap<std::string, std::string> translations;
+        REQUIRE_NOTHROW(translator.escapeTranslations(translations));
+        REQUIRE(translations.empty());
+    }
+}
+
+TEST_CASE("HTMLTranslator::saveTextToFile") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Normal usage") {
+        std::vector<TextNode> nodes {
+            {"/html/body/div", "Some text"},
+            {"/html/body/p",   "Another text"}
+        };
+
+        std::string positionFilename = "test_positions.txt";
+        std::string textFilename = "test_texts.txt";
+        std::string langcode = "en";
+
+        if (std::filesystem::exists(positionFilename)) { std::filesystem::remove(positionFilename); }
+        if (std::filesystem::exists(textFilename)) { std::filesystem::remove(textFilename); }
+
+        translator.saveTextToFile(nodes, positionFilename, textFilename, langcode);
+
+        REQUIRE(std::filesystem::exists(positionFilename));
+        REQUIRE(std::filesystem::exists(textFilename));
+
+        {
+            std::ifstream posFile(positionFilename);
+            REQUIRE(posFile.is_open());
+            std::string line;
+            std::getline(posFile, line);
+            REQUIRE(line.find("/html/body/div") != std::string::npos);
+            std::getline(posFile, line);
+            REQUIRE(line.find("/html/body/p") != std::string::npos);
+        }
+        {
+            std::ifstream txtFile(textFilename);
+            REQUIRE(txtFile.is_open());
+            std::string line;
+            std::getline(txtFile, line);
+            // Expect "1,>>en<< Some text"
+            REQUIRE(line.find(">>en<< Some text") != std::string::npos);
+            std::getline(txtFile, line);
+            REQUIRE(line.find(">>en<< Another text") != std::string::npos);
+        }
+
+        std::filesystem::remove(positionFilename);
+        std::filesystem::remove(textFilename);
+    }
+
+    SECTION("Negative Case: Unable to open files") {
+        std::vector<TextNode> nodes {
+            {"/html/body/div", "Some text"}
+        };
+
+        // For demonstration, pass empty strings to cause open failure
+        REQUIRE_NOTHROW(translator.saveTextToFile(nodes, "", "", "en"));
+        // The function should not throw, but it will log an error internally.
+    }
+}
+
+TEST_CASE("HTMLTranslator::loadTranslations") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Positive Case: Matching counters") {
+        std::string positionFilename = "test_positions.txt";
+        std::string textFilename = "test_texts.txt";
+
+        {
+            std::ofstream posFile(positionFilename);
+            std::ofstream txtFile(textFilename);
+
+            posFile << "1,/html/body/div\n";
+            posFile << "2,/html/body/p\n";
+
+            txtFile << "1,Translated Div\n";
+            txtFile << "2,Translated P\n";
+        }
+
+        std::unordered_multimap<std::string, std::string> translations = translator.loadTranslations(positionFilename, textFilename);
+
+        REQUIRE(translations.size() == 2);
+        auto range1 = translations.equal_range("/html/body/div");
+        REQUIRE(range1.first->second == "Translated Div");
+
+        auto range2 = translations.equal_range("/html/body/p");
+        REQUIRE(range2.first->second == "Translated P");
+
+        std::filesystem::remove(positionFilename);
+        std::filesystem::remove(textFilename);
+    }
+
+    SECTION("Positive Case: Additional lines in text file (still matching counters)") {
+        std::string positionFilename = "test_positions.txt";
+        std::string textFilename = "test_texts.txt";
+
+        {
+            std::ofstream posFile(positionFilename);
+            std::ofstream txtFile(textFilename);
+
+            posFile << "1,/html/body/div\n";
+            txtFile << "1,Translated Div\n";
+            txtFile << "2,Orphan line\n";
+        }
+
+        std::unordered_multimap<std::string, std::string> translations = translator.loadTranslations(positionFilename, textFilename);
+        REQUIRE(translations.size() == 1);
+        auto range = translations.equal_range("/html/body/div");
+        REQUIRE(range.first->second == "Translated Div");
+
+        std::filesystem::remove(positionFilename);
+        std::filesystem::remove(textFilename);
+    }
+
+    SECTION("Negative Case: Mismatched counters") {
+        std::string positionFilename = "test_positions.txt";
+        std::string textFilename = "test_texts.txt";
+
+        {
+            std::ofstream posFile(positionFilename);
+            std::ofstream txtFile(textFilename);
+
+            posFile << "1,/html/body/div\n";
+            txtFile << "2,Translated Div\n";
+        }
+
+        std::unordered_multimap<std::string, std::string> translations = translator.loadTranslations(positionFilename, textFilename);
+        // Should be empty, because we have mismatch
+        REQUIRE(translations.empty());
+
+        std::filesystem::remove(positionFilename);
+        std::filesystem::remove(textFilename);
+    }
+
+    SECTION("Negative Case: Files do not exist") {
+        std::string nonExistentPos = "does_not_exist_pos.txt";
+        std::string nonExistentTxt = "does_not_exist_txt.txt";
+
+        // Attempt to load from non-existent files
+        std::unordered_multimap<std::string, std::string> translations = translator.loadTranslations(nonExistentPos, nonExistentTxt);
+        REQUIRE(translations.empty());
+    }
+}
+
+TEST_CASE("reinsertTranslations test with multiple sections") {
+    TestableHTMLTranslator translator;
+
+    SECTION("Updates text node with translation") {
+        // Create document manually: <root><child>Original</child></root>
+        xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
+        xmlNodePtr root = xmlNewNode(nullptr, BAD_CAST "root");
+        xmlDocSetRootElement(doc, root);
+        xmlNodePtr child = xmlNewChild(root, nullptr, BAD_CAST "child", BAD_CAST "Original");
+
+        // Get the text node (child's child).
+        xmlNodePtr textNode = child->children;
+        // Obtain the node path.
+        std::string nodePath = translator.getNodePath(textNode);
+
+        // Set up a translation mapping for that node path.
+        std::unordered_multimap<std::string, std::string> translations;
+        translations.insert({ nodePath, "Translated" });
+
+        // Call reinsertTranslations.
+        translator.reinsertTranslations(root, translations);
+
+        // Verify that the text node's content was updated.
+        xmlChar* content = xmlNodeGetContent(textNode);
+        std::string updatedContent(reinterpret_cast<char*>(content));
+        xmlFree(content);
+        REQUIRE(updatedContent == "Translated");
+
+        xmlFreeDoc(doc);
+    }
+
+    SECTION("Cycles translations for multiple nodes with same path") {
+        // Create document manually:
+        // <root>
+        //   <child>First</child>
+        //   <child>Second</child>
+        // </root>
+        xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
+        xmlNodePtr root = xmlNewNode(nullptr, BAD_CAST "root");
+        xmlDocSetRootElement(doc, root);
+        // First child.
+        xmlNodePtr child1 = xmlNewChild(root, nullptr, BAD_CAST "child", BAD_CAST "First");
+        // Second child.
+        xmlNodePtr child2 = xmlNewChild(root, nullptr, BAD_CAST "child", BAD_CAST "Second");
+
+        // Get text nodes.
+        xmlNodePtr textNode1 = child1->children;
+        xmlNodePtr textNode2 = child2->children;
+        // Their node paths should be identical.
+        std::string path1 = translator.getNodePath(textNode1);
+        std::string path2 = translator.getNodePath(textNode2);
+        REQUIRE(path1 == path2);
+
+        // Set up two translations for the same node path.
+        std::unordered_multimap<std::string, std::string> translations;
+        translations.insert({ path1, "First translated" });
+        translations.insert({ path1, "Second translated" });
+
+        // Call reinsertTranslations.
+        translator.reinsertTranslations(root, translations);
+
+        // Verify that the translations are cycled correctly.
+        xmlChar* content1 = xmlNodeGetContent(textNode1);
+        xmlChar* content2 = xmlNodeGetContent(textNode2);
+        std::string updated1(reinterpret_cast<char*>(content1));
+        std::string updated2(reinterpret_cast<char*>(content2));
+        xmlFree(content1);
+        xmlFree(content2);
+        REQUIRE(updated1 == "First translated");
+        REQUIRE(updated2 == "Second translated");
+
+        xmlFreeDoc(doc);
+    }
+
+    SECTION("Handles null root gracefully") {
+        // Prepare an empty translations map.
+        std::unordered_multimap<std::string, std::string> translations;
+
+        // Capture standard error output.
+        std::stringstream errStream;
+        std::streambuf* oldCerrStreamBuf = std::cerr.rdbuf();
+        std::cerr.rdbuf(errStream.rdbuf());
+
+        // Call reinsertTranslations with a null root.
+        translator.reinsertTranslations(nullptr, translations);
+
+        // Restore std::cerr.
+        std::cerr.rdbuf(oldCerrStreamBuf);
+        std::string errOutput = errStream.str();
+
+        // Verify that an error message was printed.
+        REQUIRE(errOutput.find("Error: HTML root node is null.") != std::string::npos);
+    }
+
+    SECTION("Does not modify text when no translation is available") {
+        // Create document manually: <root><child>Original</child></root>
+        xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
+        xmlNodePtr root = xmlNewNode(nullptr, BAD_CAST "root");
+        xmlDocSetRootElement(doc, root);
+        xmlNodePtr child = xmlNewChild(root, nullptr, BAD_CAST "child", BAD_CAST "Original");
+
+        // Get the text node.
+        xmlNodePtr textNode = child->children;
+        std::string originalContent = "Original";
+
+        // Provide an empty translations map.
+        std::unordered_multimap<std::string, std::string> translations;
+
+        // Call reinsertTranslations.
+        translator.reinsertTranslations(root, translations);
+
+        // Verify that the text content remains unchanged.
+        xmlChar* content = xmlNodeGetContent(textNode);
+        std::string updatedContent(reinterpret_cast<char*>(content));
+        xmlFree(content);
+        REQUIRE(updatedContent == originalContent);
+
+        xmlFreeDoc(doc);
+    }
 }
