@@ -2229,6 +2229,45 @@ TEST_CASE("HTMLTranslator::extractTextNodes") {
         xmlFreeDoc(doc);
     }
 
+    SECTION("Positive Case: HTML with Formatting Tags") {
+        std::string htmlStr = R"(
+            <html>
+              <body>
+                <p>This is <b>bold</b> and <i>italic</i> text.</p>
+              </body>
+            </html>
+        )";
+    
+        // Create an in-memory HTML doc
+        htmlDocPtr doc = htmlReadMemory(htmlStr.c_str(), static_cast<int>(htmlStr.size()), "testDoc", nullptr, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+        REQUIRE(doc != nullptr);
+    
+        // Get root node
+        xmlNodePtr root = xmlDocGetRootElement(doc);
+        REQUIRE(root != nullptr);
+    
+        // Extract text nodes
+        std::vector<TextNode> textNodes = translator.extractTextNodes(root);
+    
+        // We expect three text nodes: "This is ", "bold", and " and ", then "italic", then " text."
+        REQUIRE(textNodes.size() == 5);
+        REQUIRE(textNodes[0].text == "This is ");
+        REQUIRE(textNodes[1].text == "bold");
+        REQUIRE(textNodes[2].text == " and ");
+        REQUIRE(textNodes[3].text == "italic");
+        REQUIRE(textNodes[4].text == " text.");
+    
+
+        // Print out the extracted nodes for debugging
+        for (const auto& node : textNodes) {
+            std::cout << "Node: " << node.text << std::endl;
+        }
+
+        // Free the document
+        xmlFreeDoc(doc);
+    }
+    
+
     SECTION("Negative Case: Null root") {
         // If we pass a null root, we should get an empty vector
         std::vector<TextNode> textNodes = translator.extractTextNodes(nullptr);
