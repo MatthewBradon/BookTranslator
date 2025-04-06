@@ -2228,7 +2228,7 @@ TEST_CASE("HTMLTranslator::extractTextNodes") {
         // Free doc in-line without helper:
         xmlFreeDoc(doc);
     }
-
+  
     SECTION("Positive Case: HTML with Formatting Tags") {
         std::string htmlStr = R"(
             <html>
@@ -2256,17 +2256,10 @@ TEST_CASE("HTMLTranslator::extractTextNodes") {
         REQUIRE(textNodes[2].text == " and ");
         REQUIRE(textNodes[3].text == "italic");
         REQUIRE(textNodes[4].text == " text.");
-    
-
-        // Print out the extracted nodes for debugging
-        for (const auto& node : textNodes) {
-            std::cout << "Node: " << node.text << std::endl;
-        }
-
+      
         // Free the document
         xmlFreeDoc(doc);
     }
-    
 
     SECTION("Negative Case: Null root") {
         // If we pass a null root, we should get an empty vector
