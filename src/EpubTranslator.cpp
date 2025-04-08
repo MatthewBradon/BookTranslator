@@ -107,9 +107,6 @@ std::vector<std::string> EpubTranslator::extractIdrefs(const std::string& spineC
 
     for (auto it = begin; it != end; ++it) {
         std::string idref = (*it)[1].str();
-        // if (idref.find(".xhtml") == std::string::npos) {
-        //     idref += ".xhtml";
-        // }
         idrefs.push_back(idref);
     }
     return idrefs;
@@ -209,17 +206,7 @@ std::vector<std::pair<std::string, std::string>> EpubTranslator::extractManifest
 
         // Extract href attribute
         if (std::regex_search(item, hrefMatch, hrefPattern)) {
-            href = hrefMatch[1].str();
-            // // Find the last occurence of . get the substring for the file extention check if its html change it to xhtml
-            // std::string hrefTemp = hrefMatch[1].str();
-
-            // if(hrefTemp.substr(hrefTemp.find_last_of(".") + 1) == "html") {
-            //     href = hrefTemp.substr(0, hrefTemp.find_last_of(".")) + ".xhtml";
-            // } else {
-            //     href = hrefTemp;
-            // }
-
-            
+            href = hrefMatch[1].str();            
         }
 
         // Ensure both id and href are found before adding to the mapping
@@ -240,21 +227,20 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
 {
     std::vector<std::string> manifest, spine;
 
-    // Step 1: Concatenate the content into a single string.
-    // Note: If you actually want newlines preserved, use "combinedContent += line + '\n';" instead.
+    // Concatenate the content into a single string.
     std::string combinedContent;
     for (const auto& line : content) {
         combinedContent += line;  // Removes newlines
     }
 
-    // Step 2: Regex patterns to extract the entire <manifest>...</manifest> and <spine>...</spine> blocks.
+    // Regex patterns to extract the entire <manifest>...</manifest> and <spine>...</spine> blocks.
     std::regex manifestBlockPattern(R"(<manifest\b[^>]*>([\s\S]*?)</manifest>)");
     std::regex spineBlockPattern(R"(<spine\b[^>]*>([\s\S]*?)</spine>)");
     std::regex tagPattern(R"(<[^>]+>)");  // Matches any XML/HTML tag
 
     std::smatch match;
 
-    // Step 3: Extract and parse the <manifest> block.
+    // Extract and parse the <manifest> block.
     if (std::regex_search(combinedContent, match, manifestBlockPattern)) {
         manifest.push_back("\n<manifest>\n");  // Add opening tag
 
@@ -269,7 +255,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> EpubTranslator::pa
         manifest.push_back("\n</manifest>\n");  // Add closing tag
     }
 
-    // Step 4: Extract and parse the <spine> block.
+    // Extract and parse the <spine> block.
     if (std::regex_search(combinedContent, match, spineBlockPattern)) {
         spine.push_back("\n<spine>\n");  // Add opening tag
 
@@ -362,7 +348,7 @@ std::vector<std::string> EpubTranslator::updateSpine(const std::vector<std::stri
 
 
 void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentOpfPath) {
-    // Step 1: Read the entire file into a single string
+    // Read the entire file into a single string
     std::ifstream inputFile(contentOpfPath);
     if (!inputFile.is_open()) {
         std::cerr << "Failed to open content.opf file!" << "\n";
@@ -374,13 +360,13 @@ void EpubTranslator::removeSection0001Tags(const std::filesystem::path& contentO
     std::string content = buffer.str();
     inputFile.close();
 
-    // Step 2: Regex to match tags containing "Section0001.xhtml"
+    // Regex to match tags containing "Section0001.xhtml"
     std::regex sectionRegex(R"(<[^>]*Section0001\.xhtml[^>]*>)");
 
-    // Step 3: Remove all matching tags
+    // Remove all matching tags
     content = std::regex_replace(content, sectionRegex, "");
 
-    // Step 4: Write the modified content back to the file
+    // Write the modified content back to the file
     std::ofstream outputFile(contentOpfPath);
     if (!outputFile.is_open()) {
         std::cerr << "Failed to open content.opf file for writing!" << "\n";
@@ -476,7 +462,6 @@ bool EpubTranslator::make_directory(const std::filesystem::path& path) {
 
         // Check if the directory already exists
         if (std::filesystem::exists(path)) {
-            // std::cerr << "Directory already exists: " << path << "\n";
             return true;
         }
         // Use create_directories to create the directory and any necessary parent directories
@@ -698,7 +683,7 @@ void EpubTranslator::replaceFullWidthSpaces(xmlNodePtr node) {
         textContent.replace(pos, fullWidthSpace.length(), normalSpace);
         pos += normalSpace.length();
     }
-    // Update the node's content with the modified text
+    // Update the nodes content with the modified text
     xmlNodeSetContent(node, reinterpret_cast<const xmlChar*>(textContent.c_str()));
 }
 
@@ -1191,8 +1176,6 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
         std::string chapterPath = "testHTML/" + std::to_string(i) + ".html";
 
-        // return 0;
-
         std::string uploadResult = uploadDocumentToDeepL(chapterPath, deepLKey);
 
         if (uploadResult.empty()) {
@@ -1322,7 +1305,7 @@ int EpubTranslator::handleDeepLRequest(const std::vector<tagData>& bookTags, con
 
 
 
-    //Start the multiprocessing translaton
+    // Start the translaton
     std::filesystem::path translationExe;
     std::string chapterNumberMode = "0";
     #if defined(__APPLE__)
@@ -1767,7 +1750,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         newSectionFile << Section001Content;
         newSectionFile.close();
     }
-    //Remove Section001.xhtml
+    // Remove Section001.xhtml
     std::filesystem::remove(Section001Path);
 
     std::cout << "After duplicate Section001.xhtml" << "\n";
@@ -1819,7 +1802,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
             std::cout << "Chapter cleaned: " << xhtmlFile.string() << "\n";
     }
 
-    //Extract all of the relevant tags
+    // Extract all of the relevant tags
     std::vector<tagData> bookTags = extractTags(spineOrderXHTMLFiles);
 
     if (bookTags.empty()) {
@@ -1881,7 +1864,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
     
     std::string chapterNumberMode = "0";
     
-    //Start the multiprocessing translaton
+    // Start the translaton
     std::filesystem::path translationExe;
 
     #if defined(__APPLE__)
@@ -2029,7 +2012,7 @@ int EpubTranslator::run(const std::string& epubToConvert, const std::string& out
         }
     }
 
-    //Write out to the template EPUB
+    // Write out to the template EPUB
     std::string htmlHeader = R"(<?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE html>
     <html xmlns="http://www.w3.org/1999/xhtml">

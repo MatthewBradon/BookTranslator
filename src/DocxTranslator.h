@@ -31,16 +31,6 @@
 #endif
 
 
-// struct TextNode {
-//     std::string path;
-//     std::string text;
-// };
-
-// struct DocumentInfo {
-//     std::string id;
-//     std::string key;
-// };
-
 class DocxTranslator : public Translator {
 public:
     int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode);

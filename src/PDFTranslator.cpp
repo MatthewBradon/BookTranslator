@@ -46,7 +46,6 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
     }
 
     std::filesystem::path currentDirPath = std::filesystem::current_path();
-    std::cout << "Hello from PDFTranslator!\n";
 
 
     // Convert the PDF to images
@@ -79,14 +78,14 @@ int PDFTranslator::run(const std::string& inputPath, const std::string& outputPa
             }
 
             // Write each sentence to the file with a corresponding number
-            // for (size_t i = 0; i < sentences.size(); ++i) {
-            //     outputFile << sentences[i] << "\n";
-            // }
-
-            // Test writing to the file limit the number of sentences
-            for (size_t i = 0; i < 5; ++i) {
+            for (size_t i = 0; i < sentences.size(); ++i) {
                 outputFile << sentences[i] << "\n";
             }
+
+            // // Test writing to the file limit the number of sentences
+            // for (size_t i = 0; i < 5; ++i) {
+            //     outputFile << sentences[i] << "\n";
+            // }
             
 
             outputFile.close();
@@ -525,7 +524,7 @@ std::vector<std::string> PDFTranslator::splitLongSentences(const std::string& se
             currentChunk.clear();
 
         } else {
-            // Just a normal character: append to currentChunk
+            // Just a normal character append to currentChunk
             std::string nextChar = sentence.substr(i, charLen);
             currentChunk += nextChar;
             i += charLen;
@@ -794,10 +793,9 @@ void PDFTranslator::addTextToPdf(cairo_t* cr, cairo_surface_t* surface, const st
 
     std::string line;
     while (std::getline(infile, line)) {
-        // Assuming format: number,text
         size_t comma_pos = line.find(',');
         if (comma_pos == std::string::npos) {
-            // If no comma found, skip or handle differently
+            // If no comma found skip
             continue;
         }
 
@@ -860,18 +858,17 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
     }
     
     
-    // Page dimensions in points (A4: 612x792 points)
     const double page_width = 612.0;
     const double page_height = 792.0;
-    const double margin = 72.0;       // 1 inch
-    const double line_spacing = 2.0;  // Adjust as needed
+    const double margin = 72.0;
+    const double line_spacing = 2.0;
     const double font_size = 12.0;
     const std::string font_family = "Helvetica";
 
-    // 1. Initialize Cairo PDF surface
+    // Initialize Cairo PDF surface
     auto [surface, cr] = initCairoPdfSurface(output_file, page_width, page_height);
 
-    // 2. Collect and add images
+    // Collect and add images
     std::vector<std::string> image_files = collectImageFiles(images_dir);
     bool has_images = addImagesToPdf(cr, surface, image_files);
 
@@ -880,11 +877,11 @@ void PDFTranslator::createPDF(const std::string &output_file, const std::string 
         cairo_pdf_surface_set_size(surface, page_width, page_height);
     }
 
-    // 3. Configure text rendering and add text
+    // Configure text rendering and add text
     configureTextRendering(cr, font_family, font_size);
     addTextToPdf(cr, surface, input_file, page_width, page_height, margin, line_spacing, font_size);
 
-    // 4. Cleanup
+    // Cleanup
     cleanupCairo(cr, surface);
 
     std::cout << "PDF created with images first: " << output_file << std::endl;
@@ -947,7 +944,7 @@ std::string PDFTranslator::uploadDocumentToDeepL(const std::string& filePath, co
     }
     curl_global_cleanup();
 
-    // Assuming the response contains document_id and document_key, extract them
+    // Extract document_id and document_key from the response
     try {
         std::cout << "Document upload response: " << response_string << std::endl;
         nlohmann::json jsonResponse = nlohmann::json::parse(response_string);

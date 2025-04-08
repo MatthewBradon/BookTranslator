@@ -44,6 +44,7 @@ protected:
     std::vector<const char*> languageNamesCStr;
     std::string sourceLanguageCode;
     bool showWarning = false;
+    bool invalidInput = false;
     void setCustomDarkStyle();
     void setCustomLightStyle();
     void renderMenuBar();

@@ -8,18 +8,17 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
         return 1;
     }
 
-    // Start timing.
+    // Start timer
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Parse the HTML file.
-    htmlDocPtr doc = htmlReadFile(inputPath.c_str(), nullptr,
-                                  HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
+    // Parse the HTML file
+    htmlDocPtr doc = htmlReadFile(inputPath.c_str(), nullptr, HTML_PARSE_RECOVER | HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
     if (doc == nullptr) {
         std::cerr << "Failed to parse HTML file: " << inputPath << std::endl;
         return 1;
     }
 
-    // Get the root element.
+    // Get the root element
     xmlNodePtr root = xmlDocGetRootElement(doc);
     if (!root) {
         std::cerr << "HTML document is empty: " << inputPath << std::endl;
@@ -27,15 +26,15 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
         return 1;
     }
 
-    // Extract text nodes.
+    // Extract text nodes
     std::vector<TextNode> textNodes = extractTextNodes(root);
 
-    // Save extracted texts and their positions.
+    // Save extracted texts and their positions
     std::string textFilePath = "extracted_text.txt";
     std::string positionFilePath = "position_tags.txt";
     saveTextToFile(textNodes, positionFilePath, textFilePath, langcode);
 
-    // Call an external translation executable.
+    // Call an external translation executable
     std::filesystem::path translationExe;
 #if defined(__APPLE__)
     translationExe = "translation";
@@ -60,7 +59,7 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
         boost::process::child c(
             translationExePath,
             textFilePath,
-            "1", // chapterNumberMode or similar parameter.
+            "1", // chapter_num_mode
             boost::process::std_out > pipe_stdout,
             boost::process::std_err > pipe_stderr,
             boost::process::windows::hide
@@ -69,7 +68,7 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
         boost::process::child c(
             translationExePath,
             textFilePath,
-            "1", // chapterNumberMode.
+            "1", // chapter_num_mode
             boost::process::std_out > pipe_stdout,
             boost::process::std_err > pipe_stderr
         );
@@ -100,16 +99,11 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
     }
     std::cout << "After call to translation executable" << std::endl;
 
-    // Load translations produced by the translation process.
+    // Load translations produced by the translation process
     std::unordered_multimap<std::string, std::string> translations = loadTranslations(positionFilePath, "translatedTags.txt");
     escapeTranslations(translations);
 
-    // (Optional) Print translations for debugging.
-    for (const auto& [path, text] : translations) {
-        std::cout << path << " -> " << text << std::endl;
-    }
-
-    // Reinsert translations into the HTML document.
+    // Reinsert translations into the HTML document
     try {
         reinsertTranslations(root, translations);
     } catch (const std::exception& ex) {
@@ -127,7 +121,7 @@ int HTMLTranslator::run(const std::string& inputPath, const std::string& outputP
     
     std::cout << "Modified HTML document saved to: " << outputFilePath << std::endl;
 
-    // Cleanup temporary files.
+    // Cleanup temporary files
     std::filesystem::remove(positionFilePath);
     std::filesystem::remove(textFilePath);
     std::filesystem::remove("translatedTags.txt");
@@ -153,7 +147,7 @@ void HTMLTranslator::extractTextNodesRecursive(xmlNode* node, std::vector<TextNo
             xmlChar* content = xmlNodeGetContent(node);
             if (content && xmlStrlen(content) > 0) {
                 std::string text(reinterpret_cast<const char*>(content));
-                // Skip text that is only whitespace.
+                // Skip text that is only whitespace
                 if (text.find_first_not_of(" \t\n\r") != std::string::npos) {
                     nodes.push_back({ getNodePath(node), text });
                 }
@@ -176,9 +170,7 @@ std::string HTMLTranslator::getNodePath(xmlNode* node) {
 }
 
 
-void HTMLTranslator::traverseAndReinsert(xmlNode* node,
-    std::unordered_multimap<std::string, std::string>& translations,
-    std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator>& lastUsed)
+void HTMLTranslator::traverseAndReinsert(xmlNode* node, std::unordered_multimap<std::string, std::string>& translations, std::unordered_map<std::string, std::unordered_multimap<std::string, std::string>::iterator>& lastUsed)
 {
     for (; node; node = node->next) {
         if (node->type == XML_TEXT_NODE) {
@@ -225,9 +217,9 @@ void HTMLTranslator::saveTextToFile(const std::vector<TextNode>& nodes, const st
     }
     int counterNum = 1;
     for (const auto& node : nodes) {
-        // Save the node path along with a counter.
+        // Save the node path along with a counter
         positionFile << counterNum << "," << node.path << "\n";
-        // Save the text with the language code tag.
+        // Save the text with the language code tag
         textFile << counterNum << ",>>" << langcode << "<< " << node.text << "\n";
         ++counterNum;
     }
