@@ -95,7 +95,7 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
 
     std::string chapterNumberMode = "1";
     
-    //Start the multiprocessing translaton
+    // Start the translaton
     std::filesystem::path translationExe;
 
     #if defined(__APPLE__)
@@ -206,7 +206,7 @@ int DocxTranslator::run(const std::string& inputPath, const std::string& outputP
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Time taken: " << elapsed.count() << "s" << "\n";
 
-    // // Cleanup
+    // Cleanup
     std::filesystem::remove_all(unzippedPath);
     std::filesystem::remove(positionFilePath);
     std::filesystem::remove(textFilePath);
@@ -220,7 +220,6 @@ bool DocxTranslator::make_directory(const std::filesystem::path& path) {
 
         // Check if the directory already exists
         if (std::filesystem::exists(path)) {
-            // std::cerr << "Directory already exists: " << path << "\n";
             return true;
         }
         // Use create_directories to create the directory and any necessary parent directories

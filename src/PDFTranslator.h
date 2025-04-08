@@ -30,13 +30,11 @@
 
 class PDFTranslator : public Translator {
 public:
-    // Implement the run method from the Translator interface
     int run(const std::string& inputPath, const std::string& outputPath, int localModel, const std::string& deepLKey, std::string langcode);
     static size_t writeCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 
 protected:
-    // Private helper methods
     std::string removeWhitespace(const std::string& input);
     void extractTextFromPDF(const std::string& pdfFilePath, const std::string& outputFilePath);
     std::vector<std::string> processAndSplitText(const std::string& inputFilePath, size_t maxLength);

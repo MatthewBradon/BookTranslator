@@ -137,8 +137,8 @@ void GUI::update(std::ostringstream& logStream) {
 
     
     if (inputFileStr.substr(inputFileStr.find_last_of(".") + 1) == "html" && localModel == 1) {
-        showWarning = true;            // We want to show the modal
-        localModel = 0;                // Force fallback to "0" translator
+        showWarning = true; // We want to show the modal
+        localModel = 0; // Force fallback to "0" translator
     }
 
     // Show warning modal if needed
@@ -167,6 +167,54 @@ void GUI::update(std::ostringstream& logStream) {
         // Ensure previous thread is joined before starting a new one
         if (workerThread.joinable()) {
             workerThread.join(); // Wait for previous thread to complete before launching a new one
+        }
+
+        // Check if the output path exists
+        std::filesystem::path outputPathStr(outputPath);
+        if (!std::filesystem::exists(outputPathStr)) {
+            std::cout << "Output path does not exist: " << outputPathStr.string() << std::endl;
+
+            invalidInput = true;
+        }
+
+        // Check if the input file exists
+        std::filesystem::path inputFilePath(inputFile);
+        if (!std::filesystem::exists(inputFilePath)) {
+            std::cout << "Input file does not exist: " << inputFilePath.string() << std::endl;
+
+            invalidInput = true;
+        }
+        // Check if the input file is a valid EPUB/PDF/DOCX/HTML file
+        std::string fileExtension = inputFileStr.substr(inputFileStr.find_last_of(".") + 1);
+
+        std::vector<std::string> supportedFiles = { "epub", "pdf", "docx", "html" };
+
+
+        // Check if the output path is a directory
+        if (!std::filesystem::is_directory(outputPathStr)) {
+            std::cout << "Output path is not a directory: " << outputPathStr.string() << std::endl;
+
+            invalidInput = true;
+        }
+
+        // Check if the input file is a directory
+        if (std::filesystem::is_directory(inputFilePath)) {
+            std::cout << "Input file is a directory: " << inputFilePath.string() << std::endl;
+
+            invalidInput = true;
+        } else if (std::find(supportedFiles.begin(), supportedFiles.end(), fileExtension) == supportedFiles.end()) { // Check if the file extension is supported
+            std::cout << "Unsupported file type: " << fileExtension << std::endl;
+            
+            invalidInput = true;
+        }
+
+
+        if (invalidInput) {
+            std::cout << "Please check your inputs and retry." << std::endl;
+            running = false; // Reset the running flag
+            finished = true; // Mark as finished
+            invalidInput = false; // Reset the invalid input flag
+            return;
         }
 
         // Start the worker thread
